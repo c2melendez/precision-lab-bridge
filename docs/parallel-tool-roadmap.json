@@ -202,7 +202,7 @@
     {
       "id": "O3",
       "title": "Incorporar operación protegida de solicitud de despacho en Observer",
-      "status": "in_progress",
+      "status": "partially_completed",
       "active": true,
       "blocked_by": [],
       "steps": [
@@ -215,7 +215,7 @@
     {
       "id": "O4",
       "title": "Separar scopes y endurecer identidad Observer→Bridge",
-      "status": "in_progress",
+      "status": "partially_completed",
       "active": false,
       "blocked_by": [],
       "steps": [
@@ -312,7 +312,7 @@
       "draft": false,
       "head_sha": "6e712094a7e4b06a13224f66d6f3a6c26f991152",
       "ci_run_id": "41064924977",
-      "ci_status": "queued",
+      "ci_status": "success",
       "last_code_ci_sha": "3e41ad35987e96aa1989460062466a987bc6921a",
       "last_code_ci_run_id": "41064616724",
       "last_code_ci_status": "success"
@@ -322,10 +322,10 @@
       "number": 1,
       "state": "open",
       "draft": false,
-      "head_sha": "9509b75fc876f7f2ba1de0b0cf9d4c8558c6aeb5",
-      "ci_run_id": "41064885103",
+      "head_sha": "99a439c11726e8d4424b48f43d74a11508848366",
+      "ci_run_id": "41065225032",
       "ci_head_sha": "4c2d22172d59fac0b76b95cc880c77c74ba90bcf",
-      "ci_status": "in_progress",
+      "ci_status": "success",
       "last_code_ci_sha": "40371c903232a4a1e3226176c92f09c3d6c2e96f",
       "last_code_ci_run_id": "41064782173",
       "last_code_ci_status": "success"
@@ -358,27 +358,32 @@
     }
   ],
   "deployment_reconciliation": {
-    "observed_at": "2026-10-30",
+    "observed_at": "2026-10-30T13:52:00Z",
     "observer_staging": {
       "service_id": "srv-dbi7avgae00c73be7ns0",
-      "deploy_id": "dep-dbi88lbbc2fs73acq2kg",
+      "deploy_id": "dep-dbia1b9srm7s73dltcpg",
       "deploy_status": "live",
-      "deployed_commit": "aff31b6966baa32f980fb0d2ec8f9c8f93ec09e4",
+      "deployed_commit": "6e712094a7e4b06a13224f66d6f3a6c26f991152",
       "current_pr_head": "6e712094a7e4b06a13224f66d6f3a6c26f991152",
       "auto_deploy": false,
-      "bridge_route_proven_on_deployed_commit": true,
-      "github_read_token_presence": "not_verified"
+      "bridge_route_proven_on_deployed_commit": false,
+      "github_read_token_presence": "not_verified",
+      "bridge_dispatch_key_configured": true,
+      "ci_run_id": "41064924977",
+      "ci_status": "success"
     },
     "bridge": {
       "service_id": "srv-dbi5b8ss728c73ccvjbg",
-      "deploy_id": "dep-dbi5jc8ae00c73b9tnvg",
+      "deploy_id": "dep-dbia0bm7bikc73aijvn0",
       "deploy_status": "live",
-      "deployed_commit": "fec4dd1448b0385f98565725276b235ddc0821a2",
-      "current_pr_head": "9509b75fc876f7f2ba1de0b0cf9d4c8558c6aeb5",
+      "deployed_commit": "99a439c11726e8d4424b48f43d74a11508848366",
+      "current_pr_head": "99a439c11726e8d4424b48f43d74a11508848366",
       "auto_deploy": false,
-      "receipt_status_get_proven": true
+      "receipt_status_get_proven": true,
+      "ci_run_id": "41065225032",
+      "ci_status": "success"
     },
-    "implication": "La prueba HTTP A acredita la lectura Bridge contra los commits desplegados, no el despliegue de los HEAD actuales ni la superficie GitHub completa de Observador. GITHUB_READ_TOKEN de staging no está confirmado; sin él, status/plan/run evidence no podrán consultar GitHub."
+    "implication": "Los HEAD actuales de Bridge y Observer están desplegados y LIVE en staging. CI de ambos HEADs pasó. La clave dispatch-only está activa/configurada, pero no hay uso ni request POST, no existe fila de idempotencia nueva y no se ha creado workflow. O6 sigue pendiente; no se confunde LIVE/CI SUCCESS con E2E ni PASS matemático."
   },
   "supabase_runtime_snapshot": {
     "project_id": "umxtvefdcjwkiqsubfpb",
@@ -391,7 +396,7 @@
       "20261030133052"
     ],
     "table_counts": {
-      "bridge_keys": 1,
+      "bridge_keys": 2,
       "bridge_runs": 1,
       "bridge_calls": 2,
       "bridge_idempotency": 0
@@ -409,8 +414,19 @@
       ]
     },
     "key_value_or_hash_read": false,
-    "interpretation": "Existing staging key remains read-only. Bridge scopes schema and enforcement are implemented; a separate dispatch-only key has not yet been created/configured. No deploy of current PR heads or dispatch E2E has been completed.",
+    "interpretation": "Existing read key remains read-only. A separate dispatch-only staging key is active and configured on Observer. No calls have been made with it; bridge_idempotency remains empty and bridge_runs contains only the historical receipt. No E2E dispatch has been executed.",
     "scopes_migration": "20261030133052_bridge_key_scopes",
-    "dispatch_key_status": "not_created_or_configured"
+    "dispatch_key_status": "active_configured_staging",
+    "dispatch_key_metadata": {
+      "id": "9f7affec-b6a7-4d8f-b0bd-629a778adfd9",
+      "label": "observer-staging-dispatch",
+      "scopes": [
+        "dispatch"
+      ],
+      "key_prefix": "plb_o-1qQS",
+      "expires_at_utc": "2026-11-06T13:50:27Z",
+      "configured_on_observer_as": "BRIDGE_DISPATCH_KEY",
+      "value_or_hash_read": false
+    }
   }
 }

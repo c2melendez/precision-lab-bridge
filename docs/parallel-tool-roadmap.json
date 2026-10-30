@@ -5,7 +5,7 @@
   "as_of": "2026-10-30",
   "language": "es",
   "status": "in_progress",
-  "summary": "Observer/Bridge mantienen cerradas las fases A/B. O5 tiene evidencia sólida de idempotencia Bridge en DB local y paridad del contrato Runner Lite/Plus; O6 sigue pendiente porque requiere un workflow_dispatch real y esta iteración excluyó el despacho real. O7 permanece bloqueado por O6. No deploy, merge ni activación de producción.",
+  "summary": "Fases A/B cerradas. El Certification Runner Lite/Plus tiene PASS_SCOPED para el camino push/no-dispatch: resolución canónica, checkout y fingerprint verificados en ambos repositorios. Los pasos de dispatch, espera, registro y persistencia se omitieron; no hay dispatch real. O5 sigue IN_PROGRESS porque falta la traza E2E Observer→Bridge→Actions→Runner y replay sin duplicación. O6 PENDING por la restricción vigente de no despachar; O7 PENDING. No merge, deploy ni producción.",
   "canonical_markdown": {
     "repo": "c2melendez/precision-lab-bridge",
     "branch": "hardening/secure-status-independent-runtime",
@@ -327,7 +327,11 @@
         "Observer PR #4 HEAD 6e712094a7e4b06a13224f66d6f3a6c26f991152, CI #41064924977 SUCCESS (29 tests): verifies authenticated dispatch route, live-plan gating, stale SHA/canonical branch rejection, separate dispatch-scoped credential, unchanged idempotency/validation/correlation fields, timeout as uncertain outcome, and read-scoped receipt reconciliation. These tests mock Bridge and do not dispatch.",
         "Runner Lite y Plus: contrato de workflow v2 equivalente en ramas canónicas; ambos aceptan target_repo=both, protegen dry_run, no despachan en push, resuelven rama canónica y bloquean security en Plus. Test file idéntico en ambos repositorios (blob ff5c499cb6eae8277279265a26a897ff982288a0); suites unittest de regresión 44/44 Lite y 63/63 Plus.",
         "Los runs de Runner por push terminaron SUCCESS, con Gate policy/dispatch SKIPPED y Push summary SUCCESS: no se inició ningún workflow matemático.",
-        "Pendiente para cerrar O5: flujo Observer→Bridge→Actions→Runner→evidencia matemática real y replay sin duplicación; los mocks no sustituyen esa trazabilidad E2E."
+        "Pendiente para cerrar O5: flujo Observer→Bridge→Actions→Runner→evidencia matemática real y replay sin duplicación; los mocks no sustituyen esa trazabilidad E2E.",
+        "Reconciliación r360 del Certification Runner en Lite: push run 41138509571 SUCCESS en SHA c8c29d820e5bd16ab4df8a528bcea9b4a72f8acc. Rama canónica resuelta desde README, checkout, BASE_SHA y fingerprint correctos; push summary SUCCESS. Gate policy, dry-run summary, detección/espera, dispatch, registro QA, persistencia y commit documental SKIPPED.",
+        "Reconciliación r360 del Certification Runner en Plus: push run 41136660038 SUCCESS en SHA 218d682848a03a000930e2028f057563847381f3. Mismos pasos de resolución canónica, checkout, BASE_SHA y fingerprint correctos; dispatch, espera, registro y persistencia SKIPPED.",
+        "Decisión Runner: PASS_SCOPED para evento push/no-dispatch en ambos repositorios. No acredita workflow_dispatch, gate dispatch, receipt durable, registro runner post-dispatch ni replay idempotente.",
+        "Los resultados de los gates matemáticos AS-EXP-02 Lite (CI 41138509410, cumulative 41138509481, H1d 41138509536) son evidencia del motor, no evidencia de dispatch del mecanismo paralelo."
       ],
       "exit_criteria": "Evidencia de pruebas demuestra no duplicación, reconciliación y trazabilidad request→receipt→Actions→Runner."
     },
@@ -346,7 +350,8 @@
       "steps": [
         "Pruebas locales/staging sin efectos externos están cubiertas por los CI y tests documentados en O5.",
         "No se ha invocado POST /v1/bridge/dispatch ni workflow_dispatch real; no se crea recibo enlazado a un nuevo Actions run en esta iteración.",
-        "La solicitud del usuario para esta iteración es mantener despacho real inactivo; O6 permanece pendiente y no se sustituye por dispatch directo ni por mocks."
+        "La solicitud del usuario para esta iteración es mantener despacho real inactivo; O6 permanece pendiente y no se sustituye por dispatch directo ni por mocks.",
+        "Corte r360: no se ejecutó workflow_dispatch real ni POST de Observer/Bridge, de acuerdo con el límite operativo vigente. Los runs push de Runner no generan receipt ni disparan gates. O6 permanece PENDING, no FAIL."
       ],
       "exit_criteria": "Validación end-to-end completa y trazable; repetición idempotente sin segundo workflow. dry_run=true cuenta como despacho real y se permite dentro del alcance general delegado cuando tests/policy lo habilitan."
     },
@@ -567,5 +572,47 @@
       "real_dispatch": "out_of_scope",
       "lite_plus_workflows": "not_dispatched"
     }
-  }
+  },
+  "runner_certification_r360": {
+    "status": "PASS_SCOPED_PUSH_ONLY",
+    "lite": {
+      "run_id": 41138509571,
+      "run_url": "https://github.com/c2melendez/precision-lab-lite/actions/runs/41138509571",
+      "sha": "c8c29d820e5bd16ab4df8a528bcea9b4a72f8acc",
+      "event": "push",
+      "conclusion": "success"
+    },
+    "plus": {
+      "run_id": 41136660038,
+      "run_url": "https://github.com/c2melendez/precision-lab-plus/actions/runs/41136660038",
+      "sha": "218d682848a03a000930e2028f057563847381f3",
+      "event": "push",
+      "conclusion": "success"
+    },
+    "verified": [
+      "canonical branch resolved from default README",
+      "canonical checkout",
+      "base SHA recorded",
+      "read-only gate fingerprint calculated",
+      "push summary"
+    ],
+    "skipped": [
+      "gate policy/workflow resolution",
+      "dry-run summary",
+      "active equivalent run detection/wait",
+      "workflow dispatch",
+      "QA receipt recording",
+      "continuity persistence",
+      "documentary commit"
+    ],
+    "not_proven": [
+      "workflow_dispatch path",
+      "gate dispatch and result wait",
+      "Observer→Bridge→Actions→Runner trace",
+      "durable receipt correlation",
+      "idempotent replay without duplicate workflow"
+    ],
+    "global_status": "OPEN"
+  },
+  "next_step": "Continue the mathematical certification in Lite at AS-EXP-03; keep Runner and Observer/Bridge status recorded independently. Do not dispatch real workflows, merge PRs, deploy or cut production unless separately authorized."
 }

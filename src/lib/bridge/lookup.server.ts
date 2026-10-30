@@ -77,11 +77,14 @@ export async function lookupRequest(key: string | null, idempotencyKey: string |
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(key));
   const keyHash = [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
   const { data: credential, error: keyError } = await supabaseAdmin.from("bridge_keys")
-    .select("id, expires_at, revoked_at").eq("key_hash", keyHash).maybeSingle();
+    .select("id, expires_at, revoked_at, scopes").eq("key_hash", keyHash).maybeSingle();
   if (keyError) return { status: 503, body: { error: "STATUS_STORE_UNAVAILABLE" } };
   const expiresAt = credential ? Date.parse(credential.expires_at) : NaN;
   if (!credential || credential.revoked_at || !Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
     return { status: 401, body: { error: "invalid, expired or revoked key" } };
+  }
+  if (!Array.isArray(credential.scopes) || !credential.scopes.includes("read")) {
+    return { status: 403, body: { error: "insufficient_scope", required_scope: "read" } };
   }
   if (!idempotencyKey || !/^[A-Za-z0-9._:-]{1,200}$/.test(idempotencyKey)) {
     return { status: 400, body: { error: "Idempotency-Key is required (1–200 letters, numbers, . _ : -)" } };

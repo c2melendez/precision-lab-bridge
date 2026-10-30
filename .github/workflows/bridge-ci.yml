@@ -165,6 +165,14 @@ jobs:
           $verify$;
           SQL
 
+      - name: Exercise all five RPCs against disposable database
+        shell: bash
+        run: |
+          set -euo pipefail
+          db_container="$(docker ps --format '{{.Names}}' | grep '^supabase_db_' | head -n 1)"
+          test -n "$db_container"
+          docker exec -i "$db_container" psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/bridge_rpc_functional.sql
+
       - name: Lint local database functions and schema
         run: supabase db lint --level warning --fail-on error
 

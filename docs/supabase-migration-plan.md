@@ -1,6 +1,23 @@
+## Implementation status — 2026-10-30
+
+The isolated Supabase project has been created and initialized:
+
+- Project: precision-lab-bridge-db
+- Project ref: umxtvefdcjwkiqsubfpb
+- Region: us-east-1; state: ACTIVE_HEALTHY
+- Creation quote: $0/month at creation time (not a promise about future billing).
+- Four migrations are applied and recorded: 20261030075859, 20261030075922, 20261030075926, and 20261030075930.
+- Source-controlled migration equivalents live under supabase/migrations/ and supabase/config.toml points to the new ref.
+- All four Bridge tables exist, have RLS enabled, and currently contain zero rows.
+- Verified: anon and authenticated cannot SELECT any Bridge table; service_role has SELECT/INSERT/UPDATE/DELETE. The five RPC functions are SECURITY INVOKER, use search_path=public, reject anon/authenticated execution, and allow service_role execution.
+- Default privileges for future public objects were tightened. Supabase Security Advisor reports four informational RLS Enabled No Policy findings; this is intentional because the tables are server-only and have no client policies.
+- No legacy records or key hashes have been imported. The source database remains untouched.
+
+This is a prepared database target, not yet connected to a deployed Bridge service. Do not switch the currently running Lovable/Render integration until the independent Bridge host is configured and its read-only connection test passes.
+
 # Supabase target and migration plan
 
-Status: planning only. No Supabase project has been created, no schema has been applied, and no data has been exported or imported.
+Status: isolated database and schema initialized; source-data migration and runtime cutover remain pending.
 
 ## 1. What the repository currently defines
 
@@ -36,15 +53,15 @@ The first durable migration defines `bridge_claim`, `bridge_prepare`, `bridge_be
 
 - The source snapshot's original `supabase/config.toml` contained project reference `gsoydjodruelcepbomxz`. This is recorded as an origin hint only; it has not been verified as an accessible live project.
 - The connected Supabase account currently lists no projects. Direct inspection of that original project was denied by the connected Supabase tool, so live table definitions, migration history, extensions and row counts remain unverified.
-- The new project quote returned for the available organization was **$0/month** at the time of this planning check. The available organization is `c2melendez's Org`. No project was created.
-- This repository stores the SQL chain in `drizzle/migrations/`; it does not yet have a `supabase/migrations/` directory. The migration system to own future schema history must be chosen explicitly.
+- The project precision-lab-bridge-db was created in c2melendez's Org in us-east-1 with a $0/month creation quote. Project ref: umxtvefdcjwkiqsubfpb.
+- The historical SQL remains in drizzle/migrations for provenance. Four timestamped Supabase migrations in supabase/migrations now own remote schema delivery. Their prefixes are the exact versions recorded by Supabase after successful application.
 
 ## 3. Recommended target setup
 
-1. Create a dedicated Supabase project named `precision-lab-bridge-db` in the confirmed organization and a nearby supported region. Keep it separate from the original Lovable Cloud database.
-2. Treat the project as a new empty database. Do not link or overwrite the source project.
-3. Make Supabase CLI migrations the single source of truth for remote schema delivery. Use `supabase migration new <name>` to create timestamped files in `supabase/migrations/`, then port/review the three existing SQL files in their current order. Do not invent timestamps manually.
-4. Before first push, run the local Supabase stack and verify the full chain from an empty database. Use CLI help for the installed version, then link only the new project and run a dry-run/pending-migration review before applying.
+1. **Completed:** a dedicated Supabase project named precision-lab-bridge-db was created in the confirmed organization and us-east-1. It is separate from the original Lovable Cloud database.
+2. **Completed:** the new project was initialized as an empty database. It was not linked to or used to overwrite the source project.
+3. **Completed for the initial schema:** the three original migration stages were ported in order to supabase/migrations, followed by one security migration that revokes client-role access and tightens default privileges. Timestamp prefixes match the versions returned by Supabase after applying; no timestamps were manually invented. Future schema changes should use the Supabase CLI migration workflow.
+4. **Partially complete:** the chain was applied to the new empty remote database, and tables, functions, grants and RLS were queried afterwards. A local Supabase stack reset was not run because the Supabase CLI is not installed in this execution environment; local reset validation is still pending.
 5. Review the generated privileges on a new project dated 2026-10-30 or later. Supabase announced that new tables are no longer automatically exposed to the Data and GraphQL APIs by default from this date. Confirm the `public` schema exposure and ensure the Bridge's server-only `service_role` client can use the required tables/RPCs. Do not grant direct `anon` or `authenticated` access to Bridge tables.
 6. Consider an explicit privilege-hardening migration that revokes all direct table access from `PUBLIC`, `anon`, and `authenticated` for all four Bridge tables, while retaining only the required server-role grants. Test this against the exact Supabase/PostgREST configuration before applying.
 7. Review adding foreign keys from `bridge_idempotency.key_id` to `bridge_keys(id)` and from non-null `bridge_runs.key_id` values to `bridge_keys(id)`. First check for orphaned references. Preserve nullable ownerless legacy runs only if historical status retrieval is still required; the current API does not expose them.
@@ -76,9 +93,9 @@ Do not copy data until the destination schema and server-side access tests pass.
 
 ## 6. Explicit non-actions in this phase
 
-- No Supabase project created.
-- No source database queried or changed.
-- No DDL or data migration executed.
+- The isolated project and its schema were created/applied.
+- The original/source database was not queried or changed.
+- No source data, key hashes, runs, idempotency entries or audit records were exported or imported.
 - No key values, environment files, connection strings or credentials copied.
 - No Render service created/deployed.
 - No GitHub certification-runner workflow dispatched.
@@ -86,11 +103,11 @@ Do not copy data until the destination schema and server-side access tests pass.
 
 ## 7. Completion gates
 
-- [ ] New Supabase project created in the selected organization/region.
+- [x] New Supabase project created in the selected organization/region.
 - [ ] Original source project read access restored or a verified backup supplied.
-- [ ] Supabase CLI migration chain created and reviewed.
+- [x] Supabase migration chain created and applied to the new project.
 - [ ] Empty-database local reset passes.
-- [ ] New project schema, functions, grants and RLS verified.
+- [x] New project schema, functions, grants and RLS verified.
 - [ ] Table-level data export/import plan reconciled with actual source counts.
 - [ ] Test restore succeeds and all row/integrity counts match.
 - [ ] Runtime is configured with new secrets and status/read-only tests pass.

@@ -140,3 +140,14 @@ Pendiente de validar una Action de consumidor real. La entrega debe incluir:
 La herramienta auxiliar se considera entregada al LLM cuando la lectura staging/producción elegida y la Action consumidora estén validadas (A, B y F; D solo si se decide el corte a producción). La capacidad de despacho requiere una validación separada y autorización (E). La fusión de PR es una decisión de mantenimiento/revisión, no prueba de funcionamiento.
 
 Una vez validada la superficie de observación y, si se autoriza, el despacho, se detiene el desarrollo auxiliar y se retoma la certificación matemática de Lite y Plus.
+
+
+## Revisión de despliegues y alcance real de staging — 2026-10-30
+
+La consulta de Render confirmó que los dos servicios auxiliares están no suspendidos, con auto-deploy desactivado y en Virginia/Free. También reveló que el código desplegado no coincide con los HEAD actuales de sus PR:
+
+- Observador staging: deploy `dep-dbi88lbbc2fs73acq2kg`, LIVE sobre commit `aff31b6966baa32f980fb0d2ec8f9c8f93ec09e4`. El PR #4 actual está en `b8bbc188adcdce231670d88f45872c73b5ed2f34`. El commit desplegado sí contiene la ruta GET Bridge y fue el que atendió la prueba 200/401; no se ha desplegado automáticamente el HEAD posterior porque auto-deploy está off.
+- Bridge independiente: deploy `dep-dbi5jc8ae00c73b9tnvg`, LIVE sobre commit `fec4dd1448b0385f98565725276b235ddc0821a2`. El PR #1 actual está en `d74926f5ef40982d99e80d0733a7b5150a37d26b` (antes de este cambio documental). El GET de estado del recibo funcionó contra el servicio LIVE, pero no se debe asumir que todos los cambios posteriores del PR están desplegados.
+- Observador staging tiene confirmadas las variables `BRIDGE_BASE_URL`, `BRIDGE_TIMEOUT_SECONDS`, `llm` y `SERVICE_API_KEY` por la actualización de entorno. No hay evidencia de lectura de valores secretos. La presencia de `GITHUB_READ_TOKEN` en staging no está confirmada; sin ese token, `/v1/status`, `/v1/gates/{gate}/plan` y `/v1/runs/{run_id}` no podrán consultar GitHub aunque la ruta Bridge funcione. No copiar el token de producción automáticamente: crear/configurar un token de solo lectura dedicado a staging o autorizar conscientemente el alcance.
+
+Consecuencia: la prueba A acredita únicamente la lectura de un recibo Bridge desde el código desplegado de Observador staging. No acredita todavía el conjunto completo de funciones de Observador ni la ejecución del HEAD actual de ambos PR. Para completar F hay que validar los endpoints GitHub de Observador y la Action consumidora.

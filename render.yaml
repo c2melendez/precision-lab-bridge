@@ -2,7 +2,7 @@ services:
   - type: web
     name: precision-lab-bridge
     runtime: node
-    autoDeployTrigger: off
+    autoDeployTrigger: "off"
     buildCommand: bun install --frozen-lockfile && bun run build
     startCommand: bun run start
     envVars:

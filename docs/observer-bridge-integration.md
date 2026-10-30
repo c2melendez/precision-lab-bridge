@@ -86,3 +86,44 @@ The PR adds a server-side GET-only proxy route: GET /v1/bridge/runs/{run_id}. Th
 PR #4 is a draft only. The tests have been authored but have not been executed; no Render environment variables have been changed and no deployment or live Bridge call has been made. This addition is not a proof of production connectivity.
 
 The PR keeps the original llm key and original Compass host in place. Before moving to the independent Bridge host, it is still necessary to create a replacement key in the new database (or migrate the original key hash with authorized source access), configure the independent Bridge service, and pass a read-only test. No old key should be revoked before that verification.
+
+
+## Independent Bridge service — created 2026-10-30
+
+Render service:
+- Name: precision-lab-bridge
+- Service ID: srv-dbi5b8ss728c73ccvjbg
+- Workspace: My Workspace (tea-da4esd7qj5pc73d1fss0)
+- Region: Virginia
+- Plan: Free (staging/validation only)
+- URL: https://precision-lab-bridge.onrender.com
+- Git branch: hardening/secure-status-independent-runtime
+- Auto-deploy: off
+- Initial deploy: dep-dbi5b9cs728c73ccvl20, LIVE on 2026-10-30 from commit fec4dd1448b0385f98565725276b235ddc0821a2.
+
+Render logs confirm Bun 1.4.4, package installation, Vite client/SSR build, Nitro render-com build, and server startup. This verifies build and runtime startup only. No external HTTP request or admin/API integration test was completed in this session.
+
+Non-secret Supabase settings were added at service creation:
+- SUPABASE_URL and VITE_SUPABASE_URL point to the isolated new project.
+- SUPABASE_PUBLISHABLE_KEY and VITE_SUPABASE_PUBLISHABLE_KEY contain its publishable key.
+- GH_OWNER=c2melendez and GH_REF=main.
+- NODE_ENV=production, NITRO_PRESET=render-com, HOST=0.0.0.0.
+
+Privileged variables still require direct secret entry in Render Dashboard:
+- SUPABASE_SECRET_KEY: copy/create an sb_secret_ key in the new project's Settings → API Keys. Never use the publishable key for server administration.
+- GH_TOKEN: a dedicated GitHub fine-grained PAT with Actions read/write on only precision-lab-lite and precision-lab-plus (Metadata read is automatic). This is Bridge's dispatch credential; it is not Observador's GITHUB_READ_TOKEN.
+- BRIDGE_ADMIN_PASSWORD: a strong unique password stored in a password manager.
+
+Dashboard entry point:
+https://dashboard.render.com/web/srv-dbi5b8ss728c73ccvjbg/env
+
+The environment-variable mutation API requires the raw secret value. It is not appropriate to request those values in chat or manufacture placeholders. Set them directly in Render's Dashboard, then save/deploy the configuration. Do not set llm on Observador to this service yet.
+
+Free plan is for staging/validation, not production: it spins down after 15 minutes without inbound traffic and may take about a minute to wake. It may also be subject to free-tier outbound traffic/build limits. Upgrade to a suitable paid plan before production cutover.
+
+Remaining:
+1. Enter the three server-only secrets in Render Dashboard.
+2. Deploy those environment changes and confirm new deploy LIVE.
+3. Open the admin page and sign in using BRIDGE_ADMIN_PASSWORD.
+4. Create a temporary test key (not llm) and validate it only against a synthetic/test-owned run; do not call POST dispatch.
+5. Validate GET status against that owned run, ensuring no new GitHub run was created. Only after this will Observador's BRIDGE_BASE_URL and replacement llm key be considered for controlled cutover.

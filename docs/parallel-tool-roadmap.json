@@ -5,7 +5,7 @@
   "as_of": "2026-10-30",
   "language": "es",
   "status": "in_progress",
-  "summary": "Fases A/B cerradas. Certification Runner Lite/Plus PASS_SCOPED para push/no-dispatch; último Runner Lite completado 41141571479 SUCCESS en SHA 933fad5c3e55db06db9de6ff21e02cd96070da0f y Plus 41136660038 SUCCESS. Nuevo Runner Lite 41142010410 en cola para AS-EXP-05. Suite de contrato idéntica en ambos repos (blob ff5c499c); diferencias YAML limitadas a defaults/comentarios repo-locales. Dispatch/espera/registro/persistencia SKIPPED. O5 IN_PROGRESS por falta de traza E2E Observer→Bridge→Actions→Runner y replay sin duplicación. O6 PENDING porque no se ejecutó dispatch real; O7 PENDING. AS-EXP-03/04 Lite PASS_SCOPED; AS-EXP-05 en validación. No merge, deploy ni producción.",
+  "summary": "Fases A/B cerradas. Certification Runner Lite/Plus PASS_SCOPED para push/no-dispatch; último Runner Lite 41142010410 SUCCESS en SHA 4341955335d6898c4979063520432f82a6d129ba y Plus 41136660038 SUCCESS. Suite de contrato idéntica (blob ff5c499c); diferencias YAML limitadas a defaults/comentarios. Dispatch/espera/registro/persistencia SKIPPED. O5 IN_PROGRESS por falta de traza E2E Observer→Bridge→Actions→Runner y replay sin duplicación. O6 PENDING porque no se ejecutó dispatch real; O7 PENDING. AS-EXP-03/04 Lite PASS_SCOPED; AS-EXP-05 en validación. No merge, deploy ni producción.",
   "canonical_markdown": {
     "repo": "c2melendez/precision-lab-bridge",
     "branch": "hardening/secure-status-independent-runtime",
@@ -581,9 +581,9 @@
       "sha": "c8c29d820e5bd16ab4df8a528bcea9b4a72f8acc",
       "event": "push",
       "conclusion": "success",
-      "latest_run_id": 41141571479,
-      "latest_run_url": "https://github.com/c2melendez/precision-lab-lite/actions/runs/41141571479",
-      "latest_sha": "933fad5c3e55db06db9de6ff21e02cd96070da0f",
+      "latest_run_id": 41142010410,
+      "latest_run_url": "https://github.com/c2melendez/precision-lab-lite/actions/runs/41142010410",
+      "latest_sha": "4341955335d6898c4979063520432f82a6d129ba",
       "runs": [
         {
           "run_id": 41141571479,
@@ -613,7 +613,8 @@
       "latest_observed_run_id": 41142010410,
       "latest_observed_run_url": "https://github.com/c2melendez/precision-lab-lite/actions/runs/41142010410",
       "latest_observed_sha": "4341955335d6898c4979063520432f82a6d129ba",
-      "latest_observed_status": "queued"
+      "latest_observed_status": "queued",
+      "latest_run_status": "success_push_only"
     },
     "plus": {
       "run_id": 41136660038,

@@ -59,7 +59,7 @@ async function reconcileRunning(record: {
       updated_at: new Date().toISOString(),
       finished_at: new Date().toISOString(),
     })
-    .eq("id", record.id).eq("state", "RUNNING").select("state").maybeSingle();
+    .eq("id", record.id).eq("key_id", credential.id).eq("state", "RUNNING").select("state").maybeSingle();
   if (error) return { state: record.state, outcomeState: null, runs: results };
   // Another writer may have finished it first; only adopt the final state if our
   // conditional update actually landed.

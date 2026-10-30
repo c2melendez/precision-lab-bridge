@@ -143,6 +143,13 @@ export type Database = {
             referencedRelation: "bridge_runs"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "bridge_idempotency_key_id_fkey"
+            columns: ["key_id"]
+            isOneToOne: false
+            referencedRelation: "bridge_keys"
+            referencedColumns: ["id"]
+          },
         ]
       }
       bridge_keys: {
@@ -155,6 +162,7 @@ export type Database = {
           label: string
           last_used_at: string | null
           revoked_at: string | null
+          scopes: string[]
         }
         Insert: {
           created_at?: string
@@ -175,6 +183,7 @@ export type Database = {
           label?: string
           last_used_at?: string | null
           revoked_at?: string | null
+          scopes?: string[]
         }
         Relationships: []
       }
@@ -185,7 +194,7 @@ export type Database = {
           gate: string
           gh_runs: Json
           id: string
-          key_id: string | null
+          key_id: string
           target_repo: string
         }
         Insert: {
@@ -194,7 +203,7 @@ export type Database = {
           gate: string
           gh_runs?: Json
           id?: string
-          key_id?: string | null
+          key_id: string
           target_repo: string
         }
         Update: {
@@ -203,10 +212,18 @@ export type Database = {
           gate?: string
           gh_runs?: Json
           id?: string
-          key_id?: string | null
+          key_id?: string
           target_repo?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "bridge_runs_key_id_fkey"
+            columns: ["key_id"]
+            isOneToOne: false
+            referencedRelation: "bridge_keys"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

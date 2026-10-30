@@ -1,18 +1,43 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({ claim: vi.fn(), prepare: vi.fn(), begin: vi.fn(), record: vi.fn(), finish: vi.fn(), fetch: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  claim: vi.fn(), prepare: vi.fn(), begin: vi.fn(), record: vi.fn(), finish: vi.fn(), fetch: vi.fn(),
+  statusFilters: [] as [string, unknown][],
+}));
 vi.mock("./idempotency.server", () => ({ claimRequest: mocks.claim, prepareRun: mocks.prepare,
   beginDispatch: mocks.begin, recordDispatch: mocks.record, finishClaim: mocks.finish }));
-vi.mock("@/integrations/supabase/client.server", () => ({ supabaseAdmin: { from: (table: string) => ({
-  select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: table === "bridge_keys" ?
-    { id: "key1", expires_at: "2099-01-01", revoked_at: null } : null }) }) }),
-  update: () => ({ eq: async () => ({ error: null }) }), insert: async () => ({ error: null }),
-}) } }));
-import { trigger } from "./core.server";
+vi.mock("@/integrations/supabase/client.server", () => ({
+  supabaseAdmin: {
+    from: (table: string) => ({
+      select: () => {
+        const query = {
+          eq: (column: string, value: unknown) => {
+            if (table === "bridge_runs") mocks.statusFilters.push([column, value]);
+            return query;
+          },
+          maybeSingle: async () => ({
+            data: table === "bridge_keys"
+              ? { id: "key1", expires_at: "2099-01-01", revoked_at: null }
+              : null,
+            error: null,
+          }),
+        };
+        return query;
+      },
+      update: () => ({ eq: async () => ({ error: null }) }),
+      insert: async () => ({ error: null }),
+    }),
+  },
+}));
+import { runStatus, trigger } from "./core.server";
 
 const raw = { target_repo: "lite", gate: "h1d", idempotency_key: "v1" };
-beforeEach(() => { vi.clearAllMocks(); vi.stubGlobal("fetch", mocks.fetch); });
+beforeEach(() => {
+  vi.clearAllMocks();
+  mocks.statusFilters.length = 0;
+  vi.stubGlobal("fetch", mocks.fetch);
+});
 
 describe("claim must precede every external dispatch", () => {
   it("does not dispatch without a durable claim", async () => {
@@ -93,5 +118,18 @@ describe("dispatch outcome handling", () => {
     const r = await trigger("test", "plb_test", raw);
     expect(r.status).toBe(409);
     expect(mocks.finish).toHaveBeenCalledWith(claimed.record, "BLOCKED", 409, expect.anything(), "DISPATCH_OUTCOME_UNKNOWN");
+  });
+});
+describe("run status ownership", () => {
+  it("scopes run lookup to the authenticated bridge key", async () => {
+    const id = "00000000-0000-0000-0000-000000000001";
+    const result = await runStatus("plb_test", id);
+
+    expect(result).toEqual({ status: 404, body: { error: "not found" } });
+    expect(mocks.statusFilters).toEqual([
+      ["id", id],
+      ["key_id", "key1"],
+    ]);
+    expect(mocks.fetch).not.toHaveBeenCalled();
   });
 });

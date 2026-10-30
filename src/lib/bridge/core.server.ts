@@ -209,12 +209,26 @@ export async function runStatus(key: string | null, id: string) {
     return { status: 401, body: out };
   }
   if (!/^[0-9a-f-]{36}$/i.test(id)) return { status: 400, body: { error: "bad id" } };
-  const { data: run } = await supabaseAdmin.from("bridge_runs").select("*").eq("id", id).maybeSingle();
+  // Scope the run itself to its owning bridge key. Legacy rows without key_id are
+  // intentionally inaccessible through this credential-based endpoint.
+  const { data: run, error: runError } = await supabaseAdmin
+    .from("bridge_runs")
+    .select("*")
+    .eq("id", id)
+    .eq("key_id", k.id)
+    .maybeSingle();
+  if (runError) return { status: 503, body: { error: "STATUS_STORE_UNAVAILABLE" } };
   if (!run) {
+    // Keep absent IDs and IDs owned by another key indistinguishable.
     await logCall(endpoint, key, { id }, 404, { error: "not found" });
     return { status: 404, body: { error: "not found" } };
   }
-  const { data: ledger, error: ledgerError } = await supabaseAdmin.from("bridge_idempotency").select("*").eq("run_id", id).maybeSingle();
+  const { data: ledger, error: ledgerError } = await supabaseAdmin
+    .from("bridge_idempotency")
+    .select("*")
+    .eq("run_id", id)
+    .eq("key_id", k.id)
+    .maybeSingle();
   if (ledgerError) return { status: 503, body: { error: "STATUS_STORE_UNAVAILABLE" } };
   const runs = run.gh_runs as unknown as GhRun[];
   // Time-only run matching is retained for legacy runs, never used as evidence for durable claims.

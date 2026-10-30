@@ -140,15 +140,16 @@ BEGIN
       WHEN 'both' THEN ARRAY['precision-lab-lite','precision-lab-plus']::text[]
       ELSE ARRAY[]::text[]
     END;
-    IF cardinality(expected_repos)=0 OR jsonb_typeof(r.dispatch_intents)<>'object'
-      OR jsonb_typeof(r.gh_runs)<>'array'
-      OR jsonb_array_length(r.gh_runs)<>cardinality(expected_repos)
-      OR EXISTS (
-        SELECT 1 FROM unnest(expected_repos) AS expected(repo)
-        WHERE r.dispatch_intents->>expected.repo IS DISTINCT FROM 'ACCEPTED'
-          OR (SELECT count(*) FROM jsonb_array_elements(r.gh_runs) AS item
-              WHERE item->>'repo'=expected.repo)<>1
-      ) THEN RETURN false; END IF;
+    IF cardinality(expected_repos)=0 THEN RETURN false; END IF;
+    IF jsonb_typeof(r.dispatch_intents) IS DISTINCT FROM 'object'
+      OR jsonb_typeof(r.gh_runs) IS DISTINCT FROM 'array' THEN RETURN false; END IF;
+    IF jsonb_array_length(r.gh_runs)<>cardinality(expected_repos) THEN RETURN false; END IF;
+    IF EXISTS (
+      SELECT 1 FROM unnest(expected_repos) AS expected(repo)
+      WHERE r.dispatch_intents->>expected.repo IS DISTINCT FROM 'ACCEPTED'
+        OR (SELECT count(*) FROM jsonb_array_elements(r.gh_runs) AS item
+            WHERE item->>'repo'=expected.repo)<>1
+    ) THEN RETURN false; END IF;
     IF EXISTS (
       SELECT 1 FROM public.bridge_runs br
       WHERE br.id=r.run_id AND br.key_id=r.key_id

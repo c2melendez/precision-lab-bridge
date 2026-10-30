@@ -1,160 +1,142 @@
 # Hoja de ruta — herramienta paralela para LLMs sin GitHub
 
-Fecha de este corte: 2026-10-30.
-Estado: la herramienta de observación y despacho no está terminada. La certificación matemática de Lite y Plus queda fuera de este archivo.
+Fecha de actualización: 2026-10-30.
+Estado: A y B cerradas con evidencia; C preparada para revisión; D y E no autorizadas; F pendiente de la validación y entrega al LLM consumidor. La certificación matemática de Lite y Plus es una línea de trabajo separada.
 
-Este documento es la fuente de seguimiento. Sustituye la sección «Trabajo de integración pendiente» de `docs/observer-bridge-integration.md`, que describe el diseño pero quedó detrás de los PR. Si un comentario de PR cita un SHA o una prueba más nueva, esa evidencia manda y este archivo debe actualizarse en el mismo cambio.
+Este documento es la fuente de seguimiento. Sustituye la sección «Trabajo de integración pendiente» de `docs/observer-bridge-integration.md`. La evidencia más reciente de los HEAD y runs prevalece sobre los registros históricos de PR.
 
 ## Protocolo para el siguiente LLM
 
-1. No pidas, pegues, registres ni commits secretos. Ni `llm`, ni `SERVICE_API_KEY`, ni `GH_TOKEN`, ni `SUPABASE_SECRET_KEY`, ni `BRIDGE_ADMIN_PASSWORD`.
-2. Lee este archivo, el cuerpo de los dos PR y el check más reciente de cada cabeza. No rehagas fases ya cerradas.
-3. Ejecuta solo la primera fase cuyo criterio de salida no esté cumplido.
-4. Anota la evidencia (SHA, URL de run, código HTTP, conteo de workflows) y detente.
-5. No fusiones, no despliegues producción, no cambies variables de producción y no despaches Lite ni Plus salvo que la fase activa lo diga y el usuario lo haya aprobado en esa misma conversación.
+1. No pidas, pegues, registres ni hagas commit de secretos: `llm`, `SERVICE_API_KEY`, `GITHUB_READ_TOKEN`, `GH_TOKEN`, `SUPABASE_SECRET_KEY` ni `BRIDGE_ADMIN_PASSWORD`.
+2. Distingue entre CI de los repositorios auxiliares, prueba de lectura staging y una certificación matemática de Lite/Plus. No son equivalentes.
+3. No rehagas fases A o B: están cerradas con evidencia HTTP y CI.
+4. No declares validado el despacho end-to-end: todavía no existe una prueba controlada completa Bridge → GitHub Actions Runner → recibo → Observador.
+5. No fusiones PR, no cambies producción, no rotes/revoques claves ni despaches Lite/Plus sin autorización expresa del usuario en esa conversación.
+6. Anota SHA, URL de run, códigos HTTP y cualquier cambio de configuración no secreta. Nunca registres valores de credenciales.
 
-Un LLM sin acceso a GitHub no ejecuta esta hoja. Es el usuario final de Observador. El LLM que construye la herramienta necesita GitHub, y el humano opera Render y las claves.
+Un LLM sin GitHub es el consumidor previsto de Observador. El LLM que construye/mantiene la herramienta necesita acceso a GitHub; el humano administra Render y los secretos.
 
-## Decisión de diseño que no se reabre sin pedido explícito
+## Decisión de diseño vigente
 
-La superficie del alumno o del modelo es solo lectura, contra Observador. Observador no gana una ruta POST, ni un proxy de despacho, ni un token de GitHub entregable al modelo.
+La interfaz que recibe el LLM/alumno es Observador y es GET-only. No se añade una ruta POST de despacho ni se entrega al modelo un token de GitHub.
 
-Pedir una certificación sigue siendo `POST /api/runs` en Bridge, con `X-Bridge-Key` e `Idempotency-Key`, hecho por un operador. El modelo después observa el recibo y la evidencia. Añadir un POST mediado en Observador es una fase nueva, no un cabo suelto de esta hoja.
+El despacho, cuando se autorice, se solicita al Bridge mediante `POST /api/runs`, con `X-Bridge-Key` e `Idempotency-Key`, por un operador o cliente autorizado con capacidad de escritura. Observador permite después consultar el recibo Bridge y la evidencia de Actions. Añadir despacho mediado por Observador sería un cambio arquitectónico nuevo.
 
-## Hecho — no rehacer
+## Estado ejecutivo
 
-| Hecho | Evidencia |
-|---|---|
-| Los cuatro repositorios son públicos | `precision-lab-lite`, `precision-lab-plus`, `precision-lab-bridge`, `precision-lab-readonly-api` |
-| Observador propone `GET /v1/bridge/runs/{uuid}` | [PR #4](https://github.com/c2melendez/precision-lab-readonly-api/pull/4), borrador, cabeza `aff31b6966baa32f980fb0d2ec8f9c8f93ec09e4` antes de cualquier commit posterior de documentación |
-| CI de Observador | [run #6](https://github.com/c2melendez/precision-lab-readonly-api/actions/runs/41042163883): 19 passed, 0 failed |
-| CI de Bridge | [run #4](https://github.com/c2melendez/precision-lab-bridge/actions/runs/41042873423): Vitest 71 passed / 13 skipped; ESLint 0 errores y 6 avisos; build correcto. Cabeza previa `598412af66c04177b1ff3891a007e09745d77d93` |
-| Bridge independiente arranca | https://precision-lab-bridge.onrender.com, servicio `srv-dbi5b8ss728c73ccvjbg`, Virginia, Free, auto-deploy off |
-| Base nueva, vacía al crearla | Supabase `precision-lab-bridge-db`, ref `umxtvefdcjwkiqsubfpb` |
-| Lectura real de un recibo, sin despacho | UUID `94c102a5-5242-48ba-bdb7-4754a57513db`, Actions Lite `41005884405`, HTTP 200 |
-| Staging de Observador existe y no está probado contra Bridge | https://precision-lab-readonly-api-staging.onrender.com, `srv-dbi7avgae00c73be7ns0`, auto-deploy off, sin `SERVICE_API_KEY` ni `llm` |
-| Producción de Observador no tiene cliente Bridge | commit `f3cdb0cc1746c8503eb1187e1a806ae8b463ee00`, servicio `srv-dbfiidec6qcc739rpafg` |
-| Compass original | Sigue en pie. Su clave `llm` no se revoca en esta hoja |
+| Elemento | Estado observado al 2026-10-30 | Evidencia |
+|---|---|---|
+| Repositorios Lite, Plus, Bridge y Observador | Públicos | Metadatos de repositorios |
+| Observador PR #4 | Abierto, Ready for review, no fusionado; HEAD `b8bbc188adcdce231670d88f45872c73b5ed2f34` | [PR #4](https://github.com/c2melendez/precision-lab-readonly-api/pull/4) |
+| Observador CI | PASS en HEAD actual | [Run 41053312777](https://github.com/c2melendez/precision-lab-readonly-api/actions/runs/41053312777) |
+| Bridge PR #1 | Abierto, Ready for review, no fusionado; HEAD `d74926f5ef40982d99e80d0733a7b5150a37d26b` | [PR #1](https://github.com/c2melendez/precision-lab-bridge/pull/1) |
+| Bridge CI | PASS en HEAD actual | [Run 41053872908](https://github.com/c2melendez/precision-lab-bridge/actions/runs/41053872908) |
+| Observador staging → Bridge independiente | Fase A PASS | HTTP 200 autenticado y 401 anónimo; UUID `94c102a5-5242-48ba-bdb7-4754a57513db` |
+| Evidencia de Actions del recibo | Run preexistente, no nuevo | Lite `41005884405`, cumulative, completed/success |
+| Despacho Bridge → Runner end-to-end | NO VALIDADO | No se ha autorizado ni ejecutado una prueba real de despacho |
+| Corte de Observador producción → Bridge independiente | No realizado | Producción y Compass original permanecen intactos |
+| Certificación matemática Lite/Plus | Abierta | Fuera del alcance de esta hoja |
 
-## Invariantes
+### Fases
 
-- `GET /v1/runs/{id}` usa el número de GitHub Actions y exige `repo=lite|plus`.
-- `GET /v1/bridge/runs/{id}` usa el UUID interno de Bridge. No son intercambiables.
-- `success` de Actions no es `PASS`. Si la continuidad no cuadra, la respuesta es `RECONCILE` o `REFRESH`, con `next_action=null`.
-- Un GET de estado en Bridge puede escribir último uso, auditoría y reconciliación. No es un despacho.
-- `dry_run=true` en `POST /api/runs` igual inicia el workflow. No usarlo como sustituto de una lectura.
-- La misma `Idempotency-Key` y los mismos parámetros no deben volver a despachar.
-- Credenciales solo de servidor: el modelo solo conoce el nombre del encabezado `X-API-Key`.
-- `GH_TOKEN` de Bridge permanece en Actions: Read hasta la fase E, y solo si el usuario la aprueba.
-- Plan Free: el servicio puede dormir. El timeout de Observador ya es 90 s. No subir de plan como parte de una prueba.
+- **A — CERRADA.** Staging Observador consulta un recibo existente del Bridge independiente. Con `X-API-Key`: HTTP 200, `read_only: true`, UUID correcto y run Lite 41005884405. Sin clave: HTTP 401. La comparación posterior no mostró nuevos workflow runs en Lite ni Plus.
+- **B — CERRADA.** `README_CONTRACT.md` y `openapi.yaml` incluyen `GET /v1/bridge/runs/{run_id}`, protección `APIKeyHeader`, separación UUID Bridge / número Actions, respuestas 401/404 y semántica de auditoría/reconciliación. CI PASS 41053312777 en el HEAD actual.
+- **C — PREPARADA PARA REVISIÓN.** Observador PR #4 y Bridge PR #1 siguen abiertos y sin fusionar; ambos HEAD actuales tienen CI PASS. Observador está sincronizado con `main` (19 commits ahead, 0 behind, según la actualización del PR); la divergencia `tests/image.png` fue eliminada y ya no bloquea. La fusión sigue fuera de alcance de esta hoja hasta decisión expresa.
+- **D — BLOQUEADA POR AUTORIZACIÓN.** No cambiar las variables de producción, no sustituir la URL de Compass, no rotar ni revocar la clave de producción. Requiere plan de migración y autorización expresa.
+- **E — NO AUTORIZADA / FUERA DE LA RUTA DE LECTURA.** No despachar workflows reales ni ampliar permisos `GH_TOKEN` sin autorización expresa. `dry_run=true` en Bridge sigue iniciando un workflow; no equivale a simulación sin efectos.
+- **F — PENDIENTE.** Preparar y validar la configuración de una Action de LLM consumidor con URL de Observador y clave entrante configurada como secreto de la Action, nunca en el prompt. Antes de afirmar capacidad completa, probar el flujo de lectura del LLM consumidor y documentar los límites de despacho.
 
-## Fase A — Probar la lectura staging → Bridge independiente
+## Fase A — Evidencia cerrada
 
-Estado: pendiente. Es la única fase activa.
+Servicio staging: `precision-lab-readonly-api-staging`, URL https://precision-lab-readonly-api-staging.onrender.com, servicio Render `srv-dbi7avgae00c73be7ns0`. Auto-deploy permanece desactivado.
 
-Objetivo: demostrar que Observador, sin token de GitHub hacia el cliente, lee un recibo del Bridge nuevo.
+Configuración no secreta usada:
+- `BRIDGE_BASE_URL=https://precision-lab-bridge.onrender.com`
+- `BRIDGE_TIMEOUT_SECONDS=90`
 
-Quién: el humano escribe secretos en el Dashboard de Render. El LLM solo observa HTTP y Actions después de que el humano confirme que guardó, sin revelar valores.
+Secretos configurados por el operador en Render:
+- `llm`: clave API del Bridge independiente, enviada únicamente como `X-Bridge-Key`.
+- `SERVICE_API_KEY`: clave entrante exclusiva de Observador staging, recibida como `X-API-Key`.
 
-Precondición: el recibo `94c102a5-5242-48ba-bdb7-4754a57513db` pertenece a la clave temporal ya creada en el admin del Bridge nuevo. Otra clave recibirá 404 aunque el UUID exista. No crear otra clave si la temporal sigue disponible.
+Los valores no se leen, copian ni registran aquí. La prueba confirmó 200/401 y no produjo workflows nuevos. No se ha hecho rotación ni revocación.
 
-Pasos del humano, en el servicio staging `srv-dbi7avgae00c73be7ns0`:
+## Fase B — Evidencia cerrada
 
-1. `BRIDGE_BASE_URL` = `https://precision-lab-bridge.onrender.com`
-2. `BRIDGE_TIMEOUT_SECONDS` = `90`
-3. `llm` = la clave temporal que ya posee ese recibo. No usar la clave de producción de Compass.
-4. `SERVICE_API_KEY` = una clave nueva, solo de este staging.
-5. Guardar y esperar el deploy en LIVE. No activar auto-deploy.
+En la rama `feature/bridge-readonly-run-status`:
+- `README_CONTRACT.md` documenta la ruta, los dos espacios de identificadores, la separación de credenciales, errores y efectos secundarios limitados a auditoría/reconciliación.
+- `openapi.yaml` declara el endpoint GET protegido por `APIKeyHeader`.
+- HEAD actual: `b8bbc188adcdce231670d88f45872c73b5ed2f34`.
+- CI: [41053312777 — SUCCESS](https://github.com/c2melendez/precision-lab-readonly-api/actions/runs/41053312777).
 
-Pasos del LLM, después:
+## Fase C — Preparación de PR
 
-1. Anotar el último run de Actions de Lite y de Plus.
-2. `GET /healthz` en el staging. Esperado: 200 y `read_only: true`. Puede tardar por el plan Free.
-3. `GET /v1/bridge/runs/94c102a5-5242-48ba-bdb7-4754a57513db` con `X-API-Key`. Esperado: 200, `read_only: true`, y el UUID dentro de `bridge_run`. El cuerpo no contiene la clave.
-4. Repetir sin encabezado. Esperado: 401.
-5. Volver a mirar Actions. Esperado: ningún workflow nuevo en Lite ni Plus.
+- Observador: [PR #4](https://github.com/c2melendez/precision-lab-readonly-api/pull/4), abierto, Ready for review, HEAD `b8bbc188adcdce231670d88f45872c73b5ed2f34`; CI [41053312777](https://github.com/c2melendez/precision-lab-readonly-api/actions/runs/41053312777) SUCCESS.
+- Bridge: [PR #1](https://github.com/c2melendez/precision-lab-bridge/pull/1), abierto, Ready for review, HEAD `d74926f5ef40982d99e80d0733a7b5150a37d26b`; CI [41053872908](https://github.com/c2melendez/precision-lab-bridge/actions/runs/41053872908) SUCCESS.
+- No se fusiona ninguno como parte de la actualización documental.
 
-Si la clave temporal se perdió: detenerse. No insertar filas a mano ni hacer `POST /api/runs` para fabricar un recibo.
+## PR históricos de Observador — diferidos, no bloqueantes
 
-Prohibido: cambiar producción, fusionar, revocar la clave de Compass, ampliar `GH_TOKEN`.
+Estos números corresponden al repositorio `c2melendez/precision-lab-readonly-api`, no al PR #1 de Bridge:
 
-Salida: un 200 del proxy staging y cero despachos nuevos, anotados en este archivo.
+| PR | Tema | Estado | Disposición |
+|---|---|---|---|
+| [#1](https://github.com/c2melendez/precision-lab-readonly-api/pull/1) | Reconciliación documental de historial API/Render | Abierto | Diferido; no bloquea la integración actual. Revaluar si sigue siendo útil o cerrar administrativamente. |
+| [#2](https://github.com/c2melendez/precision-lab-readonly-api/pull/2) | Cobertura de categorías de fingerprint | Abierto; evidencia CI histórica sin runner | Diferido; no declarar PASS. Revisar contra HEAD actual antes de decidir reabrir trabajo o cerrar como no planificado. |
+| [#3](https://github.com/c2melendez/precision-lab-readonly-api/pull/3) | API de despacho aislado e idempotencia | Abierto, Draft; bloqueado | Mantener deshabilitado. Requiere PostgreSQL dedicado activo, migración, CI verificable, permisos mínimos, pruebas de concurrencia/idempotencia y autorización expresa. No desplegar ni fusionar. |
 
-## Fase B — Contrato que el LLM importa
+El PR #1 de Bridge es distinto y corresponde al servicio independiente actual; permanece abierto para revisión.
 
-Estado: pendiente. Empieza solo con la fase A cerrada o, si el usuario lo pide, en paralelo sin desplegar.
+## Arquitectura y límites de confianza
 
-Hoy `README_CONTRACT.md` en la rama de Observador no lista `GET /v1/bridge/runs/{run_id}`. El OpenAPI vivo lo genera FastAPI; no asumir que el `openapi.yaml` versionado está al día.
+1. **Observador** recibe las solicitudes de lectura del LLM mediante `X-API-Key`. Consulta GitHub usando su token de lectura de servidor y consulta Bridge usando `llm` como `X-Bridge-Key`. No dispone de una ruta de despacho.
+2. **Bridge** autentica operadores/clientes con claves Bridge, aplica allowlist de Lite/Plus, validación e idempotencia persistente en Supabase y, en el flujo de escritura autorizado, solicita el workflow fijo `certification-runner.yml` a GitHub Actions. Sus GET de estado también pueden escribir auditoría y reconciliación.
+3. **Certification Runner** vive en los repositorios Lite y Plus. Ejecuta el gate seleccionado sobre la rama canónica resuelta desde la documentación del repositorio, espera el resultado y publica registros/evidencia. Requiere el secreto `GH_TOKEN` configurado en cada repositorio con permisos adecuados.
+4. **Supabase** persiste claves Bridge (hashes), recibos, auditoría e idempotencia. No se comparte con el LLM ni con Observador.
+5. **Render** aloja los servicios; staging y producción son entornos distintos. Los servicios Free pueden dormir y tener arranques en frío.
 
-Hacer:
+### Invariantes de seguridad y evidencia
 
-1. Incluir la ruta Bridge en `README_CONTRACT.md` y en el esquema que la Action importa.
-2. Documentar los dos espacios de ID, el 404 de dueño y que un GET puede reconciliar sin despachar.
-3. Dejar explícito que no hay métodos de escritura.
-4. Correr pytest de Observador. No debilitar tests para ponerse en verde.
-
-Salida: el esquema importable contiene solo GET para `/v1/bridge/runs/{run_id}`, protegido por `APIKeyHeader`, y la CI de esa cabeza pasa.
-
-## Fase C — Dejar los PR listos para revisar, sin fusionar
-
-Estado: pendiente.
-
-1. Observador está 1 commit detrás de `main` por `tests/image.png`. Integrar `main` en la rama. No force-push.
-2. Esperar CI verde en la cabeza nueva de cada PR.
-3. Seguir en borrador hasta que A y B tengan salida.
-4. No fusionar para «activar» `workflow_dispatch`. Ese disparador solo aparece cuando el workflow ya está en la rama por defecto, y no hace falta para la prueba.
-
-Salida: ambos PR en borrador, mergeable, CI verde, y la descripción cita la evidencia de la fase A.
+- `GET /v1/runs/{id}?repo=lite|plus` usa un ID numérico de GitHub Actions.
+- `GET /v1/bridge/runs/{uuid}` usa el UUID interno del recibo Bridge.
+- Un `success` de GitHub Actions no equivale por sí solo a `PASS` de certificación.
+- `RECONCILE` o `REFRESH` impiden inventar un siguiente gate; `next_action` debe quedar nulo cuando falta coherencia.
+- Un GET de estado Bridge puede escribir last-used, auditoría y reconciliación; no despacha.
+- `POST /api/runs` sí puede despachar. `dry_run=true` también inicia el workflow, por lo que no debe usarse como prueba inocua.
+- Idempotencia evita duplicar solicitudes equivalentes, pero no elimina la necesidad de tratar con cautela resultados de despacho ambiguos.
+- Ninguna credencial debe aparecer en prompts, respuestas, archivos públicos ni logs.
+- El token de Observador debe limitarse a lectura de Contents/Actions en Lite y Plus. El token de despacho de Bridge es independiente y debe permanecer en el servidor.
+- Plan Free: posibles cold starts. El timeout Observador→Bridge está configurado a 90 s. No subir de plan como parte de esta conciliación.
 
 ## Fase D — Corte de lectura en producción
 
-Estado: bloqueada por A, B y aprobación explícita del usuario.
+No iniciar sin autorización expresa. Antes del cambio deben verificarse la clave Bridge de reemplazo y la propiedad de un recibo de prueba. El operador configuraría la URL/clave de producción en Render, se repetiría una lectura y se comprobaría que Lite/Plus no recibieron workflows nuevos. Compass original debe seguir recuperable hasta validar el corte. No revocar la clave antigua en el mismo paso.
 
-1. Crear en el Bridge nuevo una clave de reemplazo, o importar con autorización el hash de la clave vieja. La base nueva no autentica sola la clave de Compass.
-2. El humano pone esa clave en `llm` de producción y cambia `BRIDGE_BASE_URL` al host independiente. El LLM no ve el valor.
-3. Repetir la lectura de un recibo propiedad de esa clave.
-4. Confirmar que Lite y Plus no recibieron un workflow nuevo.
-5. Solo entonces, y con un sí del usuario, revocar la clave vieja. Compass no se apaga en el mismo paso.
+## Fase E — Despacho controlado
 
-Salida: producción de Observador lee al Bridge independiente y el Compass anterior sigue recuperable.
+No iniciar sin autorización expresa. Requiere confirmar permisos de escritura mínimos del token Bridge, salud de la base/idempotencia, allowlist de repos/workflow/ref, protección contra dispatch duplicado y plan de reversión. Un solo despacho autorizado debe seguirse desde recibo hasta Actions y registro del Runner. Repetir la misma clave idempotente debe demostrar que no aparece un segundo workflow. No confundir HTTP 201/202 con gate completado ni con certificación PASS.
 
-## Fase E — Un solo despacho de prueba, si el usuario lo aprueba
+## Fase F — Entrega al LLM sin GitHub
 
-Estado: fuera de la ruta de lectura. No empezarla para «completar» A–D.
+Pendiente de validar una Action de consumidor real. La entrega debe incluir:
+- URL base del Observador elegido (staging para la validación inicial; producción solo tras fase D).
+- OpenAPI actualizado.
+- `X-API-Key` configurada como secreto de la Action/conector, no en el prompt.
+- Operaciones de lectura: estado bilateral, plan de gate, evidencia de Actions y recibo Bridge.
+- Prohibiciones: despachar, cancelar, reintentar, hacer push, fusionar o declarar PASS automático.
+- Tratamiento conservador de 401/404/409/502/503, `RECONCILE` y `REFRESH`.
 
-1. El usuario autoriza por escrito, en la conversación, subir `GH_TOKEN` a Actions: Write solo sobre Lite y Plus.
-2. Un único `POST /api/runs` con clave nueva de idempotencia. Preferir `dry_run` sabiendo que el workflow sí arranca.
-3. Leer el UUID por Observador y la evidencia por `GET /v1/runs/{numero}?repo=lite|plus`.
-4. Repetir el mismo POST. Esperado: no aparece un segundo workflow.
-5. Devolver `GH_TOKEN` a Actions: Read si no va a haber más despachos.
-
-Salida: un recibo observable de punta a punta y la idempotencia demostrada. Ahí termina la herramienta paralela.
-
-## Fase F — Entrega al LLM que no tiene GitHub
-
-Estado: pendiente del corte que el usuario elija (staging estable o producción).
-
-Publicar, sin secretos:
-
-- URL base del Observador que debe usar.
-- Esquema OpenAPI.
-- Encabezado `X-API-Key` y el hecho de que la clave se configura en la Action, no en el prompt.
-- Tabla de operaciones permitidas: estado, plan de compuerta, evidencia de Actions, recibo Bridge.
-- Tabla de prohibiciones: despachar, cancelar, reintentar, pushear, fusionar, declarar `PASS` automático.
-- Qué hacer ante `409`, `RECONCILE` y `REFRESH`: informar, no inventar un siguiente gate.
-
-Salida: un modelo con solo esa Action contesta el estado de Lite o Plus y no tiene manera de lanzar un runner.
-
-## No hacer en esta hoja
+## No hacer
 
 - No añadir POST a Observador.
 - No convertir Bridge en proxy SQL.
-- No migrar ni reescribir los motores de Lite y Plus.
-- No seguir puliendo UI, Lovable o el plan Free después de la fase E.
-- No elegir licencia en silencio. Los repos ya son públicos y la rama de Observador no tiene archivo `LICENSE`. Preguntar una vez al usuario y añadir la que elija; no bloquea la fase A.
+- No modificar los motores matemáticos como parte de esta hoja.
+- No activar auto-deploy en staging ni producción.
+- No cambiar, copiar, rotar o revocar claves como parte de esta actualización documental.
+- No fusionar PR como efecto colateral.
+- No elegir licencia en silencio; la elección de licencia es una decisión separada y no bloquea las fases A/B ya cerradas.
 
 ## Definición de terminado
 
-La herramienta paralela está terminada cuando A, B, D y F están cerradas y, si el usuario abrió E, E también. C es el requisito para fusionar, no un sustituto de D.
+La herramienta auxiliar se considera entregada al LLM cuando la lectura staging/producción elegida y la Action consumidora estén validadas (A, B y F; D solo si se decide el corte a producción). La capacidad de despacho requiere una validación separada y autorización (E). La fusión de PR es una decisión de mantenimiento/revisión, no prueba de funcionamiento.
 
-En ese momento se deja de construir Bridge y Observador. El trabajo que sigue es la certificación matemática, usando esta superficie para observar y, solo con aprobación, para encargar corridas.
+Una vez validada la superficie de observación y, si se autoriza, el despacho, se detiene el desarrollo auxiliar y se retoma la certificación matemática de Lite y Plus.

@@ -30,7 +30,7 @@ function Admin() {
   const [err, setErr] = useState("");
   const [label, setLabel] = useState("llm");
   const [days, setDays] = useState(30);
-  const [scopePreset, setScopePreset] = useState<"read" | "read,dispatch">("read");
+  const [scopePreset, setScopePreset] = useState<"read" | "dispatch" | "read,dispatch">("read");
   const [fresh, setFresh] = useState("");
 
   const load = async () => {
@@ -68,14 +68,15 @@ function Admin() {
             aria-label="Key permissions"
             className="rounded border border-border bg-background px-2"
             value={scopePreset}
-            onChange={(e) => setScopePreset(e.target.value as "read" | "read,dispatch")}
+            onChange={(e) => setScopePreset(e.target.value as "read" | "dispatch" | "read,dispatch")}
           >
             <option value="read">Read only</option>
+            <option value="dispatch">Dispatch only</option>
             <option value="read,dispatch">Read + dispatch</option>
           </select>
           <Button
             onClick={async () => {
-              const scopes = scopePreset === "read" ? ["read"] : ["read", "dispatch"];
+              const scopes = scopePreset.split(",");
               const r = await create({ data: { password, label, days, scopes } });
               setFresh(r.key);
               load();

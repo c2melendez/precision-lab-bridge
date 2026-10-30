@@ -14,7 +14,7 @@
   },
   "supersedes": "docs/observer-bridge-integration.md#Trabajo de integración pendiente",
   "evidence_rule": "Si un comentario de PR cita un SHA o una prueba más nueva, esa evidencia manda y este archivo debe actualizarse en el mismo cambio.",
-  "active_phase_id": "O1",
+  "active_phase_id": "O4",
   "resume_protocol": {
     "audience": {
       "executes_this_roadmap": "LLM con acceso a GitHub. El humano opera Render y las claves.",
@@ -46,7 +46,7 @@
       "service": "observer",
       "upstream_method": "POST",
       "upstream_path": "/api/runs",
-      "actor": "LLM requests via Observer; Observer enforces explicit per-operation authorization before internal call"
+      "actor": "LLM requests through Observer; Observer validates the explicit request against the live canonical plan and delegated policy. No per-operation human approval; Observer alone calls Bridge server-to-server."
     },
     "credential_boundaries": [
       "LLM Action → Observer: SERVICE_API_KEY only",
@@ -60,7 +60,7 @@
       "A new service/control-plane layer",
       "A second GitHub Action or Runner",
       "Direct LLM-to-Bridge traffic",
-      "Automatic dispatch based on inferred intent"
+      "Dispatch based solely on inferred intent without an explicit request, live RUN plan, canonical branch/SHA and valid scopes"
     ],
     "operating_autonomy": {
       "authorization": "General autonomous execution within the already approved project scope and defined policies is granted.",
@@ -194,54 +194,50 @@
       "blocked_by": [],
       "steps": [
         "Conservar GET /v1/bridge/runs/{run_id} con auth entrante de Observer.",
-        "Verificar el endpoint contra el HEAD actual y desplegar solo en staging con autorización operativa.",
-        "Añadir cualquier consulta de recibo/estado necesaria sin proxy SQL ni acceso arbitrario."
+        "Exponer GET /v1/bridge/requests/{idempotency_key} mediante la clave Bridge read-only para reconciliar recibos.",
+        "Validar los endpoints contra el HEAD actual y staging; no añadir proxy SQL ni acceso arbitrario."
       ],
       "exit_criteria": "Todas las lecturas Bridge requeridas por el LLM pasan por Observer; la Action no contiene host ni rutas Bridge."
     },
     {
       "id": "O3",
       "title": "Incorporar operación protegida de solicitud de despacho en Observer",
-      "status": "pending",
-      "active": false,
-      "blocked_by": [
-        "schema_and_policy_review"
-      ],
+      "status": "in_progress",
+      "active": true,
+      "blocked_by": [],
       "steps": [
-        "Definir request schema estricto: target_repo, gate, branch/requested_sha, validation_id, correlation_id e idempotency_key.",
-        "Validar parámetros contra allowlist, política y scopes; solicitudes dentro de política siguen automáticamente sin confirmación por evento.",
-        "Implementar llamada server-to-server Observer→Bridge; sanitizar respuesta y errores."
+        "Implementar schema estricto para target_repo, gate, dry_run, idempotency_key, validation_id, correlation_id, branch y requested_sha.",
+        "Revalidar el plan live en Observer: state CURRENT, canonical branch, observed SHA y gate decision RUN; WAIT/REUSE/REFRESH/RECONCILE no despachan.",
+        "Llamar Bridge server-to-server con BRIDGE_DISPATCH_KEY, sanitizar respuesta y tratar timeout como outcome unknown sin reintento ciego."
       ],
       "exit_criteria": "POST de Observer protegido y probado; el contrato OpenAPI público solo presenta Observer y nunca Bridge."
     },
     {
       "id": "O4",
       "title": "Separar scopes y endurecer identidad Observer→Bridge",
-      "status": "pending",
+      "status": "in_progress",
       "active": false,
-      "blocked_by": [
-        "observer_dispatch_contract"
-      ],
+      "blocked_by": [],
       "steps": [
-        "Crear/usar identidad de servicio Bridge con scope dispatch limitado a Observer.",
-        "Separar permisos de lectura y despacho; la Action LLM no obtiene credenciales Bridge.",
-        "Comprobar automáticamente rechazo de llamadas anónimas, LLM directo, credenciales de lectura y scopes no autorizados."
+        "Aplicar bridge_key_scopes; las claves existentes reciben solo read por defecto y dispatch se concede explícitamente.",
+        "Separar llm (read-only) de BRIDGE_DISPATCH_KEY (dispatch-only); no permitir fallback entre credenciales.",
+        "Probar rechazo de claves read-only en POST y de claves dispatch-only en GET; mantener el LLM sin URL/credencial Bridge."
       ],
       "exit_criteria": "Solo la identidad de servicio de Observer puede ejecutar despachos permitidos; el acceso LLM→Bridge no existe."
     },
     {
       "id": "O5",
       "title": "Validar idempotencia, reconciliación y trazabilidad",
-      "status": "pending",
+      "status": "in_progress",
       "active": false,
       "blocked_by": [
-        "observer_dispatch_contract",
-        "bridge_scopes"
+        "O3",
+        "O4"
       ],
       "steps": [
-        "Propagar una clave idempotente estable y fingerprint por solicitud.",
-        "Vincular correlation_id/validation_id con receipt UUID, Actions run ID, SHA y Runner record.",
-        "Probar duplicados, conflictos de fingerprint, concurrencia, timeouts y outcome unknown; nunca reintentar ciegamente."
+        "Propagar idempotency_key, validation_id y correlation_id sin cambios entre Observer y Bridge.",
+        "Probar replay, fingerprint conflict, concurrencia, lease, fallos de storage, rechazo GitHub, timeout/outcome unknown y reconciliación.",
+        "Completar la prueba E2E request→receipt→Actions run→Runner record→evidencia matemática y repetir la misma solicitud sin crear un segundo workflow."
       ],
       "exit_criteria": "Evidencia de pruebas demuestra no duplicación, reconciliación y trazabilidad request→receipt→Actions→Runner."
     },
@@ -305,7 +301,7 @@
       "O7"
     ],
     "conditional_phases": [],
-    "merge_gate_not_a_substitute": "Los PR y sus CI son evidencia de revisión/código, no sustituyen pruebas staging o end-to-end.",
+    "merge_gate_not_a_substitute": "Los PR y sus CI son evidencia de revisión/código, no sustituyen pruebas staging o end-to-end. No se requiere aprobación humana por dispatch rutinario dentro de la política delegada.",
     "after_done": "Congelar infraestructura auxiliar y regresar a certificación matemática Lite/Plus; el LLM continúa autónomamente las operaciones rutinarias dentro de la política probada."
   },
   "pull_requests": {
@@ -382,7 +378,8 @@
       "20261030075859",
       "20261030075922",
       "20261030075926",
-      "20261030075930"
+      "20261030075930",
+      "20261030133052"
     ],
     "table_counts": {
       "bridge_keys": 1,
@@ -397,9 +394,13 @@
       "label": "staging-read-only-verification",
       "revoked": false,
       "expires_at_utc": "2026-10-31T09:05:53Z",
-      "expires_at_honduras": "2026-10-31T03:05:53-06:00"
+      "expires_at_honduras": "2026-10-31T03:05:53-06:00",
+      "scopes": [
+        "read"
+      ]
     },
     "key_value_or_hash_read": false,
-    "interpretation": "Lectura autenticada del recibo confirmada. No hay filas de idempotencia, por lo que no se ha probado dispatch durable/idempotente end-to-end. Si se necesita staging después de expirar la clave, crear otra clave de prueba y actualizar solo llm en staging."
+    "interpretation": "La clave existente permanece read-only. El schema permite emitir claves dispatch separadas; no se ha creado ni configurado todavía una clave dispatch en Observer staging. No hay filas de idempotencia ni dispatch E2E probado.",
+    "scopes_migration": "20261030133052_bridge_key_scopes"
   }
 }

@@ -108,29 +108,29 @@
     },
     {
       "id": "observer-pr-current",
-      "fact": "Observador PR #4 está abierto y Ready for review; HEAD actual b8bbc188adcdce231670d88f45872c73b5ed2f34.",
+      "fact": "Observer PR #4 permanece abierto y Ready for review; HEAD actual 6e712094a7e4b06a13224f66d6f3a6c26f991152.",
       "pr": "https://github.com/c2melendez/precision-lab-readonly-api/pull/4",
-      "head_sha": "b8bbc188adcdce231670d88f45872c73b5ed2f34",
+      "head_sha": "6e712094a7e4b06a13224f66d6f3a6c26f991152",
       "draft": false
     },
     {
       "id": "observer-ci-current",
-      "fact": "Observer CI PASS en el HEAD actual.",
-      "run_url": "https://github.com/c2melendez/precision-lab-readonly-api/actions/runs/41053312777",
-      "head_sha": "b8bbc188adcdce231670d88f45872c73b5ed2f34"
+      "fact": "Observer CI PASS en el HEAD actual de PR #4.",
+      "run_url": "https://github.com/c2melendez/precision-lab-readonly-api/actions/runs/41064924977",
+      "head_sha": "6e712094a7e4b06a13224f66d6f3a6c26f991152"
     },
     {
       "id": "bridge-pr-current",
-      "fact": "Bridge PR #1 está abierto y Ready for review; HEAD actual d74926f5ef40982d99e80d0733a7b5150a37d26b.",
+      "fact": "Bridge PR #1 permanece abierto y Draft; HEAD documental actual 4427b5871bd8a46f9cc5fd03032eb053bf448d1e.",
       "pr": "https://github.com/c2melendez/precision-lab-bridge/pull/1",
-      "head_sha": "d74926f5ef40982d99e80d0733a7b5150a37d26b",
-      "draft": false
+      "head_sha": "4427b5871bd8a46f9cc5fd03032eb053bf448d1e",
+      "draft": true
     },
     {
       "id": "bridge-ci-current",
-      "fact": "Bridge CI PASS en el HEAD actual.",
-      "run_url": "https://github.com/c2melendez/precision-lab-bridge/actions/runs/41053872908",
-      "head_sha": "d74926f5ef40982d99e80d0733a7b5150a37d26b"
+      "fact": "Bridge CI PASS en el HEAD documental actual del PR #1; la evidencia de código y pruebas DB corresponde al commit padre b244d8c1bd768fd9368aedfaf1be394c2828b145.",
+      "run_url": "https://github.com/c2melendez/precision-lab-bridge/actions/runs/41131674843",
+      "head_sha": "4427b5871bd8a46f9cc5fd03032eb053bf448d1e"
     },
     {
       "id": "observer-bridge-staging-proof",
@@ -226,6 +226,17 @@
       "github_dispatch_mocked": true,
       "actual_workflows_created": false,
       "security_gate_policy": "security is rejected for target_repo plus or both before claim/dispatch"
+    },
+    {
+      "id": "observer-dispatch-contract-tests-20261030",
+      "fact": "Observer PR #4 contiene el POST /v1/bridge/dispatch y la lectura/reconciliación de recibos; CI valida autenticación, plan RUN, no llamada a Bridge ante WAIT o SHA obsoleto y separación de credenciales read/dispatch. Son pruebas unitarias con Bridge simulado; no equivalen a E2E live.",
+      "status": "PASS_SCOPED",
+      "pr_url": "https://github.com/c2melendez/precision-lab-readonly-api/pull/4",
+      "head_sha": "6e712094a7e4b06a13224f66d6f3a6c26f991152",
+      "ci_run_id": 41064924977,
+      "ci_conclusion": "success",
+      "live_post_performed": false,
+      "real_workflow_dispatch_performed": false
     }
   ],
   "invariants": [

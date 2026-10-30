@@ -371,3 +371,9 @@ Bridge PR #1 es un PR distinto: permanece abierto y Draft. CI #59 acredita su HE
 - **O7 — PENDING:** depende del cierre de O6 y de los gaps anteriores O1–O5. No congelar ni declarar cerrada toda la infraestructura auxiliar todavía.
 - Bridge PR #1 continúa abierto y Draft, sin merge. No hubo despliegue, cambio de producción, activación de despacho ni ejecución de gates matemáticos.
 
+### Observer — contrato de despacho probado sin ejecución real
+
+- Observer PR #4, HEAD `6e712094a7e4b06a13224f66d6f3a6c26f991152`, CI [41064924977](https://github.com/c2melendez/precision-lab-readonly-api/actions/runs/41064924977): SUCCESS.
+- Las pruebas cubren autenticación del POST `/v1/bridge/dispatch`, plan live `RUN`, rechazo de `WAIT` y SHA obsoleto antes de llamar Bridge, uso de la credencial dispatch-only y reconciliación mediante la credencial read-only.
+- Son pruebas de contrato/unidad con Bridge simulado. No se realizó POST live ni workflow dispatch. Observer PR #4 permanece abierto, sin merge.
+- El HEAD documental Bridge `4427b5871bd8a46f9cc5fd03032eb053bf448d1e` pasó Bridge CI [41131674843](https://github.com/c2melendez/precision-lab-bridge/actions/runs/41131674843). La evidencia de código, política e idempotencia se ejecutó en su commit padre `b244d8c1bd768fd9368aedfaf1be394c2828b145`.

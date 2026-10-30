@@ -310,16 +310,25 @@
       "number": 4,
       "state": "open",
       "draft": false,
-      "head_sha": "b8bbc188adcdce231670d88f45872c73b5ed2f34",
-      "ci_run_id": "41053312777"
+      "head_sha": "6e712094a7e4b06a13224f66d6f3a6c26f991152",
+      "ci_run_id": "41064924977",
+      "ci_status": "queued",
+      "last_code_ci_sha": "3e41ad35987e96aa1989460062466a987bc6921a",
+      "last_code_ci_run_id": "41064616724",
+      "last_code_ci_status": "success"
     },
     "bridge": {
       "url": "https://github.com/c2melendez/precision-lab-bridge/pull/1",
       "number": 1,
       "state": "open",
       "draft": false,
-      "head_sha": "d74926f5ef40982d99e80d0733a7b5150a37d26b",
-      "ci_run_id": "41053872908"
+      "head_sha": "9509b75fc876f7f2ba1de0b0cf9d4c8558c6aeb5",
+      "ci_run_id": "41064885103",
+      "ci_head_sha": "4c2d22172d59fac0b76b95cc880c77c74ba90bcf",
+      "ci_status": "in_progress",
+      "last_code_ci_sha": "40371c903232a4a1e3226176c92f09c3d6c2e96f",
+      "last_code_ci_run_id": "41064782173",
+      "last_code_ci_status": "success"
     }
   },
   "deferred_items": [
@@ -355,7 +364,7 @@
       "deploy_id": "dep-dbi88lbbc2fs73acq2kg",
       "deploy_status": "live",
       "deployed_commit": "aff31b6966baa32f980fb0d2ec8f9c8f93ec09e4",
-      "current_pr_head": "b8bbc188adcdce231670d88f45872c73b5ed2f34",
+      "current_pr_head": "6e712094a7e4b06a13224f66d6f3a6c26f991152",
       "auto_deploy": false,
       "bridge_route_proven_on_deployed_commit": true,
       "github_read_token_presence": "not_verified"
@@ -365,7 +374,7 @@
       "deploy_id": "dep-dbi5jc8ae00c73b9tnvg",
       "deploy_status": "live",
       "deployed_commit": "fec4dd1448b0385f98565725276b235ddc0821a2",
-      "current_pr_head": "d74926f5ef40982d99e80d0733a7b5150a37d26b",
+      "current_pr_head": "9509b75fc876f7f2ba1de0b0cf9d4c8558c6aeb5",
       "auto_deploy": false,
       "receipt_status_get_proven": true
     },
@@ -400,7 +409,8 @@
       ]
     },
     "key_value_or_hash_read": false,
-    "interpretation": "La clave existente permanece read-only. El schema permite emitir claves dispatch separadas; no se ha creado ni configurado todavía una clave dispatch en Observer staging. No hay filas de idempotencia ni dispatch E2E probado.",
-    "scopes_migration": "20261030133052_bridge_key_scopes"
+    "interpretation": "Existing staging key remains read-only. Bridge scopes schema and enforcement are implemented; a separate dispatch-only key has not yet been created/configured. No deploy of current PR heads or dispatch E2E has been completed.",
+    "scopes_migration": "20261030133052_bridge_key_scopes",
+    "dispatch_key_status": "not_created_or_configured"
   }
 }

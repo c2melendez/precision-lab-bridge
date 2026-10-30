@@ -57,23 +57,10 @@ jobs:
         with:
           version: 2.122.0
 
-      - name: Generate timestamped migration with Supabase CLI
-        id: migration
-        shell: bash
-        run: |
-          set -euo pipefail
-          supabase --version
-          supabase migration new bridge_security_ownership_and_rpc_integrity
-          migration_file="$(find supabase/migrations -maxdepth 1 -type f -name '*_bridge_security_ownership_and_rpc_integrity.sql' -print -quit)"
-          test -n "$migration_file"
-          cp docs/sql/bridge_security_integrity.pending.sql "$migration_file"
-          echo "migration_file=$migration_file" >> "$GITHUB_OUTPUT"
-          echo "Generated migration: $migration_file"
-
       - name: Start disposable local Supabase stack
         run: supabase start
 
-      - name: Replay complete migration history on clean local database
+      - name: Replay complete versioned migration history on clean local database
         run: supabase db reset
 
       - name: Assert reconstructed RPC security and schema constraints
@@ -94,6 +81,7 @@ jobs:
             ];
             signature text;
             function_oid oid;
+            table_name text;
             matched integer;
             constraint_definition text;
           BEGIN
@@ -105,7 +93,7 @@ jobs:
               IF EXISTS (
                 SELECT 1 FROM pg_proc p
                 WHERE p.oid = function_oid
-                  AND (p.prosecdef OR NOT (p.proconfig @> ARRAY['search_path=public']))
+                  AND (p.prosecdef OR NOT (coalesce(p.proconfig, ARRAY[]::text[]) @> ARRAY['search_path=public']))
               ) THEN
                 RAISE EXCEPTION 'RPC must be SECURITY INVOKER with search_path=public: %', signature;
               END IF;
@@ -129,11 +117,13 @@ jobs:
               AND tablename = ANY(ARRAY['bridge_keys','bridge_runs','bridge_calls','bridge_idempotency']);
             IF matched <> 0 THEN RAISE EXCEPTION 'Unexpected public policies found on private Bridge tables'; END IF;
 
-            IF has_table_privilege('anon','public.bridge_keys','SELECT')
-              OR has_table_privilege('authenticated','public.bridge_keys','SELECT')
-              OR NOT has_table_privilege('service_role','public.bridge_keys','SELECT') THEN
-              RAISE EXCEPTION 'Unexpected bridge_keys SELECT grants';
-            END IF;
+            FOREACH table_name IN ARRAY ARRAY['bridge_keys','bridge_runs','bridge_calls','bridge_idempotency'] LOOP
+              IF has_table_privilege('anon', 'public.' || table_name, 'SELECT')
+                OR has_table_privilege('authenticated', 'public.' || table_name, 'SELECT')
+                OR NOT has_table_privilege('service_role', 'public.' || table_name, 'SELECT') THEN
+                RAISE EXCEPTION 'Unexpected SELECT grants on public.%', table_name;
+              END IF;
+            END LOOP;
 
             IF NOT EXISTS (
               SELECT 1 FROM pg_attribute
@@ -181,12 +171,3 @@ jobs:
       - name: Stop disposable local stack
         if: always()
         run: supabase stop --no-backup
-
-      - name: Upload CLI-generated migration for review
-        if: always() && steps.migration.outputs.migration_file != ''
-        uses: actions/upload-artifact@v4
-        with:
-          name: bridge-security-migration
-          path: ${{ steps.migration.outputs.migration_file }}
-          if-no-files-found: error
-          retention-days: 7

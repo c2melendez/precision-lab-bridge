@@ -5,7 +5,7 @@
   "as_of": "2026-10-30",
   "language": "es",
   "status": "in_progress",
-  "summary": "Observer es la única interfaz LLM y plano central de coordinación; Bridge es interno. Autonomía general concedida para operaciones rutinarias dentro de políticas y pruebas; escalar solo decisiones materiales no resueltas. No se añaden servicios; completar validación automatizada y volver a certificación matemática Lite/Plus.",
+  "summary": "Observer/Bridge mantienen cerradas las fases A/B. O5 tiene evidencia sólida de idempotencia Bridge en DB local y paridad del contrato Runner Lite/Plus; O6 sigue pendiente porque requiere un workflow_dispatch real y esta iteración excluyó el despacho real. O7 permanece bloqueado por O6. No deploy, merge ni activación de producción.",
   "canonical_markdown": {
     "repo": "c2melendez/precision-lab-bridge",
     "branch": "hardening/secure-status-independent-runtime",
@@ -14,7 +14,7 @@
   },
   "supersedes": "docs/observer-bridge-integration.md#Trabajo de integración pendiente",
   "evidence_rule": "Si un comentario de PR cita un SHA o una prueba más nueva, esa evidencia manda y este archivo debe actualizarse en el mismo cambio.",
-  "active_phase_id": "O4",
+  "active_phase_id": "O5",
   "resume_protocol": {
     "audience": {
       "executes_this_roadmap": "LLM con acceso a GitHub. El humano opera Render y las claves.",
@@ -183,6 +183,49 @@
       "ci_run_59": "41121381925",
       "ci_head_sha": "f8ea3afa74c0f6d5546c1a5bc3e3f2e26f768239",
       "remote_verified": true
+    },
+    {
+      "id": "runner-bridge-contract-parity-20261030",
+      "fact": "Contrato de Runner comprobado en Lite y Plus: las ramas canónicas aceptan el target local y both, protegen dry_run, no despachan gates por push y aplican la política security de Plus. El workflow Runner v3 de main es idéntico en ambos repositorios.",
+      "status": "PASS_SCOPED",
+      "lite_canonical_branch": "qa/syntax-audit-in625-a1",
+      "lite_head_sha": "e59e2078217e3ce5704ffafa9557202b8182a2a0",
+      "plus_canonical_branch": "qa/syntax-audit-in625-a1",
+      "plus_head_sha": "2cd2058e7ece9b26bc42d52b64b9ad9b9c731d78",
+      "canonical_runner_version": "v2",
+      "main_runner_version": "v3",
+      "main_workflow_blob_sha": "bcaef28a5408c0a857ed514232f5ec9bd769a1bb",
+      "lite_canonical_workflow_blob_sha": "9c39cacb59aee788c713fc7aea89b13f84547eb7",
+      "plus_canonical_workflow_blob_sha": "171703c2d0da28e2a9b72ba84d580b2472730922",
+      "shared_contract_test_blob_sha": "ff5c499cb6eae8277279265a26a897ff982288a0",
+      "lite_contract_test_run_id": 41130209650,
+      "lite_contract_tests_passed": 44,
+      "plus_contract_test_run_id": 41129595199,
+      "plus_contract_tests_passed": 63,
+      "plus_contract_test_step_conclusion": "success",
+      "plus_cumulative_workflow_conclusion": "failure due separate EDCX-B6 mathematical tests",
+      "lite_runner_push_run_id": 41130209548,
+      "plus_runner_push_run_id": 41129595065,
+      "push_dispatch_steps": "SKIPPED",
+      "actual_gate_dispatch_performed": false
+    },
+    {
+      "id": "bridge-durable-idempotency-20261030",
+      "fact": "Bridge CI verifies migrations and RPC security on a disposable Supabase database, runs the five RPC functional checks, and executes all 13 database-backed idempotency tests with GitHub API calls mocked.",
+      "status": "PASS_SCOPED",
+      "run_id": 41130887814,
+      "run_url": "https://github.com/c2melendez/precision-lab-bridge/actions/runs/41130887814",
+      "head_sha": "b244d8c1bd768fd9368aedfaf1be394c2828b145",
+      "unit_tests_passed": 80,
+      "unit_tests_skipped_in_general_job": 13,
+      "database_idempotency_tests_passed": 13,
+      "database_migrations_replayed": true,
+      "rpc_security_assertions_passed": true,
+      "five_rpc_functional_checks_passed": true,
+      "database_lint_passed": true,
+      "github_dispatch_mocked": true,
+      "actual_workflows_created": false,
+      "security_gate_policy": "security is rejected for target_repo plus or both before claim/dispatch"
     }
   ],
   "invariants": [
@@ -199,7 +242,8 @@
     "No se añade una nueva capa de servicios ni un segundo Runner.",
     "No se requiere aprobación humana por operación rutinaria dentro del alcance delegado y probado.",
     "Escalar solo decisiones materiales no resueltas por especificación o pruebas.",
-    "Los tests automatizados y contratos son la fuente de verdad operativa; no añadir un sistema externo de aprobación por evento."
+    "Los tests automatizados y contratos son la fuente de verdad operativa; no añadir un sistema externo de aprobación por evento.",
+    "Bridge rechaza el gate security para target_repo=plus o both antes de reclamar idempotencia o iniciar cualquier despacho."
   ],
   "phases": [
     {
@@ -258,7 +302,7 @@
       "id": "O5",
       "title": "Validar idempotencia, reconciliación y trazabilidad",
       "status": "in_progress",
-      "active": false,
+      "active": true,
       "blocked_by": [
         "O3",
         "O4"
@@ -266,7 +310,10 @@
       "steps": [
         "Propagar idempotency_key, validation_id y correlation_id sin cambios entre Observer y Bridge.",
         "Probar replay, fingerprint conflict, concurrencia, lease, fallos de storage, rechazo GitHub, timeout/outcome unknown y reconciliación.",
-        "Completar la prueba E2E request→receipt→Actions run→Runner record→evidencia matemática y repetir la misma solicitud sin crear un segundo workflow."
+        "Completar la prueba E2E request→receipt→Actions run→Runner record→evidencia matemática y repetir la misma solicitud sin crear un segundo workflow.",
+        "Bridge CI #41130887814: 13 pruebas de idempotencia/concurrencia ejecutadas contra Supabase local desechable; todas PASS, con llamadas GitHub simuladas.",
+        "Runner Lite/Plus: pruebas estáticas de contrato verifican target_repo=both, dry_run, no despacho por push, rama canónica y política security; ambos repositorios mantienen el mismo test file.",
+        "Completar la cadena Observer→Bridge→Actions→Runner→evidencia matemática; no sustituirla por mocks."
       ],
       "exit_criteria": "Evidencia de pruebas demuestra no duplicación, reconciliación y trazabilidad request→receipt→Actions→Runner."
     },
@@ -285,7 +332,8 @@
       "steps": [
         "Ejecutar automáticamente pruebas de integración y staging sin efectos externos siempre que sea posible.",
         "Cuando los tests de seguridad, allowlist, idempotencia y trazabilidad acrediten la política, realizar automáticamente el despacho controlado dentro del alcance delegado.",
-        "Verificar receipt, Actions run, SHA y Runner; repetir la solicitud idempotente para demostrar que no crea un segundo workflow."
+        "Verificar receipt, Actions run, SHA y Runner; repetir la solicitud idempotente para demostrar que no crea un segundo workflow.",
+        "No se invocó POST /v1/bridge/dispatch ni workflow_dispatch real en esta iteración. Los mocks y pruebas locales no satisfacen el criterio O6 de receipt vinculado a un Actions run real."
       ],
       "exit_criteria": "Validación end-to-end completa y trazable; repetición idempotente sin segundo workflow. dry_run=true cuenta como despacho real y se permite dentro del alcance general delegado cuando tests/policy lo habilitan."
     },

@@ -345,3 +345,29 @@ Bridge PR #1 es un PR distinto: permanece abierto y Draft. CI #59 acredita su HE
 - No ejecutar un POST de despacho ni iniciar workflows de Lite/Plus en esta conciliación.
 - La validación de CI de Bridge no equivale a prueba E2E Bridge → Runner ni a certificación matemática PASS.
 - La prioridad final continúa siendo la certificación matemática Lite/Plus, una vez resueltos los límites auxiliares que realmente sean necesarios.
+
+## Runner y Bridge — validación controlada 2026-10-30
+
+### Paridad del contrato Runner Lite/Plus
+
+- En ambas ramas canónicas `qa/syntax-audit-in625-a1`, Runner v2 acepta el repositorio local y `target_repo=both`; el guard permite el modo bilateral y cada workflow solo procesa su propio repositorio.
+- Los dos repositorios contienen el mismo test file `scripts/certification/test_runner_contract.py` (blob `ff5c499cb6eae8277279265a26a897ff982288a0`). La suite de continuidad ejecutó 44 pruebas en Lite y 63 en Plus; el paso de contrato terminó SUCCESS en ambos.
+- Lite HEAD `e59e2078217e3ce5704ffafa9557202b8182a2a0`; Runner push [41130209548](https://github.com/c2melendez/precision-lab-lite/actions/runs/41130209548) SUCCESS. Plus HEAD `2cd2058e7ece9b26bc42d52b64b9ad9b9c731d78`; Runner push [41129595065](https://github.com/c2melendez/precision-lab-plus/actions/runs/41129595065) SUCCESS.
+- En ambos runs, `Push summary` fue SUCCESS y los pasos `Dispatch gate workflow` y `Record result in QA` quedaron SKIPPED. No se inició ningún gate matemático.
+- El workflow Runner v3 de `main` tiene el mismo blob SHA en Lite y Plus: `bcaef28a5408c0a857ed514232f5ec9bd769a1bb`. La diferencia v3/main frente a v2/canónica queda identificada; ambas líneas aceptan el contrato bilateral.
+
+### Bridge: idempotencia durable y política de seguridad
+
+- Bridge CI [41130887814](https://github.com/c2melendez/precision-lab-bridge/actions/runs/41130887814), HEAD `b244d8c1bd768fd9368aedfaf1be394c2828b145`: ambos jobs SUCCESS.
+- El job general registró 80 pruebas aprobadas; las 13 pruebas DB se ejecutan separadamente en el job de Supabase local.
+- El job DB reconstruyó las migraciones, verificó restricciones/RPC, ejercitó las cinco RPC y ejecutó `idempotency.database.test.ts`: **13/13 PASS**. También terminó `supabase db lint` sin error.
+- Todas las llamadas a GitHub en esa suite están simuladas; no se creó ningún workflow ni se despachó un gate.
+- Bridge ahora rechaza `gate=security` para `target_repo=plus` y `target_repo=both` antes de reclamar idempotencia o iniciar un despacho, evitando una ejecución bilateral parcial. La política se conserva también en Runner como defensa en profundidad.
+
+### Disposición O5/O6/O7
+
+- **O5 — parcialmente acreditado, sigue en progreso:** la capa durable de Bridge y la paridad del contrato Runner están probadas. Falta demostrar la cadena real Observer → Bridge → Actions → Runner → evidencia matemática y su replay sin duplicación.
+- **O6 — PENDING:** el criterio canónico exige un workflow dispatch controlado, un recibo durable enlazado con el Actions run real y la reconciliación de su SHA/Runner. Esta iteración no invocó `POST /v1/bridge/dispatch` ni `workflow_dispatch`; las pruebas simuladas no se presentan como E2E real.
+- **O7 — PENDING:** depende del cierre de O6 y de los gaps anteriores O1–O5. No congelar ni declarar cerrada toda la infraestructura auxiliar todavía.
+- Bridge PR #1 continúa abierto y Draft, sin merge. No hubo despliegue, cambio de producción, activación de despacho ni ejecución de gates matemáticos.
+

@@ -147,3 +147,14 @@ La operación de despacho se expondrá en Observer mediante un contrato protegid
 La aprobación para reorientar el roadmap no autoriza por sí sola ningún despacho real. dry_run=true en Bridge también inicia un workflow y requiere autorización específica. No hacer merge, producción cutover ni rotación/revocación de secretos como efecto colateral.
 
 No añadir un nuevo servicio, segundo Runner ni duplicar la lógica de planificación o persistencia. Al completar los criterios O1–O6 del roadmap, cerrar la infraestructura auxiliar y regresar a la certificación matemática de Lite y Plus.
+
+
+## Política de autonomía operativa — 2026-10-30
+
+El usuario concede autonomía general para completar el trabajo rutinario de infraestructura auxiliar y certificación dentro del alcance, repositorios, gates, workflows, ramas, contratos y límites ya establecidos. Esta autorización no debe transformarse en aprobaciones humanas repetitivas por cada despacho, prueba o reconciliación.
+
+Observer/LLM debe ejecutar automáticamente consultas, planificación, correcciones, pruebas, despachos rutinarios y reconciliaciones cuando las políticas, allowlists, scopes y pruebas automatizadas permitan determinar que la operación está dentro del alcance. No se crea un mecanismo externo de aprobación por evento.
+
+La intervención humana se reserva a decisiones materiales no resueltas por la especificación o las pruebas: cambios de alcance, ambigüedad de aceptación, licencia, publicación/exposición de datos, aceptación de riesgo nuevo o desactivación de protecciones. Un fallo técnico ordinario se investiga, corrige y vuelve a probar autónomamente; si no existe un camino seguro definido, se detiene solo esa operación y se informa el bloqueo concreto.
+
+Las pruebas son la fuente de verdad operativa. Deben cubrir autorización/scopes, allowlist, idempotencia, concurrencia, reconciliación, trazabilidad, regresión y errores. dry_run=true crea un workflow y cuenta como despacho real, pero no exige aprobación por evento si está dentro de la política general delegada y los tests lo habilitan. No confundir éxito del workflow con PASS de certificación matemática.

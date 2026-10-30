@@ -43,3 +43,51 @@ jobs:
 
       - name: Build Node.js production bundle
         run: bun run build
+
+  migration-validation:
+    name: Supabase migration chain (disposable local DB)
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - name: Set up Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.122.0
+
+      - name: Generate timestamped migration with Supabase CLI
+        id: migration
+        shell: bash
+        run: |
+          set -euo pipefail
+          supabase --version
+          supabase migration new bridge_security_ownership_and_rpc_integrity
+          migration_file="$(find supabase/migrations -maxdepth 1 -type f -name '*_bridge_security_ownership_and_rpc_integrity.sql' -print -quit)"
+          test -n "$migration_file"
+          cp docs/sql/bridge_security_integrity.pending.sql "$migration_file"
+          echo "migration_file=$migration_file" >> "$GITHUB_OUTPUT"
+          echo "Generated migration: $migration_file"
+
+      - name: Start disposable local Supabase stack
+        run: supabase start
+
+      - name: Replay complete migration history on clean local database
+        run: supabase db reset
+
+      - name: Lint local database functions and schema
+        run: supabase db lint --level warning --fail-on error
+
+      - name: Stop disposable local stack
+        if: always()
+        run: supabase stop --no-backup
+
+      - name: Upload CLI-generated migration for review
+        if: always() && steps.migration.outputs.migration_file != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: bridge-security-migration
+          path: ${{ steps.migration.outputs.migration_file }}
+          if-no-files-found: error
+          retention-days: 7

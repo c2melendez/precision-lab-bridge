@@ -85,8 +85,8 @@ Do not copy data until the destination schema and server-side access tests pass.
 
 ## 5. Secret handling and runtime configuration
 
-- New target variables: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_PUBLISHABLE_KEY`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`.
-- Keep `SUPABASE_SERVICE_ROLE_KEY`, `GH_TOKEN`, `BRIDGE_ADMIN_PASSWORD`, database passwords and connection strings server-side only. Never prefix them with `VITE_`.
+- New target variables: `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `SUPABASE_PUBLISHABLE_KEY`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`.
+- Keep `SUPABASE_SECRET_KEY`, `GH_TOKEN`, `BRIDGE_ADMIN_PASSWORD`, database passwords and connection strings server-side only. Never prefix them with `VITE_`. The modern `sb_secret_` key is preferred; the code retains `SUPABASE_SERVICE_ROLE_KEY` only as a compatibility fallback for pre-existing deployments.
 - Set a new `BRIDGE_ADMIN_PASSWORD` in the hosting secret store. It is not migrated from SQL.
 - Existing bridge keys can remain valid only if their key-hash rows are deliberately migrated. Otherwise, issue replacement keys and distribute them through the normal one-time display flow.
 - The original Supabase project API keys and database password must not be copied into the new project.

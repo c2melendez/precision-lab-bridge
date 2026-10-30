@@ -448,3 +448,8 @@ Certification Runner [41142010410](https://github.com/c2melendez/precision-lab-l
 ### Reconciliación matemática r364
 
 Lite AS-EXP-05 PASS_SCOPED en SHA `4341955335d6898c4979063520432f82a6d129ba`: CI [41142010457](https://github.com/c2melendez/precision-lab-lite/actions/runs/41142010457), cumulative [41142010406](https://github.com/c2melendez/precision-lab-lite/actions/runs/41142010406), H1d [41142010389](https://github.com/c2melendez/precision-lab-lite/actions/runs/41142010389) SUCCESS; Runner push [41142010410](https://github.com/c2melendez/precision-lab-lite/actions/runs/41142010410) SUCCESS/no-dispatch. Scientific UI [41142010385](https://github.com/c2melendez/precision-lab-lite/actions/runs/41142010385) seguía IN_PROGRESS como evidencia complementaria. Aceptación `ALGEBRA114_AS_EXP_05_ACCEPTANCE_R364.md`; siguiente caso AS-EXP-06. El estado O5/O6/O7 permanece sin cambios.
+
+
+### Reconciliación matemática r365 — AS-EXP-06 en cola
+
+Lite AS-EXP-05 permanece PASS_SCOPED. AS-EXP-06 se inició en SHA `fe9806f3503d70aaef4d89673f85ad13092f3211`, test blob `2b9492992e0cfc08b4ef3161ad573e54e221eb6a`; CI [41142483043](https://github.com/c2melendez/precision-lab-lite/actions/runs/41142483043), cumulative [41142482968](https://github.com/c2melendez/precision-lab-lite/actions/runs/41142482968), H1d [41142482951](https://github.com/c2melendez/precision-lab-lite/actions/runs/41142482951), Scientific UI [41142482971](https://github.com/c2melendez/precision-lab-lite/actions/runs/41142482971) y Runner [41142483063](https://github.com/c2melendez/precision-lab-lite/actions/runs/41142483063) estaban queued al corte. No declarar aceptación.

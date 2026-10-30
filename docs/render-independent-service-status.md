@@ -139,3 +139,23 @@ finally {
 ```
 
 Expected response: HTTP 200, Bridge run UUID `94c102a5-5242-48ba-bdb7-4754a57513db`, one run entry for `precision-lab-lite`, status `completed`, conclusion `success`. On the Free plan the request may need up to 90 seconds to wake the service. Report only the HTTP status and whether the returned fields match; never paste the key.
+## End-to-end read-only verification — PASS, 2026-10-30
+
+The user executed the authenticated PowerShell request against the new Render service using the raw temporary key retained locally. The returned response was HTTP success and contained:
+- Bridge run UUID `94c102a5-5242-48ba-bdb7-4754a57513db`.
+- `target_repo=lite`, `gate=cumulative`, `dry_run=true`.
+- GitHub run `41005884405` from `precision-lab-lite`.
+- `status=completed`, `conclusion=success` and the expected GitHub Actions URL.
+
+Independent corroboration:
+- Supabase `bridge_calls` records exactly one `GET /api/runs/:id` with `http_status=200`, matching the temporary key prefix.
+- `bridge_keys.last_used_at` was updated for `staging-read-only-verification`; the key remains unrevoked and has its original one-day expiry.
+- The Bridge run-status code successfully resolved the existing GitHub Actions run metadata via its configured `GH_TOKEN`.
+- The GitHub Lite Actions run list was checked after the request; its latest item remains run `41005884405` (run number 65, created 2026-10-30T04:59:19Z). No newer run appeared.
+- Supabase counts after the test: `bridge_runs=1`, `bridge_idempotency=0`, `bridge_calls=1`. The idempotency table contains zero rows for this fixture.
+
+The response's `job_ids` array is empty by design for this fixture: `runStatus()` fetches job IDs only when a corresponding durable idempotency ledger exists. This verification intentionally created no ledger and did not call the dispatch route. The run's overall status/conclusion was retrieved successfully; the workflow job details were not fetched by the Bridge request.
+
+This proves the new Render Bridge can authenticate the temporary Bridge API key, read its owner-scoped receipt from the isolated Supabase project, and use its GitHub token to retrieve an existing Actions run. It does not yet test write/dispatch capability, nor the Observador → Bridge proxy route.
+
+Production cutover remains pending: do not change the Observador `llm` value or revoke the original Compass key until the Observador PR is validated and a replacement key is deliberately issued on this new service. Upgrade from Render Free before production traffic.

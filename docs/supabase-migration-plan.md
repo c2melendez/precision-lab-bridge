@@ -1,3 +1,15 @@
+## Migration ledger reconciliation — 2026-10-30
+
+The connected Supabase account lists the active isolated project `precision-lab-bridge-db` (ref `umxtvefdcjwkiqsubfpb`). The older ref `gsoydjodruelcepbomxz` remains an origin hint only; the active PR branch correctly targets `umxtvefdcjwkiqsubfpb`.
+
+The remote ledger contains five versions: `20261030075859`, `20261030075922`, `20261030075926`, `20261030075930`, and `20261030133052`. The first four have timestamped SQL files under `supabase/migrations/`. The fifth is `bridge_key_scopes`: its exact timestamp matches Drizzle journal entry `0003_bridge_key_scopes` (`1793367052000` = `2026-10-30T13:30:52Z`) and its SQL is present under `drizzle/migrations/`. The matching `supabase/migrations/20261030133052_bridge_key_scopes.sql` file is added as a provenance backfill for the already-applied remote version, not as a new migration. Do not apply it again.
+
+Drizzle remains the declarative application schema source. Supabase's timestamped ledger remains the delivery history for the isolated project. These histories are not interchangeable and neither the remote history nor earlier migration files are rewritten.
+
+The next security/ownership SQL is kept at `docs/sql/bridge_security_integrity.pending.sql`, not yet in migration history. Before this PR can leave Draft, create the next filename with `supabase migration new bridge_security_ownership_and_rpc_integrity`, transfer the reviewed SQL into that generated file, and validate it against a disposable local database. Do not apply it to the connected remote project in this PR.
+
+---
+
 ## Implementation status — 2026-10-30
 
 The isolated Supabase project has been created and initialized:
@@ -6,9 +18,9 @@ The isolated Supabase project has been created and initialized:
 - Project ref: umxtvefdcjwkiqsubfpb
 - Region: us-east-1; state: ACTIVE_HEALTHY
 - Creation quote: $0/month at creation time (not a promise about future billing).
-- Four migrations are applied and recorded: 20261030075859, 20261030075922, 20261030075926, and 20261030075930.
+- Five migrations are applied and recorded, including 20261030133052 (bridge_key_scopes).
 - Source-controlled migration equivalents live under supabase/migrations/ and supabase/config.toml points to the new ref.
-- All four Bridge tables exist, have RLS enabled, and currently contain zero rows.
+- All four Bridge tables exist with RLS enabled. Latest read-only counts: 2 bridge_keys, 1 bridge_runs, 2 bridge_calls and 0 bridge_idempotency rows.
 - Verified: anon and authenticated cannot SELECT any Bridge table; service_role has SELECT/INSERT/UPDATE/DELETE. The five RPC functions are SECURITY INVOKER, use search_path=public, reject anon/authenticated execution, and allow service_role execution.
 - Default privileges for future public objects were tightened. Supabase Security Advisor reports four informational RLS Enabled No Policy findings; this is intentional because the tables are server-only and have no client policies.
 - No legacy records or key hashes have been imported. The source database remains untouched.
@@ -52,9 +64,9 @@ The first durable migration defines `bridge_claim`, `bridge_prepare`, `bridge_be
 ## 2. Repository and Supabase discovery findings
 
 - The source snapshot's original `supabase/config.toml` contained project reference `gsoydjodruelcepbomxz`. This is recorded as an origin hint only; it has not been verified as an accessible live project.
-- The connected Supabase account currently lists no projects. Direct inspection of that original project was denied by the connected Supabase tool, so live table definitions, migration history, extensions and row counts remain unverified.
+- The connected Supabase account lists precision-lab-bridge-db (umxtvefdcjwkiqsubfpb). The older origin ref gsoydjodruelcepbomxz is not listed in the connected account and is not the active database target.
 - The project precision-lab-bridge-db was created in c2melendez's Org in us-east-1 with a $0/month creation quote. Project ref: umxtvefdcjwkiqsubfpb.
-- The historical SQL remains in drizzle/migrations for provenance. Four timestamped Supabase migrations in supabase/migrations now own remote schema delivery. Their prefixes are the exact versions recorded by Supabase after successful application.
+- The historical SQL remains in drizzle/migrations for provenance. Five timestamped Supabase migrations are recorded remotely; the fifth is source-backfilled from the matching Drizzle journal entry. Their prefixes are the exact versions recorded by Supabase after successful application.
 
 ## 3. Recommended target setup
 

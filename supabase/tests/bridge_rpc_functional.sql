@@ -4,6 +4,9 @@
 
 BEGIN;
 
+-- Exercise SECURITY INVOKER RPCs as the actual backend database role.
+SET LOCAL ROLE service_role;
+
 DO $test$
 DECLARE
   key_a uuid := gen_random_uuid();

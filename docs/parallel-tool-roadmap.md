@@ -406,3 +406,8 @@ Los gates matemáticos de AS-EXP-02 en Lite (CI 41138509410, cumulative 41138509
 ### Disposición operativa
 
 Compass Runner se considera cerrado para el alcance de la conciliación documental vigente y no debe reintroducirse como prerrequisito matemático. Es distinto del Certification Runner integrado en Lite/Plus y del mecanismo Observer/Bridge descrito en esta hoja. No se han hecho merges, deploys, cambios productivos ni despachos reales. La certificación global matemática continúa OPEN; la siguiente tarea de motor Lite es AS-EXP-03.
+
+
+### Addendum r360 — Runner push posterior a AS-EXP-03
+
+Lite generó un nuevo run de Certification Runner [41140700509](https://github.com/c2melendez/precision-lab-lite/actions/runs/41140700509) en SHA `4e8e57ef8bc731c41a270facef42cac6a4fe708c`. Terminó SUCCESS: rama canónica resuelta, checkout, BASE_SHA y fingerprint correctos; Push summary SUCCESS. Los pasos de gate policy, dry-run, detección/espera, dispatch, registro QA, persistencia y commit documental quedaron SKIPPED. Confirma nuevamente PASS_SCOPED del camino push/no-dispatch, no el despacho real. AS-EXP-03 usa ese SHA y sus gates de CI/cumulative/H1d/Scientific UI seguían en curso al corte; el resultado Runner no equivale a aceptación del caso matemático.

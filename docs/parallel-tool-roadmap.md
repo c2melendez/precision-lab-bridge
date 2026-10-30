@@ -136,7 +136,7 @@ Pendiente de validar una Action de consumidor real. La entrega debe incluir:
 
 ## No hacer
 
-- No añadir POST a Observador.
+- No exponer Bridge directamente a la Action del LLM; el único POST público permitido para solicitudes protegidas pertenece a Observer y su destino upstream es Bridge interno.
 - No convertir Bridge en proxy SQL.
 - No modificar los motores matemáticos como parte de esta hoja.
 - No activar auto-deploy en staging ni producción.

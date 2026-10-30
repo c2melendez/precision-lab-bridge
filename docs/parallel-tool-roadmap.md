@@ -1,7 +1,7 @@
 # Hoja de ruta — herramienta paralela para LLMs sin GitHub
 
 Fecha de actualización: 2026-10-30.
-Estado: roadmap reorientado al plano de control Observer → Bridge. La lectura Observer→Bridge está probada en staging; la coordinación integral y el despacho mediado por Observer siguen pendientes de implementación y validación. No se añade ningún servicio. La certificación matemática de Lite y Plus continúa siendo el objetivo final.
+Estado: fases A/B cerradas; el Certification Runner Lite/Plus está PASS_SCOPED_PUSH_ONLY, mientras que la cadena E2E Observer→Bridge→Actions→Runner y el replay idempotente siguen sin certificar. O5 IN_PROGRESS, O6 PENDING por ausencia deliberada de dispatch real y O7 PENDING. La certificación matemática de Lite y Plus continúa siendo el objetivo final.
 
 Este documento es la fuente de seguimiento. Sustituye la sección «Trabajo de integración pendiente» de `docs/observer-bridge-integration.md`. La evidencia más reciente de los HEAD y runs prevalece sobre los registros históricos de PR.
 
@@ -36,10 +36,10 @@ La autorización operativa general del usuario permite automatizar el flujo ordi
 | Elemento | Estado observado al 2026-10-30 | Evidencia |
 |---|---|---|
 | Repositorios Lite, Plus, Bridge y Observador | Públicos | Metadatos de repositorios |
-| Observador PR #4 | Abierto, Ready for review, no fusionado; HEAD `b8bbc188adcdce231670d88f45872c73b5ed2f34` | [PR #4](https://github.com/c2melendez/precision-lab-readonly-api/pull/4) |
-| Observador CI | PASS en HEAD actual | [Run 41053312777](https://github.com/c2melendez/precision-lab-readonly-api/actions/runs/41053312777) |
-| Bridge PR #1 | Abierto, Ready for review, no fusionado; HEAD `d74926f5ef40982d99e80d0733a7b5150a37d26b` | [PR #1](https://github.com/c2melendez/precision-lab-bridge/pull/1) |
-| Bridge CI | PASS en HEAD actual | [Run 41053872908](https://github.com/c2melendez/precision-lab-bridge/actions/runs/41053872908) |
+| Observador PR #4 | Abierto, Ready for review, no fusionado; HEAD `6e712094a7e4b06a13224f66d6f3a6c26f991152` | [PR #4](https://github.com/c2melendez/precision-lab-readonly-api/pull/4) |
+| Observador CI | PASS en HEAD actual | [Run 41064924977](https://github.com/c2melendez/precision-lab-readonly-api/actions/runs/41064924977) |
+| Bridge PR #1 | Abierto, Draft, no fusionado; HEAD `ce634c5a5078d57de1f54a8f77a352077487373b` | [PR #1](https://github.com/c2melendez/precision-lab-bridge/pull/1) |
+| Bridge CI | PENDING en el HEAD actual; CI previo de código PASS en SHA anterior | [Run 41142813306](https://github.com/c2melendez/precision-lab-bridge/actions/runs/41142813306); [CI previo 41131674843](https://github.com/c2melendez/precision-lab-bridge/actions/runs/41131674843) |
 | Observador staging → Bridge independiente | Fase A PASS | HTTP 200 autenticado y 401 anónimo; UUID `94c102a5-5242-48ba-bdb7-4754a57513db` |
 | Evidencia de Actions del recibo | Run preexistente, no nuevo | Lite `41005884405`, cumulative, completed/success |
 | Despacho Bridge → Runner end-to-end | NO VALIDADO | No se ha autorizado ni ejecutado una prueba real de despacho |
@@ -50,7 +50,7 @@ La autorización operativa general del usuario permite automatizar el flujo ordi
 
 - **A — CERRADA.** Staging Observador consulta un recibo existente del Bridge independiente. Con `X-API-Key`: HTTP 200, `read_only: true`, UUID correcto y run Lite 41005884405. Sin clave: HTTP 401. La comparación posterior no mostró nuevos workflow runs en Lite ni Plus.
 - **B — CERRADA.** `README_CONTRACT.md` y `openapi.yaml` incluyen `GET /v1/bridge/runs/{run_id}`, protección `APIKeyHeader`, separación UUID Bridge / número Actions, respuestas 401/404 y semántica de auditoría/reconciliación. CI PASS 41053312777 en el HEAD actual.
-- **C — PREPARADA PARA REVISIÓN.** Observador PR #4 y Bridge PR #1 siguen abiertos y sin fusionar; ambos HEAD actuales tienen CI PASS. Observador está sincronizado con `main` (19 commits ahead, 0 behind, según la actualización del PR); la divergencia `tests/image.png` fue eliminada y ya no bloquea. La fusión sigue fuera de alcance de esta hoja hasta decisión expresa.
+- **C — PREPARADA PARA REVISIÓN.** Observador PR #4 permanece abierto/Ready for review, HEAD `6e712094a7e4b06a13224f66d6f3a6c26f991152`, CI 41064924977 SUCCESS. Bridge PR #1 permanece abierto/Draft, HEAD `ce634c5a5078d57de1f54a8f77a352077487373b`; su CI actual 41142813306 está PENDING. El CI previo 41131674843 fue SUCCESS en el HEAD anterior `4427b5871bd8a46f9cc5fd03032eb053bf448d1e`; no atribuirlo al nuevo HEAD. No fusionar ninguno en esta actualización.
 - **D — CORTE DE PRODUCCIÓN DIFERIDO.** No cambiar variables de producción, sustituir la URL productiva ni rotar/revocar claves como efecto colateral de las pruebas de staging. Un corte de producción o cambio de credenciales es una decisión material separada.
 - **E — DISPATCH CONTROLADO POR OBSERVER.** No existe tráfico LLM→Bridge ni dispatch directo desde Observer a GitHub. Los despachos rutinarios se permiten automáticamente cuando Observer valida solicitud, plan live, scopes y contratos; `dry_run=true` sigue siendo un workflow real.
 - **F — PENDIENTE.** Preparar y validar la configuración de una Action de LLM consumidor con URL de Observador y clave entrante configurada como secreto de la Action, nunca en el prompt. Antes de afirmar capacidad completa, probar el flujo de lectura del LLM consumidor y documentar los límites de despacho.
@@ -457,4 +457,31 @@ Lite AS-EXP-05 permanece PASS_SCOPED. AS-EXP-06 se inició en SHA `fe9806f3503d7
 
 ### Addendum r366 — AS-EXP-06 candidate correction
 
-El candidato inicial de AS-EXP-06 (`fe9806f3503d70aaef4d89673f85ad13092f3211`) falló porque Algebrite devolvió los monomios en un orden conmutativo distinto al string esperado (`x^3+y^3+3*x*y^2+3*x^2*y`). La corrección compara el conjunto ordenado de términos exactos y conserva el oráculo numérico independiente `(x+y)^3`. Nuevo SHA `5901316519ca98d0810ac0f228c91abe6380ee7f`, test blob `75f74428c431f5a04b60a4580e7ade8ac70cff86`; CI [41142684332](https://github.com/c2melendez/precision-lab-lite/actions/runs/41142684332), cumulative [41142684039](https://github.com/c2melendez/precision-lab-lite/actions/runs/41142684039), H1d [41142684020](https://github.com/c2melendez/precision-lab-lite/actions/runs/41142684020), Scientific UI [41142683997](https://github.com/c2melendez/precision-lab-lite/actions/runs/41142683997) y Runner [41142684118](https://github.com/c2melendez/precision-lab-lite/actions/runs/41142684118) en cola/ejecución al corte. No aceptar el caso hasta revalidar el SHA corregido.
+El candidato inicial de AS-EXP-06 (`fe9806f3503d70aaef4d89673f85ad13092f3211`) falló porque Algebrite devolvió los monomios en un orden conmutativo distinto al string esperado (`x^3+y^3+3*x*y^2+3*x^2*y`). La corrección compara el conjunto ordenado de términos exactos y conserva el oráculo numérico independiente `(x+y)^3`. Nuevo SHA `5901316519ca98d0810ac0f228c91abe6380ee7f`, test blob `75f74428c431f5a04b60a4580e7ade8ac70cff86`; CI [41142684332](https://github.com/c2melendez/precision-lab-lite/actions/runs/41142684332), cumulative [41142684039](https://github.com/c2melendez/precision-lab-lite/actions/runs/41142684039), H1d [41142684020](https://github.com/c2melendez/precision-lab-lite/actions/runs/41142684020) y Runner [41142684118](https://github.com/c2melendez/precision-lab-lite/actions/runs/41142684118) finalizaron SUCCESS en el mismo SHA. Cumulative registra el test focalizado PASSED (366 archivos, 2,259 passed, 8 expected fail, 34 todo); H1d 22 E2E passed. Scientific UI [41142683997](https://github.com/c2melendez/precision-lab-lite/actions/runs/41142683997) seguía IN_PROGRESS al corte, complementario y no requerido. AS-EXP-06 queda PASS_SCOPED con aceptación `ALGEBRA114_AS_EXP_06_ACCEPTANCE_R365.md`.
+
+## Reconciliación r367 — Certification Runner y mecanismo paralelo (2026-10-30 UTC)
+
+### Estado verificado del Certification Runner
+
+| Repositorio | Run | SHA del checkout | Evento | Resultado |
+|---|---:|---|---|---|
+| Lite | [41142684118](https://github.com/c2melendez/precision-lab-lite/actions/runs/41142684118) | `5901316519ca98d0810ac0f228c91abe6380ee7f` | push | SUCCESS |
+| Plus | [41136660038](https://github.com/c2melendez/precision-lab-plus/actions/runs/41136660038) | `218d682848a03a000930e2028f057563847381f3` | push | SUCCESS |
+
+En ambos runs se verificó: resolución de la rama canónica desde el README predeterminado, checkout de la rama canónica, registro de BASE_SHA, fingerprint read-only y Push summary SUCCESS. En ambos quedaron SKIPPED: gate policy/workflow resolution, dry-run summary, detección y espera de una corrida equivalente, workflow dispatch, registro del recibo QA, persistencia de continuidad y commit documental.
+
+**Decisión:** `PASS_SCOPED_PUSH_ONLY` para el camino push/no-dispatch de Lite y Plus. Esto acredita que el Runner se inicia, resuelve y consulta la rama canónica, calcula el fingerprint y finaliza el push sin despachar. No acredita `workflow_dispatch`, despacho de gate, receipt durable, correlación Observer→Bridge→Actions→Runner ni replay idempotente. El test de contrato `scripts/certification/test_runner_contract.py` conserva el mismo blob en ambos repositorios: `ff5c499cb6eae8277279265a26a897ff982288a0`; los YAML mantienen diferencias intencionales solo en defaults locales y comentarios.
+
+### Estado global del mecanismo Observer → Bridge → Actions → Runner
+
+- **Fases A/B — CLOSED.** Lectura staging de un recibo existente desde Observer: HTTP 200 autenticado y HTTP 401 anónimo; contrato GET de estado documentado. No se creó un workflow nuevo en esa prueba.
+- **O5 — IN_PROGRESS.** Bridge dispone de pruebas de idempotencia, concurrencia, lease, persistencia entre procesos, conflictos y reconciliación; Observer tiene pruebas de autenticación, scopes, plan live y propagación de identificadores. Sin embargo, las pruebas de despacho son simuladas y no existe aún una traza real request → receipt durable → Actions run → Runner record → evidencia matemática, seguida de replay sin duplicación.
+- **O6 — PENDING, no FAIL.** No se ejecutó `POST /v1/bridge/dispatch` ni `workflow_dispatch` real por la restricción operativa vigente. No sustituir esta condición con despacho directo ni con mocks.
+- **O7 — PENDING.** Depende de la salida de O6 y del cierre del alcance auxiliar. No hay autorización implícita para merge, deploy ni corte de producción.
+- **PRs vigentes:** Observer PR #4 abierto/Ready for review, HEAD `6e712094a7e4b06a13224f66d6f3a6c26f991152`, CI 41064924977 SUCCESS. Bridge PR #1 abierto/Draft, HEAD `ce634c5a5078d57de1f54a8f77a352077487373b`, CI 41142813306 PENDING; CI previo 41131674843 SUCCESS corresponde a SHA anterior `4427b5871bd8a46f9cc5fd03032eb053bf448d1e`.
+
+### Estado matemático coordinado
+
+Lite AS-EXP-02, AS-EXP-03, AS-EXP-04, AS-EXP-05 y AS-EXP-06 están PASS_SCOPED, cada uno con su SHA y aceptación propia. AS-EXP-06: SHA `5901316519ca98d0810ac0f228c91abe6380ee7f`; CI 41142684332, cumulative 41142684039, H1d 41142684020 SUCCESS; Runner 41142684118 SUCCESS push/no-dispatch. Scientific UI 41142683997 es complementario y no requerido. Siguiente caso Lite: AS-EXP-07, con oráculo aritmético independiente. Plus conserva su bloqueo contractual VC-FE-45; no se importa aceptación de Lite.
+
+Sin merge, deploy, cambio de producción ni despacho real. La certificación global permanece OPEN.

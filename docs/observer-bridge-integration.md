@@ -66,3 +66,23 @@ El cliente GitHub del código actual solo realiza GET. El permiso de escritura d
 - Si hace falta, incorporar a Observador un cliente Bridge de solo lectura con URL base explícita, secreto de servidor, timeout, control de errores y pruebas. No añadir funciones de escritura/dispatch al Observador.
 - Mantener SERVICE_API_KEY separado de llm.
 - No activar la nueva base en el Bridge actual hasta completar la configuración del host independiente y la prueba de lectura.
+
+
+## 2026-10-30 — Observador read-only integration proposal
+
+The Observador repository now has draft PR #4:
+https://github.com/c2melendez/precision-lab-readonly-api/pull/4
+
+Branch: feature/bridge-readonly-run-status.
+
+The PR adds a server-side GET-only proxy route: GET /v1/bridge/runs/{run_id}. The route:
+- Keeps Observador inbound API authentication on X-API-Key using SERVICE_API_KEY.
+- Sends the lowercase Render environment variable llm only as the upstream X-Bridge-Key header.
+- Uses BRIDGE_BASE_URL (defaulting to the known Compass Lovable origin) and BRIDGE_TIMEOUT_SECONDS.
+- Requires HTTPS and refuses redirects.
+- Does not expose the Bridge key in its response or error details.
+- Does not create runs or dispatch GitHub Actions workflows. A Bridge status GET may still update Bridge last-used/audit metadata and reconcile status in the Bridge database.
+
+PR #4 is a draft only. The tests have been authored but have not been executed; no Render environment variables have been changed and no deployment or live Bridge call has been made. This addition is not a proof of production connectivity.
+
+The PR keeps the original llm key and original Compass host in place. Before moving to the independent Bridge host, it is still necessary to create a replacement key in the new database (or migrate the original key hash with authorized source access), configure the independent Bridge service, and pass a read-only test. No old key should be revoked before that verification.

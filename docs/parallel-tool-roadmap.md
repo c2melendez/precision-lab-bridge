@@ -300,3 +300,48 @@ Una consulta SQL posterior confirmó una clave dispatch activa, cero filas de `b
 Los servicios están LIVE, pero O6 sigue pendiente: la sesión de ejecución dispone de herramientas para despliegue, logs y consulta de datos, pero no de un cliente HTTP autenticado que permita invocar el POST de Observer con sus headers y body. Los intentos de abrir las URLs mediante el lector web no proporcionaron acceso HTTP. No simular la llamada mediante SQL ni sustituirla por un dispatch directo a GitHub: eso invalidaría la prueba Observer→Bridge.
 
 Siguiente evidencia necesaria: POST autenticado a `/v1/bridge/dispatch` con plan live `RUN`, seguido de GET de reconciliación con la misma `idempotency_key`; verificar un solo workflow, un recibo durable y correlación con el Runner. Hasta entonces, no declarar O6/O7 cerrados ni reanudar la certificación como si el flujo auxiliar estuviera certificado.
+
+
+## Corte documental consolidado — 2026-10-30 UTC
+
+Esta sección es la referencia vigente para la conciliación administrativa y supersede los estados históricos de CI/HEAD anteriores de este documento.
+
+### Fases A y B — cerradas
+
+- **A — PASS:** staging de Observador consultó el recibo existente de Bridge. La petición autenticada devolvió HTTP 200; la petición anónima devolvió HTTP 401. Recibo Bridge `94c102a5-5242-48ba-bdb7-4754a57513db`; referencia histórica Lite Actions `41005884405`; baseline Plus `40970642558`. No se generaron nuevos workflows como parte de esta prueba.
+- **B — PASS:** contrato `README_CONTRACT.md` y `openapi.yaml` documentan la ruta GET protegida, la separación entre UUID Bridge e ID de Actions, autenticación y respuestas de error. Observer CI [41051691930](https://github.com/c2melendez/precision-lab-readonly-api/actions/runs/41051691930), HEAD `ed6a5726c3564054897f4a3d34f73194dfcc6954`; Bridge CI [41050127027](https://github.com/c2melendez/precision-lab-bridge/actions/runs/41050127027).
+- No reabrir A/B por el trabajo posterior de migración de la base Bridge: son criterios distintos y su evidencia permanece válida.
+
+### Migración remota Bridge — aplicada y conciliada
+
+- Proyecto Supabase: `umxtvefdcjwkiqsubfpb` (`precision-lab-bridge-db`).
+- Versión aplicada y registrada: `20261030200900`.
+- Archivo canónico: `supabase/migrations/20261030200900_bridge_security_ownership_and_rpc_integrity.sql`.
+- Blob SHA del archivo: `488779521e6df48964234e171ec15db07d82c8fb`.
+- Commit de alineación del nombre: `e0bc3e35c89fa152cd59177c18863ac140e28bcb`.
+- Bridge CI #58 [41121256457](https://github.com/c2melendez/precision-lab-bridge/actions/runs/41121256457): ambos jobs SUCCESS, incluido replay de las seis migraciones, aserciones estructurales, pruebas funcionales de las cinco RPC y lint.
+- Bridge CI #59 [41121381925](https://github.com/c2melendez/precision-lab-bridge/actions/runs/41121381925): ambos jobs SUCCESS sobre el HEAD actualizado `f8ea3afa74c0f6d5546c1a5bc3e3f2e26f768239`; el archivo versionado conserva el mismo blob SHA.
+- Verificación remota posterior: 2 claves, 1 ejecución, 2 llamadas, 0 idempotencias; cero propietarios inválidos/huérfanos; cinco RPC SECURITY INVOKER ejecutables por `service_role`, ninguna por `anon` o `authenticated`; RLS activo en las cuatro tablas.
+- Los cuatro avisos INFO RLS sin políticas y los dos avisos INFO de índices sin uso se mantienen sin cambios intencionalmente.
+
+### PR históricos de Observador — diferidos, no bloqueantes
+
+Los PR #1, #2 y #3 pertenecen a `c2melendez/precision-lab-readonly-api`, no al PR #1 de Bridge. Los tres continúan abiertos y sin merge; #3 permanece Draft.
+
+| PR Observador | Disposición vigente |
+|---|---|
+| #1 — reconciliación documental API/Render | Diferido, no bloqueante. No mezclar con certificación matemática. |
+| #2 — categorías técnicas del fingerprint | Diferido, no declarar PASS: sus intentos históricos fallaron antes de asignar runner y no ejecutaron pytest. Reevaluar solo si vuelve a ser necesario. |
+| #3 — API antigua de despacho aislado | Diferido/bloqueado por arquitectura y requisitos propios. No reactivar: la arquitectura vigente delega el despacho interno a Bridge desde Observer. |
+
+Bridge PR #1 es un PR distinto: permanece abierto y Draft. CI #59 acredita su HEAD actual, pero no implica aprobación de merge.
+
+### Límites que permanecen vigentes
+
+- Fases A y B cerradas; C queda en revisión documental/técnica según el estado de los PR.
+- No fusionar PR #1 de Bridge ni PR #4 de Observador como efecto colateral.
+- No desplegar Bridge ni Observador, no activar auto-deploy y no hacer corte de producción.
+- No rotar/revocar credenciales ni modificar variables productivas.
+- No ejecutar un POST de despacho ni iniciar workflows de Lite/Plus en esta conciliación.
+- La validación de CI de Bridge no equivale a prueba E2E Bridge → Runner ni a certificación matemática PASS.
+- La prioridad final continúa siendo la certificación matemática Lite/Plus, una vez resueltos los límites auxiliares que realmente sean necesarios.

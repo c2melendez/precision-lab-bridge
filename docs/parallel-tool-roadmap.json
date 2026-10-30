@@ -5,7 +5,7 @@
   "as_of": "2026-10-30",
   "language": "es",
   "status": "in_progress",
-  "summary": "Fases A/B cerradas. Certification Runner Lite/Plus PASS_SCOPED para push/no-dispatch; último Runner Lite completado 41142010410 SUCCESS y Plus 41136660038 SUCCESS; nuevo Runner 41142684118 en ejecución. Suite de contrato idéntica (blob ff5c499c); diferencias YAML limitadas a defaults/comentarios. Dispatch/espera/registro/persistencia SKIPPED. O5 IN_PROGRESS por falta de traza E2E Observer→Bridge→Actions→Runner y replay sin duplicación. O6 PENDING porque no se ejecutó dispatch real; O7 PENDING. AS-EXP-03/04/05 Lite PASS_SCOPED; AS-EXP-06 revalidándose tras corregir orden conmutativo del resultado simbólico. No merge, deploy ni producción.",
+  "summary": "Fases A/B cerradas. Certification Runner Lite/Plus PASS_SCOPED_PUSH_ONLY: Lite 41142684118 SUCCESS en SHA 5901316519ca98d0810ac0f228c91abe6380ee7f; Plus 41136660038 SUCCESS en SHA 218d682848a03a000930e2028f057563847381f3. En ambos, resolución canónica/checkout/fingerprint/push summary SUCCESS y dispatch/registro/persistencia SKIPPED. O5 IN_PROGRESS por falta de trazabilidad E2E Observer→Bridge→Actions→Runner y replay idempotente; O6 PENDING por ausencia deliberada de dispatch real; O7 PENDING. AS-EXP-02..06 Lite PASS_SCOPED; AS-EXP-06 aceptación R365; siguiente AS-EXP-07. No merge, deploy ni producción.",
   "canonical_markdown": {
     "repo": "c2melendez/precision-lab-bridge",
     "branch": "hardening/secure-status-independent-runtime",
@@ -331,7 +331,9 @@
         "Reconciliación r360 del Certification Runner en Lite: push run 41138509571 SUCCESS en SHA c8c29d820e5bd16ab4df8a528bcea9b4a72f8acc. Rama canónica resuelta desde README, checkout, BASE_SHA y fingerprint correctos; push summary SUCCESS. Gate policy, dry-run summary, detección/espera, dispatch, registro QA, persistencia y commit documental SKIPPED.",
         "Reconciliación r360 del Certification Runner en Plus: push run 41136660038 SUCCESS en SHA 218d682848a03a000930e2028f057563847381f3. Mismos pasos de resolución canónica, checkout, BASE_SHA y fingerprint correctos; dispatch, espera, registro y persistencia SKIPPED.",
         "Decisión Runner: PASS_SCOPED para evento push/no-dispatch en ambos repositorios. No acredita workflow_dispatch, gate dispatch, receipt durable, registro runner post-dispatch ni replay idempotente.",
-        "Los resultados de los gates matemáticos AS-EXP-02 Lite (CI 41138509410, cumulative 41138509481, H1d 41138509536) son evidencia del motor, no evidencia de dispatch del mecanismo paralelo."
+        "Los resultados de los gates matemáticos AS-EXP-02 Lite (CI 41138509410, cumulative 41138509481, H1d 41138509536) son evidencia del motor, no evidencia de dispatch del mecanismo paralelo.",
+        "R365 Runner reconciliation: Lite push run 41142684118 SUCCESS on SHA 5901316519ca98d0810ac0f228c91abe6380ee7f; Plus push run 41136660038 SUCCESS on SHA 218d682848a03a000930e2028f057563847381f3. Both resolve canonical branch, checkout, record base SHA, calculate read-only fingerprint and finish Push summary. Dispatch, QA receipt, continuity persistence and documentary commit are SKIPPED. Runner remains PASS_SCOPED_PUSH_ONLY; no E2E receipt chain or idempotent replay is proven.",
+        "Current PR snapshot: Bridge PR #1 remains open/draft at HEAD ce634c5a5078d57de1f54a8f77a352077487373b; CI 41142813306 is pending. The previously verified Bridge CI 41131674843 was SUCCESS on prior HEAD 4427b5871bd8a46f9cc5fd03032eb053bf448d1e. Observer PR #4 remains open/ready at HEAD 6e712094a7e4b06a13224f66d6f3a6c26f991152 with CI 41064924977 SUCCESS."
       ],
       "exit_criteria": "Evidencia de pruebas demuestra no duplicación, reconciliación y trazabilidad request→receipt→Actions→Runner."
     },
@@ -351,7 +353,8 @@
         "Pruebas locales/staging sin efectos externos están cubiertas por los CI y tests documentados en O5.",
         "No se ha invocado POST /v1/bridge/dispatch ni workflow_dispatch real; no se crea recibo enlazado a un nuevo Actions run en esta iteración.",
         "La solicitud del usuario para esta iteración es mantener despacho real inactivo; O6 permanece pendiente y no se sustituye por dispatch directo ni por mocks.",
-        "Corte r360: no se ejecutó workflow_dispatch real ni POST de Observer/Bridge, de acuerdo con el límite operativo vigente. Los runs push de Runner no generan receipt ni disparan gates. O6 permanece PENDING, no FAIL."
+        "Corte r360: no se ejecutó workflow_dispatch real ni POST de Observer/Bridge, de acuerdo con el límite operativo vigente. Los runs push de Runner no generan receipt ni disparan gates. O6 permanece PENDING, no FAIL.",
+        "R365 confirmation: no POST /v1/bridge/dispatch and no workflow_dispatch were invoked. Runner push SUCCESS runs do not create durable receipts or satisfy the E2E criterion. O6 remains PENDING by the explicit operational restriction, not FAIL."
       ],
       "exit_criteria": "Validación end-to-end completa y trazable; repetición idempotente sin segundo workflow. dry_run=true cuenta como despacho real y se permite dentro del alcance general delegado cuando tests/policy lo habilitan."
     },
@@ -405,26 +408,23 @@
       "number": 4,
       "state": "open",
       "draft": false,
+      "mergeable": true,
       "head_sha": "6e712094a7e4b06a13224f66d6f3a6c26f991152",
-      "ci_run_id": "41064924977",
-      "ci_status": "success",
-      "last_code_ci_sha": "3e41ad35987e96aa1989460062466a987bc6921a",
-      "last_code_ci_run_id": "41064616724",
-      "last_code_ci_status": "success"
+      "ci_run_id": 41064924977,
+      "ci_status": "success"
     },
     "bridge": {
       "url": "https://github.com/c2melendez/precision-lab-bridge/pull/1",
       "number": 1,
       "state": "open",
       "draft": true,
-      "head_sha": "f8ea3afa74c0f6d5546c1a5bc3e3f2e26f768239",
-      "ci_run_id": "41121381925",
-      "ci_head_sha": "4c2d22172d59fac0b76b95cc880c77c74ba90bcf",
-      "ci_status": "success",
-      "last_code_ci_sha": "40371c903232a4a1e3226176c92f09c3d6c2e96f",
-      "last_code_ci_run_id": "41064782173",
-      "last_code_ci_status": "success",
-      "migration_ci_run_id": "41121256457"
+      "mergeable": true,
+      "head_sha": "ce634c5a5078d57de1f54a8f77a352077487373b",
+      "latest_ci_run_id": 41142813306,
+      "latest_ci_status": "pending",
+      "last_verified_code_ci_run_id": 41131674843,
+      "last_verified_code_ci_sha": "4427b5871bd8a46f9cc5fd03032eb053bf448d1e",
+      "last_verified_code_ci_status": "success"
     }
   },
   "deferred_items": [
@@ -670,7 +670,7 @@
       "shared_contract": "target_repo=both; workflow_dispatch gate and dry_run inputs; canonical README branch resolution; push and dry-run cannot dispatch; security gate remains blocked in Plus."
     }
   },
-  "next_step": "Continue the mathematical certification in Lite at AS-EXP-03; keep Runner and Observer/Bridge status recorded independently. Do not dispatch real workflows, merge PRs, deploy or cut production unless separately authorized.",
+  "next_step": "Continue Lite Algebra114 at AS-EXP-07 using the source row (2x-3)^3 = 8x^3-36x^2+54x-27 and an independent arithmetic oracle. Keep Runner/Observer/Bridge status separate. Do not perform real dispatch, merge PRs, deploy or cut production.",
   "mathematical_progress_r360": {
     "repository": "c2melendez/precision-lab-lite",
     "status": "PASS_SCOPED",
@@ -708,5 +708,82 @@
     },
     "last_acceptance_sha": "4341955335d6898c4979063520432f82a6d129ba",
     "last_acceptance": "qa/certification/ALGEBRA114_AS_EXP_05_ACCEPTANCE_R364.md"
+  },
+  "runner_certification_r365": {
+    "status": "PASS_SCOPED_PUSH_ONLY",
+    "canonical_branch": "qa/syntax-audit-in625-a1",
+    "lite": {
+      "run_id": 41142684118,
+      "run_url": "https://github.com/c2melendez/precision-lab-lite/actions/runs/41142684118",
+      "sha": "5901316519ca98d0810ac0f228c91abe6380ee7f",
+      "event": "push",
+      "conclusion": "success"
+    },
+    "plus": {
+      "run_id": 41136660038,
+      "run_url": "https://github.com/c2melendez/precision-lab-plus/actions/runs/41136660038",
+      "sha": "218d682848a03a000930e2028f057563847381f3",
+      "event": "push",
+      "conclusion": "success"
+    },
+    "verified_steps": [
+      "Resolve canonical branch from default-branch README",
+      "Checkout canonical branch",
+      "Record base commit",
+      "Read-only planner fingerprint",
+      "Push summary"
+    ],
+    "skipped_steps": [
+      "Gate policy/workflow resolution",
+      "Dry-run summary",
+      "Equivalent active-run detection/wait",
+      "Workflow dispatch",
+      "QA receipt recording",
+      "Continuity persistence",
+      "Documentary commit"
+    ],
+    "contract_test": {
+      "path": "scripts/certification/test_runner_contract.py",
+      "blob_sha": "ff5c499cb6eae8277279265a26a897ff982288a0",
+      "identical_lite_plus": true
+    },
+    "not_proven": [
+      "workflow_dispatch dispatch path",
+      "Gate dispatch and result wait",
+      "Observer→Bridge→Actions→Runner end-to-end trace",
+      "durable receipt correlation",
+      "idempotent replay without duplicate workflow"
+    ],
+    "global_status": "OPEN",
+    "updated_utc": "2026-10-30T23:09:14Z"
+  },
+  "mathematical_progress_r365": {
+    "repository": "c2melendez/precision-lab-lite",
+    "status": "PASS_SCOPED",
+    "case": "ALGEBRA114-AS-EXP-06",
+    "sha": "5901316519ca98d0810ac0f228c91abe6380ee7f",
+    "test_blob": "75f74428c431f5a04b60a4580e7ade8ac70cff86",
+    "acceptance": "qa/certification/ALGEBRA114_AS_EXP_06_ACCEPTANCE_R365.md",
+    "runs": {
+      "ci": 41142684332,
+      "cumulative": 41142684039,
+      "h1d": 41142684020,
+      "runner": 41142684118,
+      "scientific_ui": {
+        "id": 41142683997,
+        "status": "in_progress",
+        "role": "complementary; not required for scoped algebra acceptance"
+      }
+    },
+    "next_case": "ALGEBRA114-AS-EXP-07",
+    "global_status": "OPEN"
+  },
+  "phase_status_as_of_r365": {
+    "A": "CLOSED",
+    "B": "CLOSED",
+    "O5": "IN_PROGRESS",
+    "O6": "PENDING",
+    "O7": "PENDING",
+    "note": "O1–O4 retain their documented partial/in-progress states; A/B refer to the Observer read-only staging integration and contract."
   }
 }

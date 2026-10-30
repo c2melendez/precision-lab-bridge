@@ -423,3 +423,8 @@ Lite generó un nuevo run de Certification Runner [41140700509](https://github.c
 ### Reconciliación matemática r361
 
 Lite AS-EXP-03 quedó PASS_SCOPED en SHA `0a85b448298df0691b043269648d327d0a7aec0b`: CI [41141038026](https://github.com/c2melendez/precision-lab-lite/actions/runs/41141038026), cumulative [41141037941](https://github.com/c2melendez/precision-lab-lite/actions/runs/41141037941) y H1d [41141037866](https://github.com/c2melendez/precision-lab-lite/actions/runs/41141037866) SUCCESS; Runner push [41141037836](https://github.com/c2melendez/precision-lab-lite/actions/runs/41141037836) SUCCESS/no-dispatch. Scientific UI [41141038013](https://github.com/c2melendez/precision-lab-lite/actions/runs/41141038013) seguía IN_PROGRESS como prueba complementaria. La aceptación está en `ALGEBRA114_AS_EXP_03_ACCEPTANCE_R361.md`; siguiente caso Lite AS-EXP-04. Esta actualización matemática no cambia O5/O6/O7 ni certifica el despacho paralelo.
+
+
+### Runner Lite — nuevo corte r361
+
+Certification Runner [41141571479](https://github.com/c2melendez/precision-lab-lite/actions/runs/41141571479) terminó SUCCESS en SHA `933fad5c3e55db06db9de6ff21e02cd96070da0f` (push). Resolución de rama canónica, checkout, BASE_SHA, fingerprint y Push summary SUCCESS; gate policy, dry-run summary, detección/espera, dispatch, registro QA, persistencia y commit documental SKIPPED. Se mantiene PASS_SCOPED exclusivamente para push/no-dispatch. AS-EXP-04 usa ese SHA y sus gates matemáticos están en curso.

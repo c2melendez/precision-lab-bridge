@@ -78,6 +78,10 @@ A status read performs GitHub GET requests and may persist reconciliation result
 
 ## Database and migrations
 
+- [Supabase migration and verification status](docs/supabase-migration-plan.md)
+- [Observador–Bridge credential boundary and cutover](docs/observer-bridge-integration.md)
+
+
 SQL migration definitions are in `drizzle/migrations`. The configuration reads `DATABASE_URL`. Migrations are not applied automatically at build or startup; review and run them as a separate, explicitly authorized operation against the intended Supabase project.
 
 ## Security and operational guardrails

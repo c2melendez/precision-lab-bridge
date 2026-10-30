@@ -29,11 +29,11 @@ bun run build
 bun run start
 ```
 
-The production build uses Nitro's `node-server` preset by default and starts with `node .output/server/index.mjs`. The Render Blueprint sets `NITRO_PRESET=render-com`, binds to `HOST=0.0.0.0`, and uses the platform-provided `PORT`. The Blueprint is configuration only; no Render service has been created and no deployment has been performed.
+The production build uses Nitro's `node-server` preset by default and starts with `node .output/server/index.mjs`. The Render Blueprint sets `NITRO_PRESET=render-com`, binds to `HOST=0.0.0.0`, and uses the platform-provided `PORT`. The independent Render web service has been created in My Workspace in Virginia on the Free plan, with auto-deploy disabled. Its initial build/deploy from the hardening branch reached LIVE on 2026-10-30. It is not yet configured with privileged Supabase/GitHub/admin secrets and must not be treated as production-ready.
 
 ## Render configuration
 
-The root `render.yaml` describes a Node web service that installs from `bun.lock`, builds the application, and starts the Nitro server. It sets `autoDeployTrigger: "off"`; creating or syncing the Blueprint is a separate, user-controlled operation. Secret values use Render's `sync: false` placeholders and must be supplied in the Render Dashboard. Render only prompts for these placeholders during initial Blueprint creation; later new secrets must be added manually in the Dashboard.
+The root render.yaml describes the independent Node web service in Virginia on the Free plan. It installs from bun.lock, builds the application, and starts the Nitro server. It sets autoDeployTrigger off; the existing direct-created service is separate from any future Blueprint sync. Secret values use Render's `sync: false` placeholders and must be supplied in the Render Dashboard. Render only prompts for these placeholders during initial Blueprint creation; later new secrets must be added manually in the Dashboard.
 
 ## Environment variables
 
@@ -77,6 +77,8 @@ A status read performs GitHub GET requests and may persist reconciliation result
 `GET /api/run` always returns `405 METHOD_NOT_ALLOWED` and never triggers a workflow.
 
 ## Database and migrations
+
+- [Independent Render service status and secret checklist](docs/render-independent-service-status.md)
 
 - [Supabase migration and verification status](docs/supabase-migration-plan.md)
 - [Observador–Bridge credential boundary and cutover](docs/observer-bridge-integration.md)

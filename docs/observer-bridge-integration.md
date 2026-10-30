@@ -142,9 +142,9 @@ Observer es la única interfaz del LLM y el plano central de lectura, interpreta
 
 Bridge permanece como componente interno de despacho, validación final, recibos e idempotencia. No se crea una Action de Bridge, no se entrega al LLM su URL ni su credencial y no se crea otra capa de servicios.
 
-La operación de despacho se expondrá en Observer mediante un contrato protegido aún por diseñar e implementar. Observer validará autorización y scopes ligados a los parámetros exactos; Bridge validará la identidad de servicio de Observer, allowlist y permisos de despacho. La idempotencia y los identificadores de correlación/validación deberán conservarse desde la solicitud hasta el recibo, el run de Actions y el registro del Runner. Los resultados ambiguos requieren reconciliación, nunca reintento ciego.
+La operación protegida de despacho está implementada en la rama de trabajo de Observer como `POST /v1/bridge/dispatch`. Antes de invocar Bridge, Observer recalcula el plan live y exige continuidad CURRENT, rama canónica y SHA exactos, y decisión RUN. Las solicitudes WAIT/REUSE/REFRESH/RECONCILE/DIAGNOSE/REVIEW no generan dispatch. Observer usa `BRIDGE_DISPATCH_KEY` solo server-to-server; el LLM no conoce el host ni la credencial Bridge. La idempotencia y los identificadores de correlación/validación se conservan desde la solicitud hasta el recibo. Los resultados ambiguos requieren reconciliación, nunca reintento ciego.
 
-La aprobación para reorientar el roadmap no autoriza por sí sola ningún despacho real. dry_run=true en Bridge también inicia un workflow y requiere autorización específica. No hacer merge, producción cutover ni rotación/revocación de secretos como efecto colateral.
+La autorización general del usuario cubre operaciones rutinarias dentro del alcance y de las políticas ya establecidas: no se requiere aprobación humana por evento. `dry_run=true` también inicia un workflow y se trata como dispatch real; puede ejecutarse automáticamente cuando el plan, scopes y pruebas lo permitan. No se hace producción cutover, rotación/revocación de secretos ni cambio material de alcance como efecto colateral.
 
 No añadir un nuevo servicio, segundo Runner ni duplicar la lógica de planificación o persistencia. Al completar los criterios O1–O6 del roadmap, cerrar la infraestructura auxiliar y regresar a la certificación matemática de Lite y Plus.
 
@@ -158,3 +158,23 @@ Observer/LLM debe ejecutar automáticamente consultas, planificación, correccio
 La intervención humana se reserva a decisiones materiales no resueltas por la especificación o las pruebas: cambios de alcance, ambigüedad de aceptación, licencia, publicación/exposición de datos, aceptación de riesgo nuevo o desactivación de protecciones. Un fallo técnico ordinario se investiga, corrige y vuelve a probar autónomamente; si no existe un camino seguro definido, se detiene solo esa operación y se informa el bloqueo concreto.
 
 Las pruebas son la fuente de verdad operativa. Deben cubrir autorización/scopes, allowlist, idempotencia, concurrencia, reconciliación, trazabilidad, regresión y errores. dry_run=true crea un workflow y cuenta como despacho real, pero no exige aprobación por evento si está dentro de la política general delegada y los tests lo habilitan. No confundir éxito del workflow con PASS de certificación matemática.
+
+
+
+## Separación de scopes Bridge — 2026-10-30
+
+Se implementó y aplicó la migración `bridge_key_scopes` en el proyecto Supabase de staging (`umxtvefdcjwkiqsubfpb`):
+- `bridge_keys.scopes text[]` acepta únicamente `read` y/o `dispatch`.
+- El valor por defecto es `['read']`; las claves preexistentes no heredan permiso de despacho.
+- `trigger()` exige `dispatch`; `runStatus()` y `lookupRequest()` exigen `read`.
+- La UI administrativa permite emitir claves `read`, `dispatch` o `read,dispatch`; el secreto se muestra una sola vez.
+- Observer usa `llm` únicamente para GET y `BRIDGE_DISPATCH_KEY` únicamente para POST. No hay fallback de la clave de lectura a despacho.
+- La clave existente de staging fue consultada solo por sus scopes: continúa con `['read']`. No se leyó ni rotó su valor/hash.
+
+Pruebas añadidas:
+- una clave `read` no puede crear claims ni invocar GitHub dispatch;
+- una clave `dispatch` no puede consultar recibos;
+- el fixture de integración de idempotencia declara explícitamente ambos scopes;
+- las pruebas existentes de replay, conflicto, concurrencia, lease, error definitivo y resultado incierto permanecen activas.
+
+La migración está registrada en Supabase como `20261030133052_bridge_key_scopes` y en Drizzle como `0003_bridge_key_scopes`. La CI Bridge en SHA `74a592253b293a1919dc7387bfbc74f239524044` completó unit/regression tests, ESLint y build con SUCCESS. La actualización posterior de la UI administrativa se valida en una ejecución separada.

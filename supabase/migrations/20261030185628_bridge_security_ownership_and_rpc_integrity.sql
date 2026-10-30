@@ -1,7 +1,7 @@
 -- Generated with Supabase CLI 2.122.0; validated by replay on a disposable local Supabase database.
 -- Re-check all data preconditions immediately before applying to any non-disposable database.
 
-DO $$
+DO $preflight$
 BEGIN
   IF EXISTS (SELECT 1 FROM public.bridge_runs WHERE key_id IS NULL) THEN RAISE EXCEPTION 'bridge_runs has NULL key_id'; END IF;
   IF EXISTS (SELECT 1 FROM public.bridge_runs r LEFT JOIN public.bridge_keys k ON k.id=r.key_id WHERE k.id IS NULL) THEN RAISE EXCEPTION 'bridge_runs has orphan key_id'; END IF;
@@ -13,7 +13,7 @@ BEGIN
       OR array_position(scopes,NULL) IS NOT NULL
       OR cardinality(scopes) <> (SELECT count(DISTINCT scope) FROM unnest(scopes) AS scope)
   ) THEN RAISE EXCEPTION 'bridge_keys has invalid or duplicate scopes'; END IF;
-END $;
+END $preflight$;
 
 ALTER TABLE public.bridge_runs ALTER COLUMN key_id SET NOT NULL;
 ALTER TABLE public.bridge_runs ADD CONSTRAINT bridge_runs_key_id_fkey FOREIGN KEY (key_id) REFERENCES public.bridge_keys(id) NOT VALID;

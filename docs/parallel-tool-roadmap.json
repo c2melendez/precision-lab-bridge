@@ -5,7 +5,7 @@
   "as_of": "2026-10-30",
   "language": "es",
   "status": "in_progress",
-  "summary": "Fases A/B cerradas. Certification Runner Lite/Plus PASS_SCOPED para push/no-dispatch; último Runner Lite completado 41142010410 SUCCESS y Plus 41136660038 SUCCESS; nuevo Runner 41142483063 en cola. Suite de contrato idéntica (blob ff5c499c); diferencias YAML limitadas a defaults/comentarios. Dispatch/espera/registro/persistencia SKIPPED. O5 IN_PROGRESS por falta de traza E2E Observer→Bridge→Actions→Runner y replay sin duplicación. O6 PENDING porque no se ejecutó dispatch real; O7 PENDING. AS-EXP-03/04/05 Lite PASS_SCOPED; AS-EXP-06 en ejecución. No merge, deploy ni producción.",
+  "summary": "Fases A/B cerradas. Certification Runner Lite/Plus PASS_SCOPED para push/no-dispatch; último Runner Lite completado 41142010410 SUCCESS y Plus 41136660038 SUCCESS; nuevo Runner 41142684118 en ejecución. Suite de contrato idéntica (blob ff5c499c); diferencias YAML limitadas a defaults/comentarios. Dispatch/espera/registro/persistencia SKIPPED. O5 IN_PROGRESS por falta de traza E2E Observer→Bridge→Actions→Runner y replay sin duplicación. O6 PENDING porque no se ejecutó dispatch real; O7 PENDING. AS-EXP-03/04/05 Lite PASS_SCOPED; AS-EXP-06 revalidándose tras corregir orden conmutativo del resultado simbólico. No merge, deploy ni producción.",
   "canonical_markdown": {
     "repo": "c2melendez/precision-lab-bridge",
     "branch": "hardening/secure-status-independent-runtime",
@@ -610,10 +610,10 @@
           "event": "push"
         }
       ],
-      "latest_observed_run_id": 41142483063,
-      "latest_observed_run_url": "https://github.com/c2melendez/precision-lab-lite/actions/runs/41142483063",
-      "latest_observed_sha": "fe9806f3503d70aaef4d89673f85ad13092f3211",
-      "latest_observed_status": "queued",
+      "latest_observed_run_id": 41142684118,
+      "latest_observed_run_url": "https://github.com/c2melendez/precision-lab-lite/actions/runs/41142684118",
+      "latest_observed_sha": "5901316519ca98d0810ac0f228c91abe6380ee7f",
+      "latest_observed_status": "in_progress",
       "latest_run_status": "success_push_only"
     },
     "plus": {
@@ -692,17 +692,19 @@
     "last_accepted_case": "ALGEBRA114-AS-EXP-05",
     "active_case": {
       "case": "ALGEBRA114-AS-EXP-06",
-      "status": "GATES_QUEUED",
-      "sha": "fe9806f3503d70aaef4d89673f85ad13092f3211",
-      "test_blob": "2b9492992e0cfc08b4ef3161ad573e54e221eb6a",
+      "status": "GATES_QUEUED_OR_IN_PROGRESS",
+      "sha": "5901316519ca98d0810ac0f228c91abe6380ee7f",
+      "test_blob": "75f74428c431f5a04b60a4580e7ade8ac70cff86",
       "runs": {
-        "ci": 41142483043,
-        "cumulative": 41142482968,
-        "h1d": 41142482951,
-        "scientific_ui": 41142482971,
-        "runner": 41142483063
+        "ci": 41142684332,
+        "cumulative": 41142684039,
+        "h1d": 41142684020,
+        "scientific_ui": 41142683997,
+        "runner": 41142684118
       },
-      "acceptance": null
+      "supersedes_sha": "fe9806f3503d70aaef4d89673f85ad13092f3211",
+      "acceptance": null,
+      "note": "Previous candidate failed only because symbolic monomial ordering was compared as a fixed string; corrected to compare sorted exact terms."
     },
     "last_acceptance_sha": "4341955335d6898c4979063520432f82a6d129ba",
     "last_acceptance": "qa/certification/ALGEBRA114_AS_EXP_05_ACCEPTANCE_R364.md"

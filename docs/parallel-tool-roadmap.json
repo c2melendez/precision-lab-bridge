@@ -5,7 +5,7 @@
   "as_of": "2026-10-30",
   "language": "es",
   "status": "in_progress",
-  "summary": "La herramienta de observación y despacho no está terminada. La certificación matemática de Lite y Plus queda fuera de este archivo.",
+  "summary": "Fases A y B cerradas con evidencia staging y CI; fase C preparada para revisión con ambos PR abiertos y CI verde; D y E requieren autorización expresa; F pendiente de validar la Action consumidora. La certificación matemática de Lite y Plus es independiente.",
   "canonical_markdown": {
     "repo": "c2melendez/precision-lab-bridge",
     "branch": "hardening/secure-status-independent-runtime",
@@ -14,18 +14,19 @@
   },
   "supersedes": "docs/observer-bridge-integration.md#Trabajo de integración pendiente",
   "evidence_rule": "Si un comentario de PR cita un SHA o una prueba más nueva, esa evidencia manda y este archivo debe actualizarse en el mismo cambio.",
-  "active_phase_id": "A",
+  "active_phase_id": "F",
   "resume_protocol": {
     "audience": {
       "executes_this_roadmap": "LLM con acceso a GitHub. El humano opera Render y las claves.",
       "does_not_execute_this_roadmap": "LLM sin GitHub. Ese modelo es el usuario final de Observador."
     },
     "steps": [
-      "No pidas, pegues, registres ni hagas commit de secretos. Ni llm, ni SERVICE_API_KEY, ni GH_TOKEN, ni SUPABASE_SECRET_KEY, ni BRIDGE_ADMIN_PASSWORD.",
-      "Lee este archivo, el cuerpo de los dos PR y el check más reciente de cada cabeza. No rehagas fases ya cerradas.",
-      "Ejecuta solo la primera fase cuyo exit_criteria no esté cumplido.",
-      "Anota la evidencia (SHA, URL de run, código HTTP, conteo de workflows) y detente.",
-      "No fusiones, no despliegues producción, no cambies variables de producción y no despaches Lite ni Plus salvo que la fase activa lo diga y el usuario lo haya aprobado en esa misma conversación."
+      "No pidas, pegues, registres ni hagas commit de secretos: llm, SERVICE_API_KEY, GITHUB_READ_TOKEN, GH_TOKEN, SUPABASE_SECRET_KEY ni BRIDGE_ADMIN_PASSWORD.",
+      "Distingue CI auxiliar, lectura staging y certificación matemática; no son equivalentes.",
+      "No rehagas A ni B: están cerradas con evidencia HTTP y CI.",
+      "No declares validado el despacho end-to-end: aún no existe una prueba controlada Bridge → GitHub Actions Runner → recibo → Observador.",
+      "No fusiones PR, no cambies producción, no rotes/revoques claves ni despaches Lite/Plus sin autorización expresa del usuario en esa conversación.",
+      "Anota SHA, URL de run, códigos HTTP y conteos de workflows; nunca registres credenciales."
     ]
   },
   "design_decision": {
@@ -36,7 +37,10 @@
       "method": "POST",
       "path": "/api/runs",
       "service": "bridge",
-      "headers": ["X-Bridge-Key", "Idempotency-Key"],
+      "headers": [
+        "X-Bridge-Key",
+        "Idempotency-Key"
+      ],
       "actor": "operator"
     },
     "after_execution": "El modelo observa el recibo y la evidencia.",
@@ -54,24 +58,6 @@
       ]
     },
     {
-      "id": "observer-pr",
-      "fact": "Observador propone GET /v1/bridge/runs/{uuid}.",
-      "pr": "https://github.com/c2melendez/precision-lab-readonly-api/pull/4",
-      "draft": true,
-      "head_sha_before_docs": "aff31b6966baa32f980fb0d2ec8f9c8f93ec09e4"
-    },
-    {
-      "id": "observer-ci",
-      "fact": "CI de Observador: 19 passed, 0 failed.",
-      "run_url": "https://github.com/c2melendez/precision-lab-readonly-api/actions/runs/41042163883"
-    },
-    {
-      "id": "bridge-ci",
-      "fact": "CI de Bridge: Vitest 71 passed / 13 skipped; ESLint 0 errores y 6 avisos; build correcto.",
-      "run_url": "https://github.com/c2melendez/precision-lab-bridge/actions/runs/41042873423",
-      "head_sha": "598412af66c04177b1ff3891a007e09745d77d93"
-    },
-    {
       "id": "bridge-runtime",
       "fact": "Bridge independiente arranca.",
       "url": "https://precision-lab-bridge.onrender.com",
@@ -87,49 +73,78 @@
       "ref": "umxtvefdcjwkiqsubfpb"
     },
     {
-      "id": "read-proof",
-      "fact": "Lectura real de un recibo, sin despacho.",
+      "id": "compass-untouched",
+      "fact": "Compass original sigue en pie. Su clave llm no se revoca en esta hoja."
+    },
+    {
+      "id": "observer-pr-current",
+      "fact": "Observador PR #4 está abierto y Ready for review; HEAD actual b8bbc188adcdce231670d88f45872c73b5ed2f34.",
+      "pr": "https://github.com/c2melendez/precision-lab-readonly-api/pull/4",
+      "head_sha": "b8bbc188adcdce231670d88f45872c73b5ed2f34",
+      "draft": false
+    },
+    {
+      "id": "observer-ci-current",
+      "fact": "Observer CI PASS en el HEAD actual.",
+      "run_url": "https://github.com/c2melendez/precision-lab-readonly-api/actions/runs/41053312777",
+      "head_sha": "b8bbc188adcdce231670d88f45872c73b5ed2f34"
+    },
+    {
+      "id": "bridge-pr-current",
+      "fact": "Bridge PR #1 está abierto y Ready for review; HEAD actual d74926f5ef40982d99e80d0733a7b5150a37d26b.",
+      "pr": "https://github.com/c2melendez/precision-lab-bridge/pull/1",
+      "head_sha": "d74926f5ef40982d99e80d0733a7b5150a37d26b",
+      "draft": false
+    },
+    {
+      "id": "bridge-ci-current",
+      "fact": "Bridge CI PASS en el HEAD actual.",
+      "run_url": "https://github.com/c2melendez/precision-lab-bridge/actions/runs/41053872908",
+      "head_sha": "d74926f5ef40982d99e80d0733a7b5150a37d26b"
+    },
+    {
+      "id": "observer-bridge-staging-proof",
+      "fact": "Observador staging leyó un recibo existente del Bridge independiente; autenticación correcta y rechazo anónimo.",
       "bridge_run_uuid": "94c102a5-5242-48ba-bdb7-4754a57513db",
       "actions_run_id": "41005884405",
       "repo": "lite",
-      "http_status": 200
+      "gate": "cumulative",
+      "authenticated_http_status": 200,
+      "anonymous_http_status": 401,
+      "new_workflows_dispatched": false,
+      "observed_at": "2026-10-30"
     },
     {
-      "id": "observer-staging",
-      "fact": "Staging de Observador existe y no está probado contra Bridge.",
+      "id": "observer-staging-configured",
+      "fact": "Staging Observador fue configurado por el operador con BRIDGE_BASE_URL y BRIDGE_TIMEOUT_SECONDS, más llm (saliente) y SERVICE_API_KEY (entrante). Valores secretos no registrados.",
       "url": "https://precision-lab-readonly-api-staging.onrender.com",
       "service_id": "srv-dbi7avgae00c73be7ns0",
-      "auto_deploy": false,
-      "missing_env": ["SERVICE_API_KEY", "llm"]
+      "auto_deploy": false
     },
     {
-      "id": "observer-production",
-      "fact": "Producción de Observador no tiene cliente Bridge.",
-      "commit": "f3cdb0cc1746c8503eb1187e1a806ae8b463ee00",
-      "service_id": "srv-dbfiidec6qcc739rpafg"
-    },
-    {
-      "id": "compass-untouched",
-      "fact": "Compass original sigue en pie. Su clave llm no se revoca en esta hoja."
+      "id": "observer-production-unchanged",
+      "fact": "No se realizó corte de producción; Compass original y producción permanecen intactos."
     }
   ],
   "invariants": [
     "GET /v1/runs/{id} usa el número de GitHub Actions y exige repo=lite|plus.",
-    "GET /v1/bridge/runs/{id} usa el UUID interno de Bridge. No son intercambiables.",
-    "success de Actions no es PASS. Si la continuidad no cuadra, la respuesta es RECONCILE o REFRESH, con next_action=null.",
-    "Un GET de estado en Bridge puede escribir último uso, auditoría y reconciliación. No es un despacho.",
-    "dry_run=true en POST /api/runs igual inicia el workflow. No usarlo como sustituto de una lectura.",
-    "La misma Idempotency-Key y los mismos parámetros no deben volver a despachar.",
-    "Credenciales solo de servidor: el modelo solo conoce el nombre del encabezado X-API-Key.",
-    "GH_TOKEN de Bridge permanece en Actions: Read hasta la fase E, y solo si el usuario la aprueba.",
-    "Plan Free: el servicio puede dormir. El timeout de Observador ya es 90 s. No subir de plan como parte de una prueba."
+    "GET /v1/bridge/runs/{id} usa el UUID interno de Bridge; los identificadores no son intercambiables.",
+    "success de Actions no es PASS de certificación.",
+    "RECONCILE o REFRESH requieren informar el bloqueo; no inventar next_action.",
+    "Un GET de estado Bridge puede escribir last-used, auditoría y reconciliación; no despacha.",
+    "POST /api/runs puede despachar; dry_run=true también inicia el workflow.",
+    "Idempotency-Key evita duplicar solicitudes equivalentes, pero los resultados ambiguos requieren reconciliación y no reintento ciego.",
+    "Credenciales solo en el servidor o en el gestor secreto de la Action; nunca en prompts, respuestas, archivos públicos o logs.",
+    "Observador usa un token GitHub de solo lectura; Bridge usa una credencial de despacho independiente.",
+    "Render Free puede dormir y tener cold starts; Observador→Bridge usa timeout de 90 segundos.",
+    "CI de Observador/Bridge no demuestra que el despacho end-to-end ni el LLM consumidor hayan sido validados."
   ],
   "phases": [
     {
       "id": "A",
       "title": "Probar la lectura staging → Bridge independiente",
-      "status": "pending",
-      "active": true,
+      "status": "completed",
+      "active": false,
       "blocked_by": [],
       "objective": "Demostrar que Observador, sin token de GitHub hacia el cliente, lee un recibo del Bridge nuevo.",
       "actors": {
@@ -167,20 +182,26 @@
         "Revocar la clave de Compass.",
         "Ampliar GH_TOKEN."
       ],
-      "exit_criteria": "Un 200 del proxy staging y cero despachos nuevos, anotados en este archivo.",
+      "exit_criteria": "Cumplido: HTTP 200 autenticado devuelve el recibo esperado, HTTP 401 sin X-API-Key y no aparecen nuevos workflow runs de Lite/Plus.",
       "checks": [
         {
           "method": "GET",
           "url": "https://precision-lab-readonly-api-staging.onrender.com/healthz",
           "expect_status": 200,
-          "expect_body_contains": {"read_only": true}
+          "expect_body_contains": {
+            "read_only": true
+          }
         },
         {
           "method": "GET",
           "url": "https://precision-lab-readonly-api-staging.onrender.com/v1/bridge/runs/94c102a5-5242-48ba-bdb7-4754a57513db",
-          "headers": ["X-API-Key"],
+          "headers": [
+            "X-API-Key"
+          ],
           "expect_status": 200,
-          "expect_body_contains": {"read_only": true},
+          "expect_body_contains": {
+            "read_only": true
+          },
           "expect_uuid_in": "bridge_run",
           "secret_must_be_absent_from_body": true
         },
@@ -193,44 +214,81 @@
         {
           "compare": "actions_run_ids_lite_and_plus_unchanged"
         }
-      ]
+      ],
+      "completed_at": "2026-10-30",
+      "evidence": {
+        "observer_staging_url": "https://precision-lab-readonly-api-staging.onrender.com",
+        "bridge_url": "https://precision-lab-bridge.onrender.com",
+        "bridge_run_uuid": "94c102a5-5242-48ba-bdb7-4754a57513db",
+        "authenticated_http_status": 200,
+        "anonymous_http_status": 401,
+        "returned_actions_run_id": "41005884405",
+        "actions_lite_plus_unchanged": true,
+        "new_workflows_dispatched": false
+      },
+      "status_note": "CERRADA. No repetir salvo que cambien URL, claves, servicio o contrato."
     },
     {
       "id": "B",
       "title": "Contrato que el LLM importa",
-      "status": "pending",
+      "status": "completed",
       "active": false,
       "blocked_by": [],
       "start_rule": "Empieza solo con la fase A cerrada o, si el usuario lo pide, en paralelo sin desplegar.",
-      "known_gap": "README_CONTRACT.md en la rama de Observador no lista GET /v1/bridge/runs/{run_id}. El OpenAPI vivo lo genera FastAPI; no asumir que el openapi.yaml versionado está al día.",
+      "known_gap": null,
       "steps": [
         "Incluir la ruta Bridge en README_CONTRACT.md y en el esquema que la Action importa.",
         "Documentar los dos espacios de ID, el 404 de dueño y que un GET puede reconciliar sin despachar.",
         "Dejar explícito que no hay métodos de escritura.",
         "Correr pytest de Observador. No debilitar tests para ponerse en verde."
       ],
-      "exit_criteria": "El esquema importable contiene solo GET para /v1/bridge/runs/{run_id}, protegido por APIKeyHeader, y la CI de esa cabeza pasa."
+      "exit_criteria": "Cumplido: README_CONTRACT.md y openapi.yaml documentan GET protegido, UUID interno, 401/404, credenciales separadas y efectos de auditoría/reconciliación; CI del HEAD actual PASS.",
+      "evidence": {
+        "observer_head_sha": "b8bbc188adcdce231670d88f45872c73b5ed2f34",
+        "observer_ci_run_id": "41053312777",
+        "observer_ci_conclusion": "success",
+        "contract_path": "GET /v1/bridge/runs/{run_id}",
+        "protected_by": "APIKeyHeader / X-API-Key",
+        "documents": [
+          "README_CONTRACT.md",
+          "openapi.yaml"
+        ]
+      },
+      "status_note": "CERRADA. No rehacer."
     },
     {
       "id": "C",
       "title": "Dejar los PR listos para revisar, sin fusionar",
-      "status": "pending",
+      "status": "ready_for_review",
       "active": false,
       "blocked_by": [],
       "steps": [
-        "Observador está 1 commit detrás de main por tests/image.png. Integrar main en la rama. No force-push.",
-        "Esperar CI verde en la cabeza nueva de cada PR.",
-        "Seguir en borrador hasta que A y B tengan salida.",
-        "No fusionar para activar workflow_dispatch. Ese disparador solo aparece cuando el workflow ya está en la rama por defecto, y no hace falta para la prueba."
+        "Observador PR #4 está abierto, Ready for review, HEAD b8bbc188adcdce231670d88f45872c73b5ed2f34; 19 ahead / 0 behind según la actualización del PR.",
+        "La divergencia tests/image.png fue eliminada de la rama; no queda como bloqueo.",
+        "CI Observador 41053312777: SUCCESS.",
+        "Bridge PR #1 está abierto, Ready for review, HEAD d74926f5ef40982d99e80d0733a7b5150a37d26b.",
+        "CI Bridge 41053872908: SUCCESS.",
+        "No fusionar ninguno como parte de esta actualización documental; la revisión/merge es una decisión separada."
       ],
-      "exit_criteria": "Ambos PR en borrador, mergeable, CI verde, y la descripción cita la evidencia de la fase A."
+      "exit_criteria": "Preparación técnica cumplida: ambos PR abiertos, listos para revisión y CI PASS en sus HEAD actuales. La fusión no está autorizada ni forma parte de esta fase.",
+      "evidence": {
+        "observer_pr": 4,
+        "observer_head_sha": "b8bbc188adcdce231670d88f45872c73b5ed2f34",
+        "observer_ci_run_id": "41053312777",
+        "bridge_pr": 1,
+        "bridge_head_sha": "d74926f5ef40982d99e80d0733a7b5150a37d26b",
+        "bridge_ci_run_id": "41053872908"
+      }
     },
     {
       "id": "D",
       "title": "Corte de lectura en producción",
       "status": "blocked",
       "active": false,
-      "blocked_by": ["A", "B", "explicit_user_approval"],
+      "blocked_by": [
+        "explicit_user_approval",
+        "staging_to_production_cutover_plan"
+      ],
       "steps": [
         "Crear en el Bridge nuevo una clave de reemplazo, o importar con autorización el hash de la clave vieja. La base nueva no autentica sola la clave de Compass.",
         "El humano pone esa clave en llm de producción y cambia BRIDGE_BASE_URL al host independiente. El LLM no ve el valor.",
@@ -238,15 +296,19 @@
         "Confirmar que Lite y Plus no recibieron un workflow nuevo.",
         "Solo entonces, y con un sí del usuario, revocar la clave vieja. Compass no se apaga en el mismo paso."
       ],
-      "exit_criteria": "Producción de Observador lee al Bridge independiente y el Compass anterior sigue recuperable."
+      "exit_criteria": "Producción de Observador lee al Bridge independiente y el Compass anterior sigue recuperable.",
+      "start_rule": "No modificar producción ni sustituir Compass hasta recibir autorización expresa y verificar clave de reemplazo/propiedad del recibo."
     },
     {
       "id": "E",
       "title": "Un solo despacho de prueba, si el usuario lo aprueba",
-      "status": "out_of_read_path",
+      "status": "not_authorized",
       "active": false,
-      "blocked_by": ["explicit_user_approval"],
-      "start_rule": "Fuera de la ruta de lectura. No empezarla para completar A–D.",
+      "blocked_by": [
+        "explicit_user_approval",
+        "bridge_dispatch_end_to_end_safety_review"
+      ],
+      "start_rule": "No despachar ni siquiera un dry_run: en Bridge, dry_run=true inicia un workflow real.",
       "steps": [
         "El usuario autoriza por escrito, en la conversación, subir GH_TOKEN a Actions: Write solo sobre Lite y Plus.",
         "Un único POST /api/runs con clave nueva de idempotencia. Preferir dry_run sabiendo que el workflow sí arranca.",
@@ -260,8 +322,10 @@
       "id": "F",
       "title": "Entrega al LLM que no tiene GitHub",
       "status": "pending",
-      "active": false,
-      "blocked_by": ["user_chooses_staging_or_production"],
+      "active": true,
+      "blocked_by": [
+        "consumer_action_validation"
+      ],
       "publish_without_secrets": [
         "URL base del Observador que debe usar.",
         "Esquema OpenAPI.",
@@ -270,7 +334,14 @@
         "Prohibiciones: despachar, cancelar, reintentar, pushear, fusionar, declarar PASS automático.",
         "Ante 409, RECONCILE y REFRESH: informar, no inventar un siguiente gate."
       ],
-      "exit_criteria": "Un modelo con solo esa Action contesta el estado de Lite o Plus y no tiene manera de lanzar un runner."
+      "exit_criteria": "Un LLM consumidor sin GitHub consulta estado, planificación y evidencia con la Action configurada, sin disponer de ninguna capacidad de escritura.",
+      "steps": [
+        "Elegir staging como entorno inicial de la Action consumidora; producción solo después de D y autorización.",
+        "Configurar URL de Observador y X-API-Key como secreto de la Action, no en el prompt.",
+        "Probar desde un LLM sin GitHub: GET status bilateral, gate plan, evidencia de Actions y recibo Bridge.",
+        "Demostrar que la Action expone solo operaciones GET y que el LLM no puede despachar, cancelar, reintentar, push ni fusionar.",
+        "Documentar respuestas 401/404/409/502/503, RECONCILE y REFRESH."
+      ]
     }
   ],
   "do_not": [
@@ -281,23 +352,60 @@
     "No elegir licencia en silencio. Los repos ya son públicos y la rama de Observador no tiene archivo LICENSE. Preguntar una vez al usuario y añadir la que elija; no bloquea la fase A."
   ],
   "definition_of_done": {
-    "required_phases": ["A", "B", "D", "F"],
-    "conditional_phases": ["E"],
-    "merge_gate_not_a_substitute": "C es el requisito para fusionar, no un sustituto de D.",
-    "after_done": "Se deja de construir Bridge y Observador. El trabajo que sigue es la certificación matemática, usando esta superficie para observar y, solo con aprobación, para encargar corridas."
+    "required_phases": [
+      "A",
+      "B",
+      "F"
+    ],
+    "conditional_phases": [
+      "D",
+      "E"
+    ],
+    "merge_gate_not_a_substitute": "C está preparada para revisión; el merge requiere decisión separada y no demuestra funcionamiento end-to-end.",
+    "after_done": "Se deja de construir Bridge y Observador. El trabajo que sigue es la certificación matemática Lite/Plus usando la superficie de observación validada y despacho solo si se autoriza."
   },
   "pull_requests": {
     "observer": {
       "url": "https://github.com/c2melendez/precision-lab-readonly-api/pull/4",
       "number": 4,
-      "draft": true,
-      "roadmap_comment": "https://github.com/c2melendez/precision-lab-readonly-api/pull/4#issuecomment-6521735311"
+      "state": "open",
+      "draft": false,
+      "head_sha": "b8bbc188adcdce231670d88f45872c73b5ed2f34",
+      "ci_run_id": "41053312777"
     },
     "bridge": {
       "url": "https://github.com/c2melendez/precision-lab-bridge/pull/1",
       "number": 1,
-      "draft": true,
-      "roadmap_comment": "https://github.com/c2melendez/precision-lab-bridge/pull/1#issuecomment-6521734817"
+      "state": "open",
+      "draft": false,
+      "head_sha": "d74926f5ef40982d99e80d0733a7b5150a37d26b",
+      "ci_run_id": "41053872908"
     }
-  }
+  },
+  "deferred_items": [
+    {
+      "repo": "c2melendez/precision-lab-readonly-api",
+      "pr": 1,
+      "title": "Docs: reconcile live API verification with Render status",
+      "status": "open",
+      "disposition": "deferred_non_blocking",
+      "note": "PR histórico documental; reevaluar utilidad o cierre administrativo. No bloquea A/B ni la certificación matemática."
+    },
+    {
+      "repo": "c2melendez/precision-lab-readonly-api",
+      "pr": 2,
+      "title": "test(planner): cover fingerprint technical input categories",
+      "status": "open",
+      "disposition": "deferred_non_blocking",
+      "note": "CI histórico no llegó a asignar runner; no declarar PASS. Comparar con HEAD actual antes de reactivar o cerrar como no planificado."
+    },
+    {
+      "repo": "c2melendez/precision-lab-readonly-api",
+      "pr": 3,
+      "title": "[WIP] feat(ops): isolated runner dispatch API",
+      "status": "open_draft_blocked",
+      "disposition": "deferred_blocked",
+      "note": "Requiere PostgreSQL dedicado activo/migración, CI verde, revisión de permisos, pruebas idempotencia/concurrencia y autorización. Mantener OPS_DISPATCH_ENABLED deshabilitado."
+    }
+  ]
 }

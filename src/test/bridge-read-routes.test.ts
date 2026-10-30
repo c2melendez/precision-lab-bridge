@@ -54,12 +54,12 @@ describe("GET bridge routes never dispatch", () => {
     expect(mocks.trigger).not.toHaveBeenCalled();
     expect(mocks.fetch).not.toHaveBeenCalled();
   });
-  it("does not accept query-string credentials in place of X-Bridge-Key", async () => {
-    mocks.lookup.mockResolvedValue({ status: 401, body: { error: "invalid, expired or revoked key" } });
+  it("rejects query-string credentials instead of passing them to the lookup handler", async () => {
     const response = await lookup.server.handlers.GET({ request: new Request(
       "http://localhost/api/runs/lookup?key=plb_test&idempotency_key=v1") });
-    expect(mocks.lookup).toHaveBeenCalledWith(null, null);
-    expect(response.status).toBe(401);
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "QUERY_CREDENTIALS_NOT_SUPPORTED" });
+    expect(mocks.lookup).not.toHaveBeenCalled();
     expect(mocks.trigger).not.toHaveBeenCalled();
     expect(mocks.fetch).not.toHaveBeenCalled();
   });

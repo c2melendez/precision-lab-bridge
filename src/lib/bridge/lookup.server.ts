@@ -27,7 +27,7 @@ async function reconcileRunning(record: {
   id: string;
   state: string;
   gh_runs: unknown;
-}): Promise<{ state: string; outcomeState: string | null; runs: RunResult[] | null }> {
+}, keyId: string): Promise<{ state: string; outcomeState: string | null; runs: RunResult[] | null }> {
   const stored = record.gh_runs as unknown as GhRun[];
   if (!Array.isArray(stored) || stored.length === 0 || stored.some((r) => !r?.run_id)) {
     return { state: record.state, outcomeState: null, runs: null };
@@ -59,7 +59,7 @@ async function reconcileRunning(record: {
       updated_at: new Date().toISOString(),
       finished_at: new Date().toISOString(),
     })
-    .eq("id", record.id).eq("key_id", credential.id).eq("state", "RUNNING").select("state").maybeSingle();
+    .eq("id", record.id).eq("key_id", keyId).eq("state", "RUNNING").select("state").maybeSingle();
   if (error) return { state: record.state, outcomeState: null, runs: results };
   // Another writer may have finished it first; only adopt the final state if our
   // conditional update actually landed.
@@ -101,7 +101,7 @@ export async function lookupRequest(key: string | null, idempotencyKey: string |
   let outcomeState = record.outcome_state as string | null;
   let runs = record.gh_runs;
   if (state === "RUNNING") {
-    const reconciled = await reconcileRunning(record);
+    const reconciled = await reconcileRunning(record, credential.id);
     state = reconciled.state;
     if (reconciled.outcomeState) outcomeState = reconciled.outcomeState;
     if (reconciled.runs) runs = reconciled.runs as never;

@@ -33,7 +33,7 @@ The production build uses Nitro's `node-server` preset by default and starts wit
 
 ## Render configuration
 
-The root `render.yaml` describes a Node web service that installs from `bun.lock`, builds the application, and starts the Nitro server. It sets `autoDeploy: false`; creating or syncing the Blueprint is a separate, user-controlled operation. Secret values use Render's `sync: false` placeholders and must be supplied in the Render Dashboard. Render only prompts for these placeholders during initial Blueprint creation; later new secrets must be added manually in the Dashboard.
+The root `render.yaml` describes a Node web service that installs from `bun.lock`, builds the application, and starts the Nitro server. It sets `autoDeployTrigger: "off"`; creating or syncing the Blueprint is a separate, user-controlled operation. Secret values use Render's `sync: false` placeholders and must be supplied in the Render Dashboard. Render only prompts for these placeholders during initial Blueprint creation; later new secrets must be added manually in the Dashboard.
 
 ## Environment variables
 

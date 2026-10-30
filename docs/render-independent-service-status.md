@@ -42,7 +42,7 @@ These warnings were not build failures. Schedule cleanup, but they do not invali
 ## Secrets still missing
 Enter these through the Render Dashboard environment editor:
 1. SUPABASE_SECRET_KEY — modern Supabase secret key sb_secret_ for project umxtvefdcjwkiqsubfpb, available in Supabase Settings → API Keys. Server-only. Never use the publishable key here.
-2. GH_TOKEN — dedicated GitHub fine-grained personal access token with Actions read/write access restricted to c2melendez/precision-lab-lite and c2melendez/precision-lab-plus. This allows Bridge to dispatch and inspect certification workflows; do not substitute Observador's GITHUB_READ_TOKEN.
+2. GH_TOKEN — for the first non-dispatch verification, use a dedicated GitHub fine-grained personal access token with Actions: Read restricted to c2melendez/precision-lab-lite and c2melendez/precision-lab-plus (Metadata: Read is automatic). This lets the Bridge inspect an existing Actions run without dispatch permission. Only when a separate production-dispatch cutover is approved should the token be upgraded to Actions: Read and write. Do not substitute Observador's GITHUB_READ_TOKEN.
 3. BRIDGE_ADMIN_PASSWORD — unique strong password for the Bridge admin UI, stored in a password manager.
 
 Render Dashboard environment page:
@@ -64,8 +64,8 @@ Do not paste secrets into chat, GitHub, source control or logs. Once the variabl
 2. Deploy the environment update; verify the deploy is LIVE and runtime logs contain no secret values.
 3. Sign in to the admin UI using BRIDGE_ADMIN_PASSWORD.
 4. Create a temporary key with a label other than llm.
-5. Validate key authentication with an owner-scoped synthetic/test Bridge run. Do not use a trigger route.
-6. Validate GET /api/runs/:id against the test run and confirm no GitHub dispatch occurred.
+5. Use a pre-existing GitHub Actions run from Lite or Plus as a read-only fixture: insert one owner-scoped bridge_runs receipt associated with the temporary key and that already-existing GitHub run ID. Do not call POST /api/runs and do not create a new GitHub run.
+6. Validate GET /api/runs/:id against that fixture. The Bridge should use GitHub Actions read permission only, fetch the existing run state, and record its audit/last-used updates. Confirm no GitHub dispatch occurred.
 7. Only then prepare an Observador canary using a new llm key; retain the old service/key until proven safe.
 
 ## Free plan caveat

@@ -341,6 +341,12 @@
         "Probar desde un LLM sin GitHub: GET status bilateral, gate plan, evidencia de Actions y recibo Bridge.",
         "Demostrar que la Action expone solo operaciones GET y que el LLM no puede despachar, cancelar, reintentar, push ni fusionar.",
         "Documentar respuestas 401/404/409/502/503, RECONCILE y REFRESH."
+      ],
+      "prerequisites": [
+        "Verificar/configurar GITHUB_READ_TOKEN de solo lectura en staging; su presencia actual no está confirmada.",
+        "Validar /v1/status, /v1/gates/{gate}/plan y /v1/runs/{run_id} desde staging.",
+        "Configurar una Action consumidora en un LLM sin GitHub y ejecutar consultas reales con X-API-Key almacenada como secreto.",
+        "Demostrar que la Action solo expone operaciones GET y no puede despachar."
       ]
     }
   ],
@@ -407,5 +413,28 @@
       "disposition": "deferred_blocked",
       "note": "Requiere PostgreSQL dedicado activo/migración, CI verde, revisión de permisos, pruebas idempotencia/concurrencia y autorización. Mantener OPS_DISPATCH_ENABLED deshabilitado."
     }
-  ]
+  ],
+  "deployment_reconciliation": {
+    "observed_at": "2026-10-30",
+    "observer_staging": {
+      "service_id": "srv-dbi7avgae00c73be7ns0",
+      "deploy_id": "dep-dbi88lbbc2fs73acq2kg",
+      "deploy_status": "live",
+      "deployed_commit": "aff31b6966baa32f980fb0d2ec8f9c8f93ec09e4",
+      "current_pr_head": "b8bbc188adcdce231670d88f45872c73b5ed2f34",
+      "auto_deploy": false,
+      "bridge_route_proven_on_deployed_commit": true,
+      "github_read_token_presence": "not_verified"
+    },
+    "bridge": {
+      "service_id": "srv-dbi5b8ss728c73ccvjbg",
+      "deploy_id": "dep-dbi5jc8ae00c73b9tnvg",
+      "deploy_status": "live",
+      "deployed_commit": "fec4dd1448b0385f98565725276b235ddc0821a2",
+      "current_pr_head": "d74926f5ef40982d99e80d0733a7b5150a37d26b",
+      "auto_deploy": false,
+      "receipt_status_get_proven": true
+    },
+    "implication": "La prueba HTTP A acredita la lectura Bridge contra los commits desplegados, no el despliegue de los HEAD actuales ni la superficie GitHub completa de Observador. GITHUB_READ_TOKEN de staging no está confirmado; sin él, status/plan/run evidence no podrán consultar GitHub."
+  }
 }

@@ -8,7 +8,7 @@ import tsconfigPaths from "vite-tsconfig-paths";
 export default defineConfig({
   plugins: [
     tanstackStart(),
-    nitro({ preset: "node-server" }),
+    nitro({ preset: process.env.NITRO_PRESET ?? "node-server" }),
     viteReact(),
     tailwindcss(),
     tsconfigPaths(),

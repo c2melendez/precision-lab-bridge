@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: precision-lab-bridge
+    runtime: node
+    autoDeploy: false
+    buildCommand: bun install --frozen-lockfile && bun run build
+    startCommand: bun run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NITRO_PRESET
+        value: render-com
+      - key: HOST
+        value: 0.0.0.0
+      - key: GH_OWNER
+        value: c2melendez
+      - key: GH_REF
+        value: main
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_PUBLISHABLE_KEY
+        sync: false
+      - key: VITE_SUPABASE_URL
+        sync: false
+      - key: VITE_SUPABASE_PUBLISHABLE_KEY
+        sync: false
+      - key: GH_TOKEN
+        sync: false
+      - key: BRIDGE_ADMIN_PASSWORD
+        sync: false

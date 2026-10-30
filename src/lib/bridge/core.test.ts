@@ -143,6 +143,7 @@ describe("run status ownership", () => {
   });
 });
 
+describe("run status ledger ownership", () => {
   it("scopes the idempotency ledger lookup to the same owner key", async () => {
     const id = "00000000-0000-0000-0000-000000000002";
     mocks.statusRows.run = {
@@ -173,3 +174,4 @@ describe("run status ownership", () => {
     ]);
     expect(mocks.fetch).not.toHaveBeenCalled();
   });
+});

@@ -29,7 +29,11 @@ bun run build
 bun run start
 ```
 
-The production build uses Nitro's `node-server` preset and starts with `node .output/server/index.mjs`. In a hosted environment, bind to the platform-provided `PORT` and set `HOST=0.0.0.0`. No deployment is configured or performed by this repository change.
+The production build uses Nitro's `node-server` preset by default and starts with `node .output/server/index.mjs`. The Render Blueprint sets `NITRO_PRESET=render-com`, binds to `HOST=0.0.0.0`, and uses the platform-provided `PORT`. The Blueprint is configuration only; no Render service has been created and no deployment has been performed.
+
+## Render configuration
+
+The root `render.yaml` describes a Node web service that installs from `bun.lock`, builds the application, and starts the Nitro server. It sets `autoDeploy: false`; creating or syncing the Blueprint is a separate, user-controlled operation. Secret values use Render's `sync: false` placeholders and must be supplied in the Render Dashboard. Render only prompts for these placeholders during initial Blueprint creation; later new secrets must be added manually in the Dashboard.
 
 ## Environment variables
 

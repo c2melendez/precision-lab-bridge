@@ -234,7 +234,9 @@ export async function runStatus(key: string | null, id: string) {
   // Time-only run matching is retained for legacy runs, never used as evidence for durable claims.
   const resolved = ledger ? runs : await Promise.all(runs.map((r) => resolveRun(r, run.dispatched_at)));
   if (resolved.some((r, i) => r.run_id !== runs[i]?.run_id)) {
-    await supabaseAdmin.from("bridge_runs").update({ gh_runs: resolved as never }).eq("id", id);
+    await supabaseAdmin.from("bridge_runs").update({ gh_runs: resolved as never })
+      .eq("id", id)
+      .eq("key_id", k.id);
   }
   const results = await Promise.all(
     resolved.map(async (r) => {
@@ -263,7 +265,7 @@ export async function runStatus(key: string | null, id: string) {
         gh_runs: resolved as never, workflow_result: results as never,
         job_ids: results.map((r) => ({ repo: r.repo, ids: "job_ids" in r ? r.job_ids : [] })) as never,
         updated_at: new Date().toISOString(), finished_at: new Date().toISOString() })
-        .eq("id", ledger.id).eq("state", "RUNNING").select("state").maybeSingle();
+        .eq("id", ledger.id).eq("key_id", k.id).eq("state", "RUNNING").select("state").maybeSingle();
       if (error) return { status: 503, body: { error: "STATUS_STORE_UNAVAILABLE" } };
       currentState = updated?.state ?? ledger.state;
     }

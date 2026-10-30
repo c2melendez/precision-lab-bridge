@@ -41,31 +41,27 @@ El código actualmente desplegado no demuestra una conexión Observador → Brid
 
 No son intercambiables. El Observador no debe recibir GH_TOKEN ni SUPABASE_SERVICE_ROLE_KEY.
 
-## Continuidad de la clave al migrar la base
+## Continuidad de claves — estado actualizado 2026-10-30
 
-La nueva instancia Supabase está vacía y bridge_keys no contiene registros. La clave llm existente en Compass no se autenticará automáticamente contra el nuevo Bridge.
+La base Supabase independiente ya no está vacía: tiene una clave de staging read-only, un recibo histórico y la migración de scopes aplicada. La clave existente se verificó solo por metadatos de scope y continúa en `['read']`; no se leyó ni rotó su secreto/hash.
 
-Una clave antigua solo puede conservarse si se importa de forma deliberada su fila bridge_keys (hash SHA-256, etiqueta, prefijo, expiración, revocación y último uso). La base original no es accesible mediante la cuenta Supabase conectada, por lo que esa fila no se ha migrado.
-
-Alternativa segura:
-1. Desplegar y verificar Bridge independiente conectado a la nueva base.
-2. Crear en la administración del nuevo Bridge una clave de reemplazo con etiqueta llm.
-3. Sustituir el secreto Render llm por el nuevo valor mediante el almacén de secretos. No pegarlo en chat, Git, logs ni documentación.
-4. Verificar una solicitud GET /api/runs/:id con una ejecución perteneciente a esa clave antes de mover tráfico de escritura/dispatch.
-
-No revocar la clave vieja ni desconectar el Compass original hasta que el nuevo Bridge y su nueva clave hayan superado esa comprobación.
+La continuidad de credenciales queda separada:
+1. `llm` se conserva como credencial Bridge read-only para GET de recibos y reconciliación.
+2. Observer obtiene una credencial distinta `BRIDGE_DISPATCH_KEY` con scope `dispatch`, nunca reutiliza `llm`.
+3. La clave dispatch se emite solo para staging, con expiración corta y se configura directamente como secreto Render.
+4. No revocar la clave read existente ni tocar credenciales de producción como efecto colateral.
 
 ## Permisos de GitHub del Observador
 
 El cliente GitHub del código actual solo realiza GET. El permiso de escritura de GITHUB_READ_TOKEN no es necesario para esta versión. El mínimo recomendado es un fine-grained token limitado a c2melendez/precision-lab-lite y c2melendez/precision-lab-plus con Contents: Read, Actions: Read y Metadata: Read. No reutilizar GH_TOKEN de Bridge.
 
-## Trabajo de integración pendiente
+## Trabajo de integración — conciliado
 
-- Identificar qué componente desplegado utilizaba históricamente llm y a qué ruta Bridge llamaba. La captura de Compass demuestra una clave con esa etiqueta y un uso reciente, pero no identifica al consumidor ni la ruta.
-- Definir si Observador necesita solo el endpoint Bridge de estado de ejecuciones o un contrato de datos de solo lectura más amplio. No convertir Bridge en un proxy SQL arbitrario.
-- Si hace falta, incorporar a Observador un cliente Bridge de solo lectura con URL base explícita, secreto de servidor, timeout, control de errores y pruebas. No añadir funciones de escritura/dispatch al Observador.
-- Mantener SERVICE_API_KEY separado de llm.
-- No activar la nueva base en el Bridge actual hasta completar la configuración del host independiente y la prueba de lectura.
+- Observer PR #4 conserva las lecturas de estado Bridge y añade `GET /v1/bridge/requests/{idempotency_key}` para reconciliar recibos.
+- Observer PR #4 añade `POST /v1/bridge/dispatch`; valida plan live, estado CURRENT, rama/SHA y decisión RUN antes de llamar a Bridge.
+- `SERVICE_API_KEY`, `llm` (scope read) y `BRIDGE_DISPATCH_KEY` (scope dispatch) son credenciales distintas.
+- Bridge mantiene validación final, allowlist, idempotencia durable, recibos y dispatch GitHub; no se crea proxy SQL ni llamada directa LLM→Bridge.
+- El código y tests están en ramas PR; los despliegues staging actuales aún apuntan a commits anteriores. Falta deploy de HEADs, configuración de la clave dispatch de staging y validación E2E.
 
 
 ## 2026-10-30 — Observador read-only integration proposal
@@ -75,15 +71,7 @@ https://github.com/c2melendez/precision-lab-readonly-api/pull/4
 
 Branch: feature/bridge-readonly-run-status.
 
-The PR adds a server-side GET-only proxy route: GET /v1/bridge/runs/{run_id}. The route:
-- Keeps Observador inbound API authentication on X-API-Key using SERVICE_API_KEY.
-- Sends the lowercase Render environment variable llm only as the upstream X-Bridge-Key header.
-- Uses BRIDGE_BASE_URL (defaulting to the known Compass Lovable origin) and BRIDGE_TIMEOUT_SECONDS.
-- Requires HTTPS and refuses redirects.
-- Does not expose the Bridge key in its response or error details.
-- Does not create runs or dispatch GitHub Actions workflows. A Bridge status GET may still update Bridge last-used/audit metadata and reconcile status in the Bridge database.
-
-PR #4 is a draft only. The tests have been authored but have not been executed; no Render environment variables have been changed and no deployment or live Bridge call has been made. This addition is not a proof of production connectivity.
+PR #4 is Ready for review and open (not merged). It now includes protected GET status, GET idempotency reconciliation and POST dispatch through Bridge. The Observer CI passed on the implementation HEAD; a later metadata-only commit is under CI validation. The historical staging GET test returned 200 with a read-only receipt and 401 without Observer auth; it did not dispatch a workflow. This does not prove dispatch E2E or production connectivity.
 
 The PR keeps the original llm key and original Compass host in place. Before moving to the independent Bridge host, it is still necessary to create a replacement key in the new database (or migrate the original key hash with authorized source access), configure the independent Bridge service, and pass a read-only test. No old key should be revoked before that verification.
 
@@ -101,7 +89,7 @@ Render service:
 - Auto-deploy: off
 - Initial deploy: dep-dbi5b9cs728c73ccvl20, LIVE on 2026-10-30 from commit fec4dd1448b0385f98565725276b235ddc0821a2.
 
-Render logs confirm Bun 1.4.4, package installation, Vite client/SSR build, Nitro render-com build, and server startup. This verifies build and runtime startup only. No external HTTP request or admin/API integration test was completed in this session.
+Render logs from the initial deploy confirm Bun installation, Vite/Nitro build and server startup. A later historical read-only Observer→Bridge staging request returned 200 for an owned receipt and 401 without Observer auth. Neither result validates the current HEAD or a POST dispatch; those require the pending staging deploy and E2E run.
 
 Non-secret Supabase settings were added at service creation:
 - SUPABASE_URL and VITE_SUPABASE_URL point to the isolated new project.
@@ -122,11 +110,12 @@ The environment-variable mutation API requires the raw secret value. It is not a
 Free plan is for staging/validation, not production: it spins down after 15 minutes without inbound traffic and may take about a minute to wake. It may also be subject to free-tier outbound traffic/build limits. Upgrade to a suitable paid plan before production cutover.
 
 Remaining:
-1. Enter the three server-only secrets in Render Dashboard.
-2. Deploy those environment changes and confirm new deploy LIVE.
-3. Open the admin page and sign in using BRIDGE_ADMIN_PASSWORD.
-4. Create a temporary test key (not llm) and validate it only against a synthetic/test-owned run; do not call POST dispatch.
-5. Validate GET status against that owned run, ensuring no new GitHub run was created. Only after this will Observador's BRIDGE_BASE_URL and replacement llm key be considered for controlled cutover.
+1. Wait for CI SUCCESS on the current Bridge HEAD and Observer HEAD.
+2. Deploy Bridge staging HEAD first; verify health and that the existing read-scoped key still works.
+3. Create a short-lived dispatch-only key in the staging Bridge database and set only `BRIDGE_DISPATCH_KEY` plus `BRIDGE_BASE_URL` on Observer staging; preserve `llm` and all production credentials.
+4. Deploy Observer staging HEAD and verify the new API routes.
+5. Execute a single policy-approved staging dispatch only if Observer's live plan returns RUN; reconcile the same idempotency key and prove no duplicate workflow.
+6. After this E2E evidence, freeze auxiliary infrastructure and resume Lite/Plus mathematical certification.
 
 
 ## Decisión arquitectónica vigente — 2026-10-30 (supersede las secciones anteriores)

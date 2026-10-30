@@ -151,3 +151,12 @@ La consulta de Render confirmó que los dos servicios auxiliares están no suspe
 - Observador staging tiene confirmadas las variables `BRIDGE_BASE_URL`, `BRIDGE_TIMEOUT_SECONDS`, `llm` y `SERVICE_API_KEY` por la actualización de entorno. No hay evidencia de lectura de valores secretos. La presencia de `GITHUB_READ_TOKEN` en staging no está confirmada; sin ese token, `/v1/status`, `/v1/gates/{gate}/plan` y `/v1/runs/{run_id}` no podrán consultar GitHub aunque la ruta Bridge funcione. No copiar el token de producción automáticamente: crear/configurar un token de solo lectura dedicado a staging o autorizar conscientemente el alcance.
 
 Consecuencia: la prueba A acredita únicamente la lectura de un recibo Bridge desde el código desplegado de Observador staging. No acredita todavía el conjunto completo de funciones de Observador ni la ejecución del HEAD actual de ambos PR. Para completar F hay que validar los endpoints GitHub de Observador y la Action consumidora.
+
+
+## Estado de Supabase y vigencia de la clave temporal — lectura de solo consulta
+
+El proyecto Supabase `precision-lab-bridge-db` (`umxtvefdcjwkiqsubfpb`) aparece `ACTIVE_HEALTHY`. Las cuatro migraciones esperadas están aplicadas y las cuatro tablas tienen RLS habilitado. Conteos observados: `bridge_keys=1`, `bridge_runs=1`, `bridge_calls=2`, `bridge_idempotency=0`. El recibo 94c102a5-5242-48ba-bdb7-4754a57513db está almacenado y apunta a la ejecución preexistente Lite 41005884405. La auditoría registra GET /api/runs/:id con HTTP 200.
+
+La única clave de Bridge observada tiene etiqueta `staging-read-only-verification`, no está revocada y expira el **2026-10-31 09:05 UTC** (2026-10-31 03:05 hora de Honduras). No se consultó ni registró su hash, prefijo ni valor secreto. Si se pretende continuar probando staging después de esa hora, habrá que emitir una clave temporal nueva en Bridge y actualizar únicamente `llm` de staging en Render. No rotar ni modificar ahora la clave de producción.
+
+La tabla `bridge_idempotency` está vacía: el recibo histórico consultado no prueba el flujo de despacho durable/idempotente actual. Por tanto, el estado del conjunto es: **lectura Bridge verificada; despacho idempotente end-to-end todavía no verificado**.

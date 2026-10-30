@@ -485,3 +485,18 @@ En ambos runs se verificó: resolución de la rama canónica desde el README pre
 Lite AS-EXP-02, AS-EXP-03, AS-EXP-04, AS-EXP-05 y AS-EXP-06 están PASS_SCOPED, cada uno con su SHA y aceptación propia. AS-EXP-06: SHA `5901316519ca98d0810ac0f228c91abe6380ee7f`; CI 41142684332, cumulative 41142684039, H1d 41142684020 SUCCESS; Runner 41142684118 SUCCESS push/no-dispatch. Scientific UI 41142683997 es complementario y no requerido. Siguiente caso Lite: AS-EXP-07, con oráculo aritmético independiente. Plus conserva su bloqueo contractual VC-FE-45; no se importa aceptación de Lite.
 
 Sin merge, deploy, cambio de producción ni despacho real. La certificación global permanece OPEN.
+
+## Reconciliación r368 — Runner y siguiente bloque matemático (2026-10-30 UTC)
+
+### Certification Runner actualizado
+
+- Lite: [41144150833](https://github.com/c2melendez/precision-lab-lite/actions/runs/41144150833), SHA `c791540390b2e5a3c27f11b7a9a444ad04012a20`, evento push, SUCCESS.
+- Plus: [41136660038](https://github.com/c2melendez/precision-lab-plus/actions/runs/41136660038), SHA `218d682848a03a000930e2028f057563847381f3`, evento push, SUCCESS.
+- Ambos verificaron resolución de rama canónica, checkout, BASE_SHA, fingerprint read-only y Push summary. En ambos dispatch, espera, registro QA, persistencia y commit documental quedaron SKIPPED.
+- Estado bilateral: `PASS_SCOPED_PUSH_ONLY`. No se certifica workflow_dispatch, dispatch de gate, recibo durable, correlación E2E ni replay idempotente.
+
+### Continuidad matemática y paralela
+
+- Lite AS-EXP-06: PASS_SCOPED en SHA `5901316519ca98d0810ac0f228c91abe6380ee7f`, aceptación `ALGEBRA114_AS_EXP_06_ACCEPTANCE_R365.md`.
+- Lite AS-EXP-07 está en ejecución en SHA `c791540390b2e5a3c27f11b7a9a444ad04012a20`; test blob `06f362c0aeced0100b266c7dcf6465c06324f8b1`. CI 41144150978, cumulative 41144150867 y H1d 41144150866 estaban IN_PROGRESS al corte; Runner 41144150833 SUCCESS/no-dispatch. No aceptar AS-EXP-07 hasta que los tres gates obligatorios terminen SUCCESS en el mismo SHA.
+- Fases A/B continúan CLOSED; O5 IN_PROGRESS; O6 PENDING por ausencia deliberada de dispatch real; O7 PENDING y dependiente de O6. No hay merge, deploy, corte de producción ni dispatch real.

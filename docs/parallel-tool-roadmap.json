@@ -5,7 +5,7 @@
   "as_of": "2026-10-30",
   "language": "es",
   "status": "in_progress",
-  "summary": "Fases A/B cerradas. Certification Runner Lite/Plus PASS_SCOPED_PUSH_ONLY: Lite 41142684118 SUCCESS en SHA 5901316519ca98d0810ac0f228c91abe6380ee7f; Plus 41136660038 SUCCESS en SHA 218d682848a03a000930e2028f057563847381f3. En ambos, resolución canónica/checkout/fingerprint/push summary SUCCESS y dispatch/registro/persistencia SKIPPED. O5 IN_PROGRESS por falta de trazabilidad E2E Observer→Bridge→Actions→Runner y replay idempotente; O6 PENDING por ausencia deliberada de dispatch real; O7 PENDING. AS-EXP-02..06 Lite PASS_SCOPED; AS-EXP-06 aceptación R365; siguiente AS-EXP-07. No merge, deploy ni producción.",
+  "summary": "Fases A/B cerradas. Certification Runner Lite/Plus PASS_SCOPED_PUSH_ONLY: Lite 41144150833 SUCCESS en SHA c791540390b2e5a3c27f11b7a9a444ad04012a20; Plus 41136660038 SUCCESS en SHA 218d682848a03a000930e2028f057563847381f3. En ambos dispatch/registro/persistencia SKIPPED. O5 IN_PROGRESS por falta de trazabilidad E2E y replay idempotente; O6 PENDING por ausencia deliberada de dispatch real; O7 PENDING. Lite AS-EXP-06 PASS_SCOPED; AS-EXP-07 en ejecución (CI/cumulative/H1d pendientes al corte). No merge, deploy ni producción.",
   "canonical_markdown": {
     "repo": "c2melendez/precision-lab-bridge",
     "branch": "hardening/secure-status-independent-runtime",
@@ -674,7 +674,7 @@
       "shared_contract": "target_repo=both; workflow_dispatch gate and dry_run inputs; canonical README branch resolution; push and dry-run cannot dispatch; security gate remains blocked in Plus."
     }
   },
-  "next_step": "Continue Lite Algebra114 at AS-EXP-07 using the source row (2x-3)^3 = 8x^3-36x^2+54x-27 and an independent arithmetic oracle. Keep Runner/Observer/Bridge status separate. Do not perform real dispatch, merge PRs, deploy or cut production.",
+  "next_step": "Finish verifying Lite AS-EXP-07 on SHA c791540390b2e5a3c27f11b7a9a444ad04012a20. Require CI, cumulative and H1d SUCCESS; Scientific UI is complementary. Then continue AS-EXP-08 with an independent oracle. Keep the Runner push-only status and Observer/Bridge O5/O6/O7 status separate. No real dispatch, merge, deploy or production cut.",
   "mathematical_progress_r360": {
     "repository": "c2melendez/precision-lab-lite",
     "status": "PASS_SCOPED",
@@ -789,5 +789,65 @@
     "O6": "PENDING",
     "O7": "PENDING",
     "note": "O1–O4 retain their documented partial/in-progress states; A/B refer to the Observer read-only staging integration and contract."
+  },
+  "runner_certification_r366": {
+    "status": "PASS_SCOPED_PUSH_ONLY",
+    "canonical_branch": "qa/syntax-audit-in625-a1",
+    "lite": {
+      "run_id": 41144150833,
+      "run_url": "https://github.com/c2melendez/precision-lab-lite/actions/runs/41144150833",
+      "sha": "c791540390b2e5a3c27f11b7a9a444ad04012a20",
+      "event": "push",
+      "conclusion": "success"
+    },
+    "plus": {
+      "run_id": 41136660038,
+      "run_url": "https://github.com/c2melendez/precision-lab-plus/actions/runs/41136660038",
+      "sha": "218d682848a03a000930e2028f057563847381f3",
+      "event": "push",
+      "conclusion": "success"
+    },
+    "verified_steps": [
+      "Resolve canonical branch from default-branch README",
+      "Checkout canonical branch",
+      "Record base commit",
+      "Read-only planner fingerprint",
+      "Push summary"
+    ],
+    "skipped_steps": [
+      "Gate policy/workflow resolution",
+      "Dry-run summary",
+      "Equivalent active-run detection/wait",
+      "Workflow dispatch",
+      "QA receipt recording",
+      "Continuity persistence",
+      "Documentary commit"
+    ],
+    "not_proven": [
+      "workflow_dispatch",
+      "Gate dispatch/result wait",
+      "durable receipt",
+      "Observer→Bridge→Actions→Runner E2E",
+      "idempotent replay without duplicate workflow"
+    ],
+    "global_status": "OPEN",
+    "updated_utc": "2026-10-30T23:23:15Z"
+  },
+  "mathematical_progress_r366": {
+    "repository": "c2melendez/precision-lab-lite",
+    "case": "ALGEBRA114-AS-EXP-07",
+    "status": "GATES_IN_PROGRESS",
+    "sha": "c791540390b2e5a3c27f11b7a9a444ad04012a20",
+    "test_blob": "06f362c0aeced0100b266c7dcf6465c06324f8b1",
+    "runs": {
+      "ci": 41144150978,
+      "cumulative": 41144150867,
+      "h1d": 41144150866,
+      "scientific_ui": 41144150819,
+      "runner": 41144150833
+    },
+    "previous_case": "ALGEBRA114-AS-EXP-06",
+    "previous_status": "PASS_SCOPED",
+    "global_status": "OPEN"
   }
 }

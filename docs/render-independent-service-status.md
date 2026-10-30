@@ -39,8 +39,8 @@ These warnings were not build failures. Schedule cleanup, but they do not invali
 - SUPABASE_URL and VITE_SUPABASE_URL point to https://umxtvefdcjwkiqsubfpb.supabase.co
 - SUPABASE_PUBLISHABLE_KEY and VITE_SUPABASE_PUBLISHABLE_KEY contain the publishable key for this project
 
-## Secrets still missing
-Enter these through the Render Dashboard environment editor:
+## Secrets (user confirmed configured)
+The user confirmed on 2026-10-30 that the following three secrets were entered in the Render Dashboard. Render then recorded an environment-triggered deployment (`envUpdated=true`) that ended `LIVE`. The connector cannot inspect individual variable names or values, so functional verification is the next step. Do not ask the user to paste the values here.
 1. SUPABASE_SECRET_KEY — modern Supabase secret key sb_secret_ for project umxtvefdcjwkiqsubfpb, available in Supabase Settings → API Keys. Server-only. Never use the publishable key here.
 2. GH_TOKEN — for the first non-dispatch verification, use a dedicated GitHub fine-grained personal access token with Actions: Read restricted to c2melendez/precision-lab-lite and c2melendez/precision-lab-plus (Metadata: Read is automatic). This lets the Bridge inspect an existing Actions run without dispatch permission. Only when a separate production-dispatch cutover is approved should the token be upgraded to Actions: Read and write. Do not substitute Observador's GITHUB_READ_TOKEN.
 3. BRIDGE_ADMIN_PASSWORD — unique strong password for the Bridge admin UI, stored in a password manager.

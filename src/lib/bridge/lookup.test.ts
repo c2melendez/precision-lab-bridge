@@ -9,7 +9,7 @@ vi.mock("@/integrations/supabase/client.server", () => ({ supabaseAdmin: {
 } }));
 import { lookupRequest } from "./lookup.server";
 
-const credential = { id: "key1", expires_at: "2099-01-01", revoked_at: null };
+const credential = { id: "key1", expires_at: "2099-01-01", revoked_at: null, scopes: ["read"] };
 const record = { id: "claim1", state: "BLOCKED", outcome_state: "BLOCKED", run_id: "run1",
   gh_runs: [{ repo: "precision-lab-lite", run_id: 42, html_url: "https://github.com/c2melendez/precision-lab-lite/actions/runs/42" }],
   job_ids: [{ repo: "precision-lab-lite", ids: [84] }], error_code: "DISPATCH_OUTCOME_UNKNOWN",
@@ -65,6 +65,14 @@ describe("authenticated idempotency lookup is strictly read-only", () => {
       state: "RUNNING", outcome_state: null, run_id: null, gh_runs: [], job_ids: [], error_code: null } });
     expect(await lookupRequest("plb_test", "v1")).toMatchObject({ status: 200,
       body: { state: "RUNNING", run_id: null, status_url: null, runs: [] } });
+    expectFullyReadOnly();
+  });
+  it("rejects a dispatch-only credential before reading idempotency data", async () => {
+    mocks.read.mockResolvedValueOnce({ data: { ...credential, scopes: ["dispatch"] } });
+    expect(await lookupRequest("plb_dispatch_only", "v1")).toEqual({
+      status: 403, body: { error: "insufficient_scope", required_scope: "read" },
+    });
+    expect(mocks.read).toHaveBeenCalledTimes(1);
     expectFullyReadOnly();
   });
   it("rejects missing authentication before reading storage", async () => {

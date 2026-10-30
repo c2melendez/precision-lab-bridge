@@ -64,3 +64,14 @@ The pre-application source commit `61daa189191453070beb4c13b3679960b3f57c3b` had
 The filename-alignment commit `e0bc3e35c89fa152cd59177c18863ac140e28bcb` triggered a new Bridge CI run; its result must be checked before treating the updated PR head as CI-verified.
 
 PR #1 remains open and Draft. The migration does not authorize merging the PR or deploying Bridge. Those remain separate gates requiring separate approval.
+
+
+## Conciliación CI posterior — 2026-10-30 UTC
+
+- Bridge CI #58: [41121256457](https://github.com/c2melendez/precision-lab-bridge/actions/runs/41121256457), asociado al commit de alineación `e0bc3e35c89fa152cd59177c18863ac140e28bcb`; ambos jobs SUCCESS.
+- Bridge CI #59: [41121381925](https://github.com/c2melendez/precision-lab-bridge/actions/runs/41121381925), asociado al HEAD actualizado del PR `f8ea3afa74c0f6d5546c1a5bc3e3f2e26f768239`; ambos jobs SUCCESS.
+- En ambos runs el job de migraciones reconstruyó la cadena completa en Supabase local desechable, ejecutó las aserciones estructurales, las pruebas funcionales de las cinco RPC y `supabase db lint`.
+- La rama contiene `supabase/migrations/20261030200900_bridge_security_ownership_and_rpc_integrity.sql`, blob SHA `488779521e6df48964234e171ec15db07d82c8fb`; la versión `20261030200900` coincide con el historial remoto.
+- La verificación remota de solo lectura posterior confirmó que el proyecto sigue ACTIVE_HEALTHY, con 2 claves, 1 run, 2 calls, 0 idempotencias; cinco RPC SECURITY INVOKER con EXECUTE solo para service_role; RLS activo en las cuatro tablas.
+- Los cuatro avisos INFO de RLS sin políticas y los dos avisos INFO de índices no utilizados permanecen sin cambios.
+- No se fusionó el PR, no se desplegó Bridge, no se cambió producción, no se rotaron claves y no se despacharon workflows Lite/Plus.

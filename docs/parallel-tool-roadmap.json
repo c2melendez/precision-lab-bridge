@@ -5,7 +5,7 @@
   "as_of": "2026-10-30",
   "language": "es",
   "status": "in_progress",
-  "summary": "Fases A/B cerradas. El Certification Runner Lite/Plus tiene PASS_SCOPED para el camino push/no-dispatch: resolución canónica, checkout y fingerprint verificados en ambos repositorios. Los pasos de dispatch, espera, registro y persistencia se omitieron; no hay dispatch real. O5 sigue IN_PROGRESS porque falta la traza E2E Observer→Bridge→Actions→Runner y replay sin duplicación. O6 PENDING por la restricción vigente de no despachar; O7 PENDING. No merge, deploy ni producción.",
+  "summary": "Fases A/B cerradas. Certification Runner Lite/Plus tiene PASS_SCOPED para el camino push/no-dispatch; los runs Lite 41138509571 y 41140700509 y Plus 41136660038 terminaron SUCCESS en sus SHAs verificados. Resolución canónica, checkout y fingerprint correctos; dispatch/espera/registro/persistencia SKIPPED. O5 IN_PROGRESS por falta de traza E2E Observer→Bridge→Actions→Runner y replay sin duplicación. O6 PENDING porque no se ha autorizado ni ejecutado dispatch real en esta iteración; O7 PENDING. AS-EXP-03 Lite en ejecución independiente. No merge, deploy ni producción.",
   "canonical_markdown": {
     "repo": "c2melendez/precision-lab-bridge",
     "branch": "hardening/secure-status-independent-runtime",
@@ -580,7 +580,24 @@
       "run_url": "https://github.com/c2melendez/precision-lab-lite/actions/runs/41138509571",
       "sha": "c8c29d820e5bd16ab4df8a528bcea9b4a72f8acc",
       "event": "push",
-      "conclusion": "success"
+      "conclusion": "success",
+      "latest_run_id": 41140700509,
+      "latest_run_url": "https://github.com/c2melendez/precision-lab-lite/actions/runs/41140700509",
+      "latest_sha": "4e8e57ef8bc731c41a270facef42cac6a4fe708c",
+      "runs": [
+        {
+          "run_id": 41140700509,
+          "sha": "4e8e57ef8bc731c41a270facef42cac6a4fe708c",
+          "conclusion": "success",
+          "event": "push"
+        },
+        {
+          "run_id": 41138509571,
+          "sha": "c8c29d820e5bd16ab4df8a528bcea9b4a72f8acc",
+          "conclusion": "success",
+          "event": "push"
+        }
+      ]
     },
     "plus": {
       "run_id": 41136660038,

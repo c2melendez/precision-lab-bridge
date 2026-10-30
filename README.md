@@ -1,59 +1,85 @@
-# Welcome to your Lovable project
+# Precision Lab Bridge
 
-This project was built with [Lovable](https://lovable.dev).
+Independent Node.js service for coordinating certification requests between authenticated LLM clients, the Precision Lab read-only observer, Supabase persistence, and GitHub Actions runners.
 
-## Build with Lovable
+## Architecture
 
-Open your project in the [Lovable editor](https://lovable.dev) and keep building.
+- **Observador:** reports current status and evidence; it does not execute gates.
+- **Bridge:** authenticates callers, validates requests, applies durable idempotency, and coordinates workflow dispatch and status reconciliation.
+- **Runner:** GitHub Actions workflows execute the requested certification gates and publish evidence.
+- **Persistence:** Supabase PostgreSQL stores bridge keys, run receipts, call audit records, and idempotency lifecycle state.
 
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: connect the project to GitHub and every change made in Lovable is committed straight to your repository.
-- **Full ownership**: this code is yours. Push to your repository and your changes sync back into Lovable, ready for your next prompt.
+The application uses TanStack Start, Vite, and Nitro's standard Node server preset. Platform-specific editor, preview-auth, build, and telemetry integrations have been removed. Supabase remains an external service dependency and must be configured independently.
 
-## Development
+## Local development
 
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
+Requirements: Node.js 22.12 or newer, plus Bun.
 
 ```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
-npm run dev
+bun install --frozen-lockfile
+bun run dev
 ```
 
-## Built with
+## Validation and production commands
 
-- TanStack Start
-- TypeScript
-- React
-- Tailwind CSS
+```sh
+bun run test
+bun run lint
+bun run build
+bun run start
+```
 
-## Certification Bridge — durable idempotency (Phase 3)
+The production build uses Nitro's `node-server` preset and starts with `node .output/server/index.mjs`. In a hosted environment, bind to the platform-provided `PORT` and set `HOST=0.0.0.0`. No deployment is configured or performed by this repository change.
 
-Storage is the Cert Runner Compass Lovable Cloud database. No external database or Render API is used.
+## Environment variables
 
-### Request contract
+Copy `.env.example` to `.env` for local development, then supply values through a local secret manager or hosting environment.
 
-POST `/api/runs`: `X-Bridge-Key` plus required `Idempotency-Key` (or JSON `idempotency_key`). Accepts `target_repo`, `gate`, `dry_run`, optional `validation_id`, `correlation_id`, `branch`, and `requested_sha`. GET `/api/run` is disabled and always returns 405 `METHOD_NOT_ALLOWED`; it never calls `trigger()`.
+| Variable | Purpose | Exposure |
+|---|---|---|
+| `SUPABASE_URL` | Supabase project URL used by server code | Server |
+| `SUPABASE_SERVICE_ROLE_KEY` | Privileged database client used by bridge operations | **Server secret only** |
+| `SUPABASE_PUBLISHABLE_KEY` | Supabase publishable key for server auth validation | Server |
+| `VITE_SUPABASE_URL` | Supabase URL available to the browser client | Public |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | Supabase publishable key available to the browser client | Public |
+| `GH_TOKEN` | GitHub token used by the Bridge to dispatch and inspect workflows | **Server secret only** |
+| `GH_OWNER` | GitHub account or organization containing target repositories | Server |
+| `GH_REF` | Default ref for Runner workflow dispatches (defaults to `main`) | Server |
+| `BRIDGE_ADMIN_PASSWORD` | Protects Bridge administration functions | **Server secret only** |
+| `BRIDGE_CRON_SECRET` | Optional bearer secret for protected cron requests | **Server secret only** |
+| `BRIDGE_CRON_SECRET_PREVIOUS` | Optional previous cron secret during rotation | **Server secret only** |
+| `DATABASE_URL` | Direct PostgreSQL connection used by Drizzle CLI tools only | **Server secret only** |
 
-GET `/api/runs/lookup`: requires **both headers** `X-Bridge-Key` and `Idempotency-Key` (no query-string credentials). Returns the stored `idempotency_id`, `state`, `outcome_state`, Bridge `run_id`, `status_url`, GitHub `runs` (repository, run ID, `html_url`), `job_ids`, `error_code` and `updated_at`. IDs/URL are null or empty before registration. This is a strictly read-only snapshot: no claim/replay, lease changes, last-used update, logging write, GitHub call or dispatch. State reflects the last persisted reconciliation, not a fresh GitHub poll. Missing/invalid authentication returns 401; missing/invalid Idempotency-Key returns 400; missing records or records owned by another bridge key return the same 404; unavailable storage returns 503.
+Never prefix privileged values with `VITE_`; Vite embeds `VITE_*` values in browser assets. Do not commit `.env` files.
 
-- `validation_id` and `correlation_id` default to the idempotency key. `branch` defaults to the configured reference or `main`; a supplied full `requested_sha` is the exact dispatch reference.
-- The fingerprint includes normalized target, gate, boolean dry_run, validation/correlation IDs, branch and requested SHA. It excludes credentials. IDs are safe identifiers, not freeform secret-bearing metadata.
-- Same key and fingerprint returns the stored HTTP status and receipt, without dispatch. A different fingerprint (or bridge credential owner) returns 409 `IDEMPOTENCY_CONFLICT` without disclosing another owner's result.
-- Missing key returns 400; unavailable durable claim returns 503 and no workflow starts. A live claim returns 202; leases last two minutes. New explicit keys intentionally request new operations; the old five-minute parameter dedupe is replaced by durable key-based identity.
+## API contract
 
-### Recovery and lifecycle
+### Create a run
 
-A run row is stored transactionally before dispatch. Every repository dispatch intent and accepted run ID is stored durably. Expired leases before any intent may be reclaimed using a new fenced lease token. After an intent, an uncertain result becomes `BLOCKED` (`DISPATCH_OUTCOME_UNKNOWN`); it is never automatically dispatched again, including partial `both` dispatches. A crash after all dispatches but before receipt persistence conservatively blocks too.
+`POST /api/runs` requires `X-Bridge-Key` and an `Idempotency-Key` header (or the documented JSON idempotency field). Durable claims and dispatch intents are recorded before contacting GitHub. An uncertain dispatch becomes `BLOCKED / DISPATCH_OUTCOME_UNKNOWN` and must not be automatically retried.
 
-GitHub must return a valid run ID for each repository before a successful receipt. Missing IDs block the operation; the bridge does not guess based on time. Resolution of uncertain/missing IDs requires verified external evidence, not another dispatch. Existing legacy run resolution is unchanged.
+### Get a run by ID
 
-`RUNNING` remains until a status read proves all runs completed. Their conclusions set `SUCCEEDED` or `FAILED`; replay of a succeeded operation sets `REPLAYED` while preserving `outcome_state`. Stored responses are immutable dispatch receipts; final workflow results and available job IDs are stored separately and returned at the status URL. No workflow, gate, synthetic commit, or Render write is part of testing.
+`GET /api/runs/:id` requires `X-Bridge-Key`. Credentials in `?key=` are rejected with `400 QUERY_CREDENTIALS_NOT_SUPPORTED`. The run query is scoped by both run ID and owning key ID. A missing run and a run owned by another key both return 404. Older rows without an owner key are intentionally not exposed through this endpoint.
 
-### Tests
+A status read performs GitHub GET requests and may persist reconciliation results to `bridge_runs` and `bridge_idempotency`; it is not a database-pure read. It also updates key last-use metadata and call audit records.
 
-Run `bunx vitest run src/lib/bridge/validate.test.ts src/lib/bridge/idempotency.test.ts src/lib/bridge/core.test.ts src/lib/bridge/idempotency.database.test.ts`.
-Database tests use the existing server environment and only isolated `phase3-test:` records. GitHub dispatch is mocked; restart persistence is verified by a separate process reading the same Cloud record. No secret value is printed or stored.
+### Lookup by idempotency key
 
-Read-route regressions: `bunx vitest run src/lib/bridge/lookup.test.ts src/test/bridge-read-routes.test.ts`. All database reads and fetches in these tests are mocked. They verify GET 405, header-only authentication, ownership isolation, stored run IDs/URLs, and zero dispatches, GitHub calls, claim RPCs or writes. No real workflow runs.
+`GET /api/runs/lookup` requires both `X-Bridge-Key` and `Idempotency-Key` headers. It scopes the lookup to the authenticated key and can reconcile a running request against GitHub, including persisting the resulting state. It does not dispatch workflows.
+
+### Disabled legacy route
+
+`GET /api/run` always returns `405 METHOD_NOT_ALLOWED` and never triggers a workflow.
+
+## Database and migrations
+
+SQL migration definitions are in `drizzle/migrations`. The configuration reads `DATABASE_URL`. Migrations are not applied automatically at build or startup; review and run them as a separate, explicitly authorized operation against the intended Supabase project.
+
+## Security and operational guardrails
+
+- Bridge credentials are stored as hashes; full keys are shown once at creation.
+- Use a private repository and private hosting environment for this service.
+- Keep GitHub and Supabase privileged credentials out of browser bundles and source control.
+- Do not dispatch real workflows, deploy, or modify Precision Lab Lite/Plus as part of ordinary local validation.
+- Tests should mock GitHub dispatch and use isolated fixtures.

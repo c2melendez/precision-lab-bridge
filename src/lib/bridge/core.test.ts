@@ -3,7 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   claim: vi.fn(), prepare: vi.fn(), begin: vi.fn(), record: vi.fn(), finish: vi.fn(), fetch: vi.fn(),
-  statusFilters: [] as [string, unknown][],
+  statusFilters: [] as [string, string, unknown][],
+  statusRows: { run: null as unknown, ledger: null as unknown },
 }));
 vi.mock("./idempotency.server", () => ({ claimRequest: mocks.claim, prepareRun: mocks.prepare,
   beginDispatch: mocks.begin, recordDispatch: mocks.record, finishClaim: mocks.finish }));
@@ -13,13 +14,19 @@ vi.mock("@/integrations/supabase/client.server", () => ({
       select: () => {
         const query = {
           eq: (column: string, value: unknown) => {
-            if (table === "bridge_runs") mocks.statusFilters.push([column, value]);
+            if (table === "bridge_runs" || table === "bridge_idempotency") {
+              mocks.statusFilters.push([table, column, value]);
+            }
             return query;
           },
           maybeSingle: async () => ({
             data: table === "bridge_keys"
               ? { id: "key1", expires_at: "2099-01-01", revoked_at: null }
-              : null,
+              : table === "bridge_runs"
+                ? mocks.statusRows.run
+                : table === "bridge_idempotency"
+                  ? mocks.statusRows.ledger
+                  : null,
             error: null,
           }),
         };
@@ -36,6 +43,8 @@ const raw = { target_repo: "lite", gate: "h1d", idempotency_key: "v1" };
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.statusFilters.length = 0;
+  mocks.statusRows.run = null;
+  mocks.statusRows.ledger = null;
   vi.stubGlobal("fetch", mocks.fetch);
 });
 
@@ -127,9 +136,40 @@ describe("run status ownership", () => {
 
     expect(result).toEqual({ status: 404, body: { error: "not found" } });
     expect(mocks.statusFilters).toEqual([
-      ["id", id],
-      ["key_id", "key1"],
+      ["bridge_runs", "id", id],
+      ["bridge_runs", "key_id", "key1"],
     ]);
     expect(mocks.fetch).not.toHaveBeenCalled();
   });
 });
+
+  it("scopes the idempotency ledger lookup to the same owner key", async () => {
+    const id = "00000000-0000-0000-0000-000000000002";
+    mocks.statusRows.run = {
+      id,
+      target_repo: "lite",
+      gate: "h1d",
+      dry_run: true,
+      dispatched_at: "2026-10-30T00:00:00.000Z",
+      gh_runs: [],
+      key_id: "key1",
+    };
+    mocks.statusRows.ledger = {
+      id: "ledger1",
+      run_id: id,
+      key_id: "key1",
+      state: "BLOCKED",
+      response: { idempotency_id: "ledger1" },
+    };
+
+    const result = await runStatus("plb_test", id);
+
+    expect(result.status).toBe(200);
+    expect(mocks.statusFilters).toEqual([
+      ["bridge_runs", "id", id],
+      ["bridge_runs", "key_id", "key1"],
+      ["bridge_idempotency", "run_id", id],
+      ["bridge_idempotency", "key_id", "key1"],
+    ]);
+    expect(mocks.fetch).not.toHaveBeenCalled();
+  });

@@ -148,7 +148,7 @@ async function resolveRun(r: GhRun, since: string, ref?: string, requestedSha?: 
 
 export async function trigger(endpoint: string, key: string | null, raw: Record<string, unknown>) {
   const safeParams = { target_repo: raw["target_repo"], gate: raw["gate"], dry_run: raw["dry_run"] };
-  let k;
+  let k: Awaited<ReturnType<typeof checkKey>>;
   try { k = await checkKey(key); }
   catch { return { status: 503, body: { error: "AUTH_STORE_UNAVAILABLE" } }; }
   if (!k) {

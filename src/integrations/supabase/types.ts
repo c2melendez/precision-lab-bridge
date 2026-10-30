@@ -173,6 +173,7 @@ export type Database = {
           label: string
           last_used_at?: string | null
           revoked_at?: string | null
+          scopes?: string[]
         }
         Update: {
           created_at?: string

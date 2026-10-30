@@ -43,7 +43,7 @@ The first durable migration defines `bridge_claim`, `bridge_prepare`, `bridge_be
 ### Security characteristics visible in the SQL
 
 - Row Level Security is enabled on all four Bridge tables.
-- The migrations grant table privileges to `service_role`; `bridge_idempotency` additionally has explicit revocations from `PUBLIC`, `anon`, and `authenticated`.
+- All four tables explicitly revoke access from `PUBLIC`, `anon`, and `authenticated`, and retain CRUD access for `service_role`. RLS is enabled on each table.
 - The initial migration does not define client-facing RLS policies. The intended access model is privileged server-side access only.
 - `bridge_idempotency.key_id` is NOT NULL but has no foreign key to `bridge_keys(id)`.
 - `bridge_runs.key_id` is nullable and has no foreign key. The status endpoint intentionally does not expose ownerless legacy rows.
@@ -62,8 +62,8 @@ The first durable migration defines `bridge_claim`, `bridge_prepare`, `bridge_be
 2. **Completed:** the new project was initialized as an empty database. It was not linked to or used to overwrite the source project.
 3. **Completed for the initial schema:** the three original migration stages were ported in order to supabase/migrations, followed by one security migration that revokes client-role access and tightens default privileges. Timestamp prefixes match the versions returned by Supabase after applying; no timestamps were manually invented. Future schema changes should use the Supabase CLI migration workflow.
 4. **Partially complete:** the chain was applied to the new empty remote database, and tables, functions, grants and RLS were queried afterwards. A local Supabase stack reset was not run because the Supabase CLI is not installed in this execution environment; local reset validation is still pending.
-5. Review the generated privileges on a new project dated 2026-10-30 or later. Supabase announced that new tables are no longer automatically exposed to the Data and GraphQL APIs by default from this date. Confirm the `public` schema exposure and ensure the Bridge's server-only `service_role` client can use the required tables/RPCs. Do not grant direct `anon` or `authenticated` access to Bridge tables.
-6. Consider an explicit privilege-hardening migration that revokes all direct table access from `PUBLIC`, `anon`, and `authenticated` for all four Bridge tables, while retaining only the required server-role grants. Test this against the exact Supabase/PostgREST configuration before applying.
+5. **Completed:** verified the new-project Data API posture and tested table privilege facts using PostgreSQL catalog queries. The `anon` and `authenticated` roles have no table SELECT privileges; `service_role` can perform the required CRUD operations. No direct client-role access was granted.
+6. **Completed:** the initial migration and the follow-up security migration revoke client-role table grants and revoke default privileges for new public tables, sequences, and functions. Public EXECUTE is removed from future functions; server-role execution is retained.
 7. Review adding foreign keys from `bridge_idempotency.key_id` to `bridge_keys(id)` and from non-null `bridge_runs.key_id` values to `bridge_keys(id)`. First check for orphaned references. Preserve nullable ownerless legacy runs only if historical status retrieval is still required; the current API does not expose them.
 
 ## 4. Data migration plan (separate from schema)

@@ -5,7 +5,7 @@
   "as_of": "2026-10-30",
   "language": "es",
   "status": "in_progress",
-  "summary": "Fases A/B cerradas. Certification Runner Lite/Plus tiene PASS_SCOPED para el camino push/no-dispatch; Lite runs 41138509571, 41140700509 y 41141037836, Plus run 41136660038 terminaron SUCCESS en SHAs verificados. La suite de contrato Runner es idéntica en ambos repos (blob ff5c499c); diferencias YAML limitadas a defaults y comentarios repo-locales. Dispatch/espera/registro/persistencia SKIPPED. O5 IN_PROGRESS por falta de traza E2E Observer→Bridge→Actions→Runner y replay sin duplicación. O6 PENDING porque no se ejecutó dispatch real; O7 PENDING. AS-EXP-03 Lite PASS_SCOPED; AS-EXP-04 es el siguiente objetivo matemático. No merge, deploy ni producción.",
+  "summary": "Fases A/B cerradas. Certification Runner Lite/Plus tiene PASS_SCOPED para el camino push/no-dispatch; Lite latest run 41141571479 SUCCESS en SHA 933fad5c3e55db06db9de6ff21e02cd96070da0f y Plus 41136660038 SUCCESS. La suite de contrato Runner es idéntica en ambos repos (blob ff5c499c); diferencias YAML limitadas a defaults y comentarios repo-locales. Dispatch/espera/registro/persistencia SKIPPED. O5 IN_PROGRESS por falta de traza E2E Observer→Bridge→Actions→Runner y replay sin duplicación. O6 PENDING porque no se ejecutó dispatch real; O7 PENDING. AS-EXP-03 Lite PASS_SCOPED; AS-EXP-04 está en ejecución. No merge, deploy ni producción.",
   "canonical_markdown": {
     "repo": "c2melendez/precision-lab-bridge",
     "branch": "hardening/secure-status-independent-runtime",
@@ -581,10 +581,16 @@
       "sha": "c8c29d820e5bd16ab4df8a528bcea9b4a72f8acc",
       "event": "push",
       "conclusion": "success",
-      "latest_run_id": 41141037836,
-      "latest_run_url": "https://github.com/c2melendez/precision-lab-lite/actions/runs/41141037836",
-      "latest_sha": "0a85b448298df0691b043269648d327d0a7aec0b",
+      "latest_run_id": 41141571479,
+      "latest_run_url": "https://github.com/c2melendez/precision-lab-lite/actions/runs/41141571479",
+      "latest_sha": "933fad5c3e55db06db9de6ff21e02cd96070da0f",
       "runs": [
+        {
+          "run_id": 41141571479,
+          "sha": "933fad5c3e55db06db9de6ff21e02cd96070da0f",
+          "conclusion": "success",
+          "event": "push"
+        },
         {
           "run_id": 41141037836,
           "sha": "0a85b448298df0691b043269648d327d0a7aec0b",
@@ -677,6 +683,19 @@
         "role": "complementary, not required for algebraic acceptance"
       }
     },
-    "next_case": "ALGEBRA114-AS-EXP-04"
+    "next_case": "ALGEBRA114-AS-EXP-04",
+    "active_case": {
+      "case": "ALGEBRA114-AS-EXP-04",
+      "status": "GATES_IN_PROGRESS",
+      "sha": "933fad5c3e55db06db9de6ff21e02cd96070da0f",
+      "runs": {
+        "ci": 41141571381,
+        "cumulative": 41141571350,
+        "h1d": 41141571338,
+        "scientific_ui": 41141571351,
+        "runner": 41141571479
+      },
+      "acceptance": null
+    }
   }
 }

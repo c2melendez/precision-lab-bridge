@@ -5,7 +5,7 @@
   "as_of": "2026-10-30",
   "language": "es",
   "status": "in_progress",
-  "summary": "Fases A/B cerradas. Certification Runner Lite/Plus PASS_SCOPED para push/no-dispatch; último Runner Lite 41142010410 SUCCESS en SHA 4341955335d6898c4979063520432f82a6d129ba y Plus 41136660038 SUCCESS. Suite de contrato idéntica (blob ff5c499c); diferencias YAML limitadas a defaults/comentarios. Dispatch/espera/registro/persistencia SKIPPED. O5 IN_PROGRESS por falta de traza E2E Observer→Bridge→Actions→Runner y replay sin duplicación. O6 PENDING porque no se ejecutó dispatch real; O7 PENDING. AS-EXP-03/04 Lite PASS_SCOPED; AS-EXP-05 en validación. No merge, deploy ni producción.",
+  "summary": "Fases A/B cerradas. Certification Runner Lite/Plus PASS_SCOPED para push/no-dispatch; último Runner Lite 41142010410 SUCCESS en SHA 4341955335d6898c4979063520432f82a6d129ba y Plus 41136660038 SUCCESS. Suite de contrato idéntica (blob ff5c499c); diferencias YAML limitadas a defaults/comentarios. Dispatch/espera/registro/persistencia SKIPPED. O5 IN_PROGRESS por falta de traza E2E Observer→Bridge→Actions→Runner y replay sin duplicación. O6 PENDING porque no se ejecutó dispatch real; O7 PENDING. AS-EXP-03/04/05 Lite PASS_SCOPED; AS-EXP-06 siguiente. No merge, deploy ni producción.",
   "canonical_markdown": {
     "repo": "c2melendez/precision-lab-bridge",
     "branch": "hardening/secure-status-independent-runtime",
@@ -688,21 +688,16 @@
         "role": "complementary, not required for algebraic acceptance"
       }
     },
-    "next_case": "ALGEBRA114-AS-EXP-05",
-    "last_accepted_case": "ALGEBRA114-AS-EXP-04",
+    "next_case": "ALGEBRA114-AS-EXP-06",
+    "last_accepted_case": "ALGEBRA114-AS-EXP-05",
     "active_case": {
-      "case": "ALGEBRA114-AS-EXP-05",
-      "status": "GATES_QUEUED_OR_IN_PROGRESS",
-      "sha": "4341955335d6898c4979063520432f82a6d129ba",
-      "test_blob": "b6985e7139ca77edc78faa48f6d55104d76a2627",
-      "runs": {
-        "ci": 41142010457,
-        "cumulative": 41142010406,
-        "h1d": 41142010389,
-        "scientific_ui": 41142010385,
-        "runner": 41142010410
-      },
+      "case": "ALGEBRA114-AS-EXP-06",
+      "status": "READY",
+      "sha": null,
+      "runs": null,
       "acceptance": null
-    }
+    },
+    "last_acceptance_sha": "4341955335d6898c4979063520432f82a6d129ba",
+    "last_acceptance": "qa/certification/ALGEBRA114_AS_EXP_05_ACCEPTANCE_R364.md"
   }
 }

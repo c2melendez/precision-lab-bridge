@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   claim: vi.fn(), prepare: vi.fn(), begin: vi.fn(), record: vi.fn(), finish: vi.fn(), fetch: vi.fn(),
   statusFilters: [] as [string, string, unknown][],
   statusRows: { run: null as unknown, ledger: null as unknown },
+  keyScopes: ["read", "dispatch"] as string[],
 }));
 vi.mock("./idempotency.server", () => ({ claimRequest: mocks.claim, prepareRun: mocks.prepare,
   beginDispatch: mocks.begin, recordDispatch: mocks.record, finishClaim: mocks.finish }));
@@ -21,7 +22,7 @@ vi.mock("@/integrations/supabase/client.server", () => ({
           },
           maybeSingle: async () => ({
             data: table === "bridge_keys"
-              ? { id: "key1", expires_at: "2099-01-01", revoked_at: null }
+              ? { id: "key1", expires_at: "2099-01-01", revoked_at: null, scopes: mocks.keyScopes }
               : table === "bridge_runs"
                 ? mocks.statusRows.run
                 : table === "bridge_idempotency"
@@ -45,10 +46,19 @@ beforeEach(() => {
   mocks.statusFilters.length = 0;
   mocks.statusRows.run = null;
   mocks.statusRows.ledger = null;
+  mocks.keyScopes = ["read", "dispatch"];
   vi.stubGlobal("fetch", mocks.fetch);
 });
 
 describe("claim must precede every external dispatch", () => {
+  it("rejects a read-only key before claiming or dispatching", async () => {
+    mocks.keyScopes = ["read"];
+    const result = await trigger("test", "plb_read_only", raw);
+    expect(result).toEqual({ status: 403, body: { error: "insufficient_scope", required_scope: "dispatch" } });
+    expect(mocks.claim).not.toHaveBeenCalled();
+    expect(mocks.fetch).not.toHaveBeenCalled();
+  });
+
   it("does not dispatch without a durable claim", async () => {
     mocks.claim.mockRejectedValue(new Error("database failure with sensitive detail"));
     const result = await trigger("test", "plb_test", raw);

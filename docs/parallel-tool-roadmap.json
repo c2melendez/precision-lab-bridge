@@ -436,5 +436,32 @@
       "receipt_status_get_proven": true
     },
     "implication": "La prueba HTTP A acredita la lectura Bridge contra los commits desplegados, no el despliegue de los HEAD actuales ni la superficie GitHub completa de Observador. GITHUB_READ_TOKEN de staging no está confirmado; sin él, status/plan/run evidence no podrán consultar GitHub."
+  },
+  "supabase_runtime_snapshot": {
+    "project_id": "umxtvefdcjwkiqsubfpb",
+    "project_status": "ACTIVE_HEALTHY",
+    "migrations_applied": [
+      "20261030075859",
+      "20261030075922",
+      "20261030075926",
+      "20261030075930"
+    ],
+    "table_counts": {
+      "bridge_keys": 1,
+      "bridge_runs": 1,
+      "bridge_calls": 2,
+      "bridge_idempotency": 0
+    },
+    "verified_receipt_uuid": "94c102a5-5242-48ba-bdb7-4754a57513db",
+    "receipt_actions_run_id": 41005884405,
+    "receipt_is_historical": true,
+    "key_metadata": {
+      "label": "staging-read-only-verification",
+      "revoked": false,
+      "expires_at_utc": "2026-10-31T09:05:53Z",
+      "expires_at_honduras": "2026-10-31T03:05:53-06:00"
+    },
+    "key_value_or_hash_read": false,
+    "interpretation": "Lectura autenticada del recibo confirmada. No hay filas de idempotencia, por lo que no se ha probado dispatch durable/idempotente end-to-end. Si se necesita staging después de expirar la clave, crear otra clave de prueba y actualizar solo llm en staging."
   }
 }

@@ -132,6 +132,15 @@ describe("dispatch outcome handling", () => {
     expect(r.body).toMatchObject({ error: "GITHUB_DISPATCH_REJECTED_403" });
     expect(mocks.finish).toHaveBeenCalledWith(claimed.record, "FAILED", 502, expect.anything(), "GITHUB_DISPATCH_REJECTED_403");
   });
+  it("rejects a stale requested SHA before sending a workflow dispatch", async () => {
+    mocks.fetch.mockResolvedValue(Response.json({ object: { sha: "b".repeat(40) } }));
+    const r = await trigger("test", "plb_test", { ...raw, branch: "main", requested_sha: "a".repeat(40) });
+    expect(r.status).toBe(502);
+    expect(r.body).toMatchObject({ error: "GITHUB_DISPATCH_REJECTED_422" });
+    expect(mocks.fetch).toHaveBeenCalledTimes(1);
+    expect(String(mocks.fetch.mock.calls[0][0])).toContain("/git/ref/heads/main");
+    expect(mocks.fetch.mock.calls.some(([url]) => String(url).includes("/dispatches"))).toBe(false);
+  });
   it("treats network errors as uncertain and never retries blindly", async () => {
     mocks.fetch.mockRejectedValue(new Error("socket hangup"));
     const r = await trigger("test", "plb_test", raw);

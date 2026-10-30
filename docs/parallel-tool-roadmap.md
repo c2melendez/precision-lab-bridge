@@ -365,6 +365,7 @@ Bridge PR #1 es un PR distinto: permanece abierto y Draft. CI #59 acredita su HE
 - Bridge ahora rechaza `gate=security` para `target_repo=plus` y `target_repo=both` antes de reclamar idempotencia o iniciar un despacho, evitando una ejecución bilateral parcial. La política se conserva también en Runner como defensa en profundidad.
 
 ### Disposición O5/O6/O7
+- Observer PR #4, HEAD `6e712094a7e4b06a13224f66d6f3a6c26f991152`, CI [41064924977](https://github.com/c2melendez/precision-lab-readonly-api/actions/runs/41064924977) SUCCESS: 29 tests; dispatch autenticado, plan live, SHA/rama canónica, clave dispatch separada, propagación de idempotency/validation/correlation, timeout incierto y reconciliación read-only. Todo con Bridge simulado; no ejecutó dispatch.
 
 - **O5 — parcialmente acreditado, sigue en progreso:** la capa durable de Bridge y la paridad del contrato Runner están probadas. Falta demostrar la cadena real Observer → Bridge → Actions → Runner → evidencia matemática y su replay sin duplicación.
 - **O6 — PENDING:** el criterio canónico exige un workflow dispatch controlado, un recibo durable enlazado con el Actions run real y la reconciliación de su SHA/Runner. Esta iteración no invocó `POST /v1/bridge/dispatch` ni `workflow_dispatch`; las pruebas simuladas no se presentan como E2E real.

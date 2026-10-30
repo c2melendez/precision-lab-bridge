@@ -17,7 +17,7 @@ const nativeFetch = globalThis.fetch;
 const dispatch = vi.fn(async (_url: string) => Response.json({ workflow_run_id: 12345, html_url: "https://github.com/example/test/actions/runs/12345" }));
 const request = (suffix: string): IdempotentRequest => ({ target_repo: "lite", gate: "h1d", dry_run: true,
   idempotency_key: `${prefix}:${suffix}`, validation_id: `${prefix}:validation`, correlation_id: `${prefix}:correlation`,
-  branch: "main", requested_sha: "a".repeat(40) });
+  branch: "main", requested_sha: null });
 
 describe.skipIf(!configured)("real Cloud idempotency, no real workflows", () => {
   beforeAll(async () => {

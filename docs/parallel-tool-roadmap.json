@@ -5,7 +5,7 @@
   "as_of": "2026-10-30",
   "language": "es",
   "status": "in_progress",
-  "summary": "Roadmap reorientado: Observer es la única interfaz LLM y el plano central de lectura/coordinación; Bridge es interno y solo Observer puede invocarlo. No se añade ningún servicio. Despacho protegido, scopes, idempotencia y trazabilidad end-to-end pendientes; después se cierra la infraestructura auxiliar y se retoma la certificación matemática Lite/Plus.",
+  "summary": "Observer es la única interfaz LLM y plano central de coordinación; Bridge es interno. Autonomía general concedida para operaciones rutinarias dentro de políticas y pruebas; escalar solo decisiones materiales no resueltas. No se añaden servicios; completar validación automatizada y volver a certificación matemática Lite/Plus.",
   "canonical_markdown": {
     "repo": "c2melendez/precision-lab-bridge",
     "branch": "hardening/secure-status-independent-runtime",
@@ -21,13 +21,16 @@
       "does_not_execute_this_roadmap": "LLM sin GitHub. Ese modelo es el usuario final de Observador."
     },
     "steps": [
-      "No secrets may be requested, copied, logged or committed: llm, SERVICE_API_KEY, GITHUB_READ_TOKEN, GH_TOKEN, SUPABASE_SECRET_KEY or BRIDGE_ADMIN_PASSWORD.",
-      "Use GitHub as source of truth and verify current refs, PR heads and workflow evidence before relying on historical SHAs.",
-      "Observer is the only LLM-facing API; the LLM Action must never call Bridge directly.",
-      "Observer owns orchestration and policy; Bridge owns internal dispatch validation, durable idempotency and receipts; existing Lite/Plus runners execute.",
-      "Do not dispatch real Lite/Plus workflows, even with dry_run=true, without explicit per-operation user authorization.",
-      "Do not merge PRs, deploy production, rotate/revoke credentials or change production routing without separate explicit authorization.",
-      "Record request/correlation/validation IDs, idempotency fingerprint, receipt UUID, Actions run ID, Runner record, SHA and observed conclusion. Never record credential values."
+      "No solicitar, copiar, registrar ni hacer commit de secretos: llm, SERVICE_API_KEY, GITHUB_READ_TOKEN, GH_TOKEN, SUPABASE_SECRET_KEY o BRIDGE_ADMIN_PASSWORD.",
+      "Usar GitHub como fuente de verdad; verificar refs, PR heads, despliegues y evidencia de workflows actuales antes de depender de SHAs históricos.",
+      "Observer es la única API expuesta al LLM; la Action nunca llama Bridge directamente.",
+      "Observer orquesta y aplica políticas; Bridge valida despacho interno, persiste idempotencia y recibos; los runners existentes de Lite/Plus ejecutan.",
+      "El usuario ya concedió autonomía general para completar el trabajo ordinario dentro del alcance, repositorios, gates, workflows, ramas y límites establecidos. No pedir aprobación por cada despacho, prueba, reconciliación o bloque rutinario.",
+      "Ejecutar automáticamente consultas, correcciones, pruebas, despachos y reconciliaciones ordinarias cuando contratos, allowlists, scopes y pruebas demuestren que están dentro de política.",
+      "Escalar únicamente decisiones materiales no resueltas por documentación/pruebas: cambios de alcance, criterios ambiguos, licencia, exposición de datos, aceptación de riesgo nuevo o desactivación de protecciones.",
+      "Un fallo técnico ordinario se investiga, corrige y vuelve a probar sin pedir permiso. Si no existe camino seguro definido, detener solo la operación afectada y explicar el bloqueo concreto.",
+      "No crear un mecanismo externo de aprobación por evento. Fortalecer las pruebas automatizadas como fuente de verdad operativa.",
+      "Registrar request/correlation/validation IDs, fingerprint idempotente, receipt UUID, Actions run ID, Runner record, SHA y conclusión observada. Nunca registrar credenciales."
     ]
   },
   "design_decision": {
@@ -58,7 +61,20 @@
       "A second GitHub Action or Runner",
       "Direct LLM-to-Bridge traffic",
       "Automatic dispatch based on inferred intent"
-    ]
+    ],
+    "operating_autonomy": {
+      "authorization": "General autonomous execution within the already approved project scope and defined policies is granted.",
+      "routine_operations": "No per-dispatch or per-test human approval. Observer/LLM may query, plan, dispatch, reconcile, retry only when safe/idempotent, and continue automatically when tests and policy permit.",
+      "escalate_only_for": [
+        "Unresolved acceptance ambiguity or conflicting canonical requirements",
+        "Scope/repository/gate/branch/workflow policy change",
+        "License, ownership, publication or data exposure decision not already delegated",
+        "Disabling a protection or accepting a new risk outside established bounds",
+        "Product choice not determined by tests/specification"
+      ],
+      "tests_as_authority": "Strengthen contract, authorization/scope, allowlist, idempotency, concurrency, reconciliation, traceability, regression and error-path tests. Do not introduce external approval mechanisms to compensate for missing test coverage.",
+      "dry_run": "Treat dry_run=true as a real workflow dispatch. It may run autonomously when within the delegated policy and covered by tests; it is not an approval bypass."
+    }
   },
   "completed_do_not_redo": [
     {
@@ -151,7 +167,10 @@
     "Outcome ambiguo o timeout pasa a RECONCILE; nunca hay reintento ciego.",
     "dry_run=true en Bridge inicia workflow y cuenta como despacho real.",
     "Credenciales no aparecen en prompts, OpenAPI público, respuestas, repositorios ni logs.",
-    "No se añade una nueva capa de servicios ni un segundo Runner."
+    "No se añade una nueva capa de servicios ni un segundo Runner.",
+    "No se requiere aprobación humana por operación rutinaria dentro del alcance delegado y probado.",
+    "Escalar solo decisiones materiales no resueltas por especificación o pruebas.",
+    "Los tests automatizados y contratos son la fuente de verdad operativa; no añadir un sistema externo de aprobación por evento."
   ],
   "phases": [
     {
@@ -189,8 +208,8 @@
         "schema_and_policy_review"
       ],
       "steps": [
-        "Definir request schema estricto: target_repo, gate, branch/requested_sha, validation_id, correlation_id, idempotency_key y autorización vinculada a parámetros exactos.",
-        "Rechazar parámetros fuera de allowlist y solicitudes sin autorización; no llamar Bridge si la autorización falla.",
+        "Definir request schema estricto: target_repo, gate, branch/requested_sha, validation_id, correlation_id e idempotency_key.",
+        "Validar parámetros contra allowlist, política y scopes; solicitudes dentro de política siguen automáticamente sin confirmación por evento.",
         "Implementar llamada server-to-server Observer→Bridge; sanitizar respuesta y errores."
       ],
       "exit_criteria": "POST de Observer protegido y probado; el contrato OpenAPI público solo presenta Observer y nunca Bridge."
@@ -205,8 +224,8 @@
       ],
       "steps": [
         "Crear/usar identidad de servicio Bridge con scope dispatch limitado a Observer.",
-        "Separar permisos de lectura y despacho en Bridge; la clave de lectura no debe heredar capacidad POST.",
-        "Comprobar rechazo de llamadas anónimas, de LLM directo, credenciales de lectura y scopes no autorizados."
+        "Separar permisos de lectura y despacho; la Action LLM no obtiene credenciales Bridge.",
+        "Comprobar automáticamente rechazo de llamadas anónimas, LLM directo, credenciales de lectura y scopes no autorizados."
       ],
       "exit_criteria": "Solo la identidad de servicio de Observer puede ejecutar despachos permitidos; el acceso LLM→Bridge no existe."
     },
@@ -229,10 +248,9 @@
     {
       "id": "O6",
       "title": "Validación end-to-end controlada",
-      "status": "not_authorized",
+      "status": "pending",
       "active": false,
       "blocked_by": [
-        "explicit_user_approval",
         "O1",
         "O2",
         "O3",
@@ -240,11 +258,11 @@
         "O5"
       ],
       "steps": [
-        "Revisar permisos mínimos y estado de staging.",
-        "Solo con autorización expresa, ejecutar un único despacho controlado y observar receipt, Actions y Runner.",
-        "Repetir exactamente la solicitud idempotente y verificar que no aparece otro workflow."
+        "Ejecutar automáticamente pruebas de integración y staging sin efectos externos siempre que sea posible.",
+        "Cuando los tests de seguridad, allowlist, idempotencia y trazabilidad acrediten la política, realizar automáticamente el despacho controlado dentro del alcance delegado.",
+        "Verificar receipt, Actions run, SHA y Runner; repetir la solicitud idempotente para demostrar que no crea un segundo workflow."
       ],
-      "exit_criteria": "Una ejecución completa verificable y repetición idempotente sin segundo workflow. dry_run=true cuenta como despacho real."
+      "exit_criteria": "Validación end-to-end completa y trazable; repetición idempotente sin segundo workflow. dry_run=true cuenta como despacho real y se permite dentro del alcance general delegado cuando tests/policy lo habilitan."
     },
     {
       "id": "O7",
@@ -271,10 +289,10 @@
     "No exponer Bridge en la Action LLM ni entregar Bridge URL/key al modelo.",
     "No añadir otro servicio, plano de control o Runner.",
     "No duplicar en Observer la persistencia transaccional de idempotencia que pertenece a Bridge.",
-    "No permitir dispatch por inferencia; exigir autorización explícita vinculada a parámetros exactos.",
-    "No despachar Lite/Plus sin aprobación expresa para la operación concreta.",
     "No fusionar PR, desplegar producción, rotar/revocar claves ni cambiar producción sin autorización separada.",
-    "No declarar certificación matemática PASS por éxito de Actions."
+    "No declarar certificación matemática PASS por éxito de Actions.",
+    "No pedir aprobación por cada despacho, prueba o reconciliación rutinaria dentro de la política delegada.",
+    "No añadir mecanismos externos de aprobación por evento ni capas/servicios adicionales."
   ],
   "definition_of_done": {
     "required_phases": [
@@ -283,13 +301,12 @@
       "O3",
       "O4",
       "O5",
+      "O6",
       "O7"
     ],
-    "conditional_phases": [
-      "O6"
-    ],
+    "conditional_phases": [],
     "merge_gate_not_a_substitute": "Los PR y sus CI son evidencia de revisión/código, no sustituyen pruebas staging o end-to-end.",
-    "after_done": "Congelar infraestructura auxiliar y regresar a certificación matemática Lite/Plus."
+    "after_done": "Congelar infraestructura auxiliar y regresar a certificación matemática Lite/Plus; el LLM continúa autónomamente las operaciones rutinarias dentro de la política probada."
   },
   "pull_requests": {
     "observer": {

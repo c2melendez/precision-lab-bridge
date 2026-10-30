@@ -280,3 +280,23 @@ Un fallo técnico ordinario no requiere aprobación: investigar, corregir, refor
 - Bridge CI SUCCESS en SHA `74a592253b293a1919dc7387bfbc74f239524044` (unit/regression, ESLint, build). La ejecución del HEAD de UI posterior sigue en validación.
 - Observer CI SUCCESS en SHA `d5333da7e128f3301b55da846e5c9b76eafff19d` (pytest); los commits posteriores de OpenAPI y prueba de no-fallback requieren validar el HEAD actual.
 - No se ha realizado deploy de los nuevos HEADs ni E2E Bridge→GitHub→receipt→Observer. No se declara cerrado O6.
+
+
+
+## Staging deployment — 2026-10-30 13:52 UTC
+
+Los HEAD de ambos PR ya están desplegados en My Workspace, sin activar auto-deploy:
+
+- Bridge `99a439c11726e8d4424b48f43d74a11508848366`: deploy `dep-dbia0bm7bikc73aijvn0`, estado `live`. Build y arranque Bun completados; Render registró el servicio live.
+- Observer `6e712094a7e4b06a13224f66d6f3a6c26f991152`: deploy `dep-dbia1b9srm7s73dltcpg`, estado `live`. Build, startup de Uvicorn y startup de aplicación completados.
+- CI Bridge `41065225032` y CI Observer `41064924977`: SUCCESS en los respectivos HEADs.
+- Se creó una clave staging independiente `observer-staging-dispatch`, scope exclusivo `dispatch`, expira `2026-11-06T13:50:27Z`; su valor y hash no se guardan en documentación. ID de fila: `9f7affec-b6a7-4d8f-b0bd-629a778adfd9`. Se configuró como `BRIDGE_DISPATCH_KEY` en Observer, junto con `BRIDGE_BASE_URL`.
+- La clave anterior read-only no se rotó ni amplió.
+
+### Límite de la validación actual
+
+Una consulta SQL posterior confirmó una clave dispatch activa, cero filas de `bridge_idempotency` y cero llamadas realizadas con la nueva clave. El único `bridge_runs` registrado es el recibo histórico previo. No se ha emitido un POST real desde Observer ni se ha creado un workflow de prueba.
+
+Los servicios están LIVE, pero O6 sigue pendiente: la sesión de ejecución dispone de herramientas para despliegue, logs y consulta de datos, pero no de un cliente HTTP autenticado que permita invocar el POST de Observer con sus headers y body. Los intentos de abrir las URLs mediante el lector web no proporcionaron acceso HTTP. No simular la llamada mediante SQL ni sustituirla por un dispatch directo a GitHub: eso invalidaría la prueba Observer→Bridge.
+
+Siguiente evidencia necesaria: POST autenticado a `/v1/bridge/dispatch` con plan live `RUN`, seguido de GET de reconciliación con la misma `idempotency_key`; verificar un solo workflow, un recibo durable y correlación con el Runner. Hasta entonces, no declarar O6/O7 cerrados ni reanudar la certificación como si el flujo auxiliar estuviera certificado.

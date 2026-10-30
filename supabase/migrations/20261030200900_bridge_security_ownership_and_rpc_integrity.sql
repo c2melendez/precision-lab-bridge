@@ -129,9 +129,6 @@ BEGIN
     AND lease_expires_at>clock_timestamp() AND response IS NULL
   FOR UPDATE;
   IF NOT FOUND THEN RETURN false; END IF;
-
-  -- A successful 201 receipt is only valid after every requested repository
-  -- has a durable ACCEPTED intent and exactly one registered GitHub run.
   IF p_state='RUNNING' THEN
     IF p_status<>201 OR r.run_id IS NULL THEN RETURN false; END IF;
     expected_repos := CASE r.repo
@@ -150,12 +147,8 @@ BEGIN
         OR (SELECT count(*) FROM jsonb_array_elements(r.gh_runs) AS item
             WHERE item->>'repo'=expected.repo)<>1
     ) THEN RETURN false; END IF;
-    IF EXISTS (
-      SELECT 1 FROM public.bridge_runs br
-      WHERE br.id=r.run_id AND br.key_id=r.key_id
-    ) IS NOT TRUE THEN RETURN false; END IF;
+    IF EXISTS (SELECT 1 FROM public.bridge_runs br WHERE br.id=r.run_id AND br.key_id=r.key_id) IS NOT TRUE THEN RETURN false; END IF;
   END IF;
-
   UPDATE public.bridge_idempotency SET state=p_state,outcome_state=p_state,http_status=p_status,response=p_response,error_code=p_error,
     updated_at=clock_timestamp(),finished_at=CASE WHEN p_state='RUNNING' THEN NULL ELSE clock_timestamp() END,
     lease_token=NULL,lease_expires_at=NULL

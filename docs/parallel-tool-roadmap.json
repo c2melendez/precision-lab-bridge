@@ -1,0 +1,303 @@
+{
+  "schema_version": 1,
+  "id": "precision-lab-parallel-tool-roadmap",
+  "title": "Hoja de ruta — herramienta paralela para LLMs sin GitHub",
+  "as_of": "2026-10-30",
+  "language": "es",
+  "status": "in_progress",
+  "summary": "La herramienta de observación y despacho no está terminada. La certificación matemática de Lite y Plus queda fuera de este archivo.",
+  "canonical_markdown": {
+    "repo": "c2melendez/precision-lab-bridge",
+    "branch": "hardening/secure-status-independent-runtime",
+    "path": "docs/parallel-tool-roadmap.md",
+    "introduced_in": "b8b7a7cdae8991907f3af5bde9ad23ac7926c028"
+  },
+  "supersedes": "docs/observer-bridge-integration.md#Trabajo de integración pendiente",
+  "evidence_rule": "Si un comentario de PR cita un SHA o una prueba más nueva, esa evidencia manda y este archivo debe actualizarse en el mismo cambio.",
+  "active_phase_id": "A",
+  "resume_protocol": {
+    "audience": {
+      "executes_this_roadmap": "LLM con acceso a GitHub. El humano opera Render y las claves.",
+      "does_not_execute_this_roadmap": "LLM sin GitHub. Ese modelo es el usuario final de Observador."
+    },
+    "steps": [
+      "No pidas, pegues, registres ni hagas commit de secretos. Ni llm, ni SERVICE_API_KEY, ni GH_TOKEN, ni SUPABASE_SECRET_KEY, ni BRIDGE_ADMIN_PASSWORD.",
+      "Lee este archivo, el cuerpo de los dos PR y el check más reciente de cada cabeza. No rehagas fases ya cerradas.",
+      "Ejecuta solo la primera fase cuyo exit_criteria no esté cumplido.",
+      "Anota la evidencia (SHA, URL de run, código HTTP, conteo de workflows) y detente.",
+      "No fusiones, no despliegues producción, no cambies variables de producción y no despaches Lite ni Plus salvo que la fase activa lo diga y el usuario lo haya aprobado en esa misma conversación."
+    ]
+  },
+  "design_decision": {
+    "reopen_only_on_explicit_user_request": true,
+    "llm_surface": "read_only_observer",
+    "statement": "La superficie del alumno o del modelo es solo lectura, contra Observador. Observador no gana una ruta POST, ni un proxy de despacho, ni un token de GitHub entregable al modelo.",
+    "execution_request": {
+      "method": "POST",
+      "path": "/api/runs",
+      "service": "bridge",
+      "headers": ["X-Bridge-Key", "Idempotency-Key"],
+      "actor": "operator"
+    },
+    "after_execution": "El modelo observa el recibo y la evidencia.",
+    "not_in_scope": "Añadir un POST mediado en Observador es una fase nueva, no un cabo suelto de esta hoja."
+  },
+  "completed_do_not_redo": [
+    {
+      "id": "repos-public",
+      "fact": "Los cuatro repositorios son públicos.",
+      "repos": [
+        "c2melendez/precision-lab-lite",
+        "c2melendez/precision-lab-plus",
+        "c2melendez/precision-lab-bridge",
+        "c2melendez/precision-lab-readonly-api"
+      ]
+    },
+    {
+      "id": "observer-pr",
+      "fact": "Observador propone GET /v1/bridge/runs/{uuid}.",
+      "pr": "https://github.com/c2melendez/precision-lab-readonly-api/pull/4",
+      "draft": true,
+      "head_sha_before_docs": "aff31b6966baa32f980fb0d2ec8f9c8f93ec09e4"
+    },
+    {
+      "id": "observer-ci",
+      "fact": "CI de Observador: 19 passed, 0 failed.",
+      "run_url": "https://github.com/c2melendez/precision-lab-readonly-api/actions/runs/41042163883"
+    },
+    {
+      "id": "bridge-ci",
+      "fact": "CI de Bridge: Vitest 71 passed / 13 skipped; ESLint 0 errores y 6 avisos; build correcto.",
+      "run_url": "https://github.com/c2melendez/precision-lab-bridge/actions/runs/41042873423",
+      "head_sha": "598412af66c04177b1ff3891a007e09745d77d93"
+    },
+    {
+      "id": "bridge-runtime",
+      "fact": "Bridge independiente arranca.",
+      "url": "https://precision-lab-bridge.onrender.com",
+      "service_id": "srv-dbi5b8ss728c73ccvjbg",
+      "region": "virginia",
+      "plan": "free",
+      "auto_deploy": false
+    },
+    {
+      "id": "new-database",
+      "fact": "Base nueva, vacía al crearla.",
+      "name": "precision-lab-bridge-db",
+      "ref": "umxtvefdcjwkiqsubfpb"
+    },
+    {
+      "id": "read-proof",
+      "fact": "Lectura real de un recibo, sin despacho.",
+      "bridge_run_uuid": "94c102a5-5242-48ba-bdb7-4754a57513db",
+      "actions_run_id": "41005884405",
+      "repo": "lite",
+      "http_status": 200
+    },
+    {
+      "id": "observer-staging",
+      "fact": "Staging de Observador existe y no está probado contra Bridge.",
+      "url": "https://precision-lab-readonly-api-staging.onrender.com",
+      "service_id": "srv-dbi7avgae00c73be7ns0",
+      "auto_deploy": false,
+      "missing_env": ["SERVICE_API_KEY", "llm"]
+    },
+    {
+      "id": "observer-production",
+      "fact": "Producción de Observador no tiene cliente Bridge.",
+      "commit": "f3cdb0cc1746c8503eb1187e1a806ae8b463ee00",
+      "service_id": "srv-dbfiidec6qcc739rpafg"
+    },
+    {
+      "id": "compass-untouched",
+      "fact": "Compass original sigue en pie. Su clave llm no se revoca en esta hoja."
+    }
+  ],
+  "invariants": [
+    "GET /v1/runs/{id} usa el número de GitHub Actions y exige repo=lite|plus.",
+    "GET /v1/bridge/runs/{id} usa el UUID interno de Bridge. No son intercambiables.",
+    "success de Actions no es PASS. Si la continuidad no cuadra, la respuesta es RECONCILE o REFRESH, con next_action=null.",
+    "Un GET de estado en Bridge puede escribir último uso, auditoría y reconciliación. No es un despacho.",
+    "dry_run=true en POST /api/runs igual inicia el workflow. No usarlo como sustituto de una lectura.",
+    "La misma Idempotency-Key y los mismos parámetros no deben volver a despachar.",
+    "Credenciales solo de servidor: el modelo solo conoce el nombre del encabezado X-API-Key.",
+    "GH_TOKEN de Bridge permanece en Actions: Read hasta la fase E, y solo si el usuario la aprueba.",
+    "Plan Free: el servicio puede dormir. El timeout de Observador ya es 90 s. No subir de plan como parte de una prueba."
+  ],
+  "phases": [
+    {
+      "id": "A",
+      "title": "Probar la lectura staging → Bridge independiente",
+      "status": "pending",
+      "active": true,
+      "blocked_by": [],
+      "objective": "Demostrar que Observador, sin token de GitHub hacia el cliente, lee un recibo del Bridge nuevo.",
+      "actors": {
+        "human": "Escribe secretos en el Dashboard de Render.",
+        "llm": "Solo observa HTTP y Actions después de que el humano confirme que guardó, sin revelar valores."
+      },
+      "preconditions": [
+        "El recibo 94c102a5-5242-48ba-bdb7-4754a57513db pertenece a la clave temporal ya creada en el admin del Bridge nuevo.",
+        "Otra clave recibirá 404 aunque el UUID exista.",
+        "No crear otra clave si la temporal sigue disponible."
+      ],
+      "human_steps": [
+        {
+          "service_id": "srv-dbi7avgae00c73be7ns0",
+          "env": {
+            "BRIDGE_BASE_URL": "https://precision-lab-bridge.onrender.com",
+            "BRIDGE_TIMEOUT_SECONDS": "90",
+            "llm": "La clave temporal que ya posee ese recibo. No usar la clave de producción de Compass.",
+            "SERVICE_API_KEY": "Una clave nueva, solo de este staging."
+          }
+        },
+        "Guardar y esperar el deploy en LIVE. No activar auto-deploy."
+      ],
+      "llm_steps": [
+        "Anotar el último run de Actions de Lite y de Plus.",
+        "GET /healthz en el staging. Esperado: 200 y read_only true. Puede tardar por el plan Free.",
+        "GET /v1/bridge/runs/94c102a5-5242-48ba-bdb7-4754a57513db con X-API-Key. Esperado: 200, read_only true, y el UUID dentro de bridge_run. El cuerpo no contiene la clave.",
+        "Repetir sin encabezado. Esperado: 401.",
+        "Volver a mirar Actions. Esperado: ningún workflow nuevo en Lite ni Plus."
+      ],
+      "stop_if": "Si la clave temporal se perdió: detenerse. No insertar filas a mano ni hacer POST /api/runs para fabricar un recibo.",
+      "forbidden": [
+        "Cambiar producción.",
+        "Fusionar.",
+        "Revocar la clave de Compass.",
+        "Ampliar GH_TOKEN."
+      ],
+      "exit_criteria": "Un 200 del proxy staging y cero despachos nuevos, anotados en este archivo.",
+      "checks": [
+        {
+          "method": "GET",
+          "url": "https://precision-lab-readonly-api-staging.onrender.com/healthz",
+          "expect_status": 200,
+          "expect_body_contains": {"read_only": true}
+        },
+        {
+          "method": "GET",
+          "url": "https://precision-lab-readonly-api-staging.onrender.com/v1/bridge/runs/94c102a5-5242-48ba-bdb7-4754a57513db",
+          "headers": ["X-API-Key"],
+          "expect_status": 200,
+          "expect_body_contains": {"read_only": true},
+          "expect_uuid_in": "bridge_run",
+          "secret_must_be_absent_from_body": true
+        },
+        {
+          "method": "GET",
+          "url": "https://precision-lab-readonly-api-staging.onrender.com/v1/bridge/runs/94c102a5-5242-48ba-bdb7-4754a57513db",
+          "headers": [],
+          "expect_status": 401
+        },
+        {
+          "compare": "actions_run_ids_lite_and_plus_unchanged"
+        }
+      ]
+    },
+    {
+      "id": "B",
+      "title": "Contrato que el LLM importa",
+      "status": "pending",
+      "active": false,
+      "blocked_by": [],
+      "start_rule": "Empieza solo con la fase A cerrada o, si el usuario lo pide, en paralelo sin desplegar.",
+      "known_gap": "README_CONTRACT.md en la rama de Observador no lista GET /v1/bridge/runs/{run_id}. El OpenAPI vivo lo genera FastAPI; no asumir que el openapi.yaml versionado está al día.",
+      "steps": [
+        "Incluir la ruta Bridge en README_CONTRACT.md y en el esquema que la Action importa.",
+        "Documentar los dos espacios de ID, el 404 de dueño y que un GET puede reconciliar sin despachar.",
+        "Dejar explícito que no hay métodos de escritura.",
+        "Correr pytest de Observador. No debilitar tests para ponerse en verde."
+      ],
+      "exit_criteria": "El esquema importable contiene solo GET para /v1/bridge/runs/{run_id}, protegido por APIKeyHeader, y la CI de esa cabeza pasa."
+    },
+    {
+      "id": "C",
+      "title": "Dejar los PR listos para revisar, sin fusionar",
+      "status": "pending",
+      "active": false,
+      "blocked_by": [],
+      "steps": [
+        "Observador está 1 commit detrás de main por tests/image.png. Integrar main en la rama. No force-push.",
+        "Esperar CI verde en la cabeza nueva de cada PR.",
+        "Seguir en borrador hasta que A y B tengan salida.",
+        "No fusionar para activar workflow_dispatch. Ese disparador solo aparece cuando el workflow ya está en la rama por defecto, y no hace falta para la prueba."
+      ],
+      "exit_criteria": "Ambos PR en borrador, mergeable, CI verde, y la descripción cita la evidencia de la fase A."
+    },
+    {
+      "id": "D",
+      "title": "Corte de lectura en producción",
+      "status": "blocked",
+      "active": false,
+      "blocked_by": ["A", "B", "explicit_user_approval"],
+      "steps": [
+        "Crear en el Bridge nuevo una clave de reemplazo, o importar con autorización el hash de la clave vieja. La base nueva no autentica sola la clave de Compass.",
+        "El humano pone esa clave en llm de producción y cambia BRIDGE_BASE_URL al host independiente. El LLM no ve el valor.",
+        "Repetir la lectura de un recibo propiedad de esa clave.",
+        "Confirmar que Lite y Plus no recibieron un workflow nuevo.",
+        "Solo entonces, y con un sí del usuario, revocar la clave vieja. Compass no se apaga en el mismo paso."
+      ],
+      "exit_criteria": "Producción de Observador lee al Bridge independiente y el Compass anterior sigue recuperable."
+    },
+    {
+      "id": "E",
+      "title": "Un solo despacho de prueba, si el usuario lo aprueba",
+      "status": "out_of_read_path",
+      "active": false,
+      "blocked_by": ["explicit_user_approval"],
+      "start_rule": "Fuera de la ruta de lectura. No empezarla para completar A–D.",
+      "steps": [
+        "El usuario autoriza por escrito, en la conversación, subir GH_TOKEN a Actions: Write solo sobre Lite y Plus.",
+        "Un único POST /api/runs con clave nueva de idempotencia. Preferir dry_run sabiendo que el workflow sí arranca.",
+        "Leer el UUID por Observador y la evidencia por GET /v1/runs/{numero}?repo=lite|plus.",
+        "Repetir el mismo POST. Esperado: no aparece un segundo workflow.",
+        "Devolver GH_TOKEN a Actions: Read si no va a haber más despachos."
+      ],
+      "exit_criteria": "Un recibo observable de punta a punta y la idempotencia demostrada. Ahí termina la herramienta paralela."
+    },
+    {
+      "id": "F",
+      "title": "Entrega al LLM que no tiene GitHub",
+      "status": "pending",
+      "active": false,
+      "blocked_by": ["user_chooses_staging_or_production"],
+      "publish_without_secrets": [
+        "URL base del Observador que debe usar.",
+        "Esquema OpenAPI.",
+        "Encabezado X-API-Key y el hecho de que la clave se configura en la Action, no en el prompt.",
+        "Operaciones permitidas: estado, plan de compuerta, evidencia de Actions, recibo Bridge.",
+        "Prohibiciones: despachar, cancelar, reintentar, pushear, fusionar, declarar PASS automático.",
+        "Ante 409, RECONCILE y REFRESH: informar, no inventar un siguiente gate."
+      ],
+      "exit_criteria": "Un modelo con solo esa Action contesta el estado de Lite o Plus y no tiene manera de lanzar un runner."
+    }
+  ],
+  "do_not": [
+    "No añadir POST a Observador.",
+    "No convertir Bridge en proxy SQL.",
+    "No migrar ni reescribir los motores de Lite y Plus.",
+    "No seguir puliendo UI, Lovable o el plan Free después de la fase E.",
+    "No elegir licencia en silencio. Los repos ya son públicos y la rama de Observador no tiene archivo LICENSE. Preguntar una vez al usuario y añadir la que elija; no bloquea la fase A."
+  ],
+  "definition_of_done": {
+    "required_phases": ["A", "B", "D", "F"],
+    "conditional_phases": ["E"],
+    "merge_gate_not_a_substitute": "C es el requisito para fusionar, no un sustituto de D.",
+    "after_done": "Se deja de construir Bridge y Observador. El trabajo que sigue es la certificación matemática, usando esta superficie para observar y, solo con aprobación, para encargar corridas."
+  },
+  "pull_requests": {
+    "observer": {
+      "url": "https://github.com/c2melendez/precision-lab-readonly-api/pull/4",
+      "number": 4,
+      "draft": true,
+      "roadmap_comment": "https://github.com/c2melendez/precision-lab-readonly-api/pull/4#issuecomment-6521735311"
+    },
+    "bridge": {
+      "url": "https://github.com/c2melendez/precision-lab-bridge/pull/1",
+      "number": 1,
+      "draft": true,
+      "roadmap_comment": "https://github.com/c2melendez/precision-lab-bridge/pull/1#issuecomment-6521734817"
+    }
+  }
+}

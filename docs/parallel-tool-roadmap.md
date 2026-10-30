@@ -1,7 +1,7 @@
 # Hoja de ruta — herramienta paralela para LLMs sin GitHub
 
 Fecha de actualización: 2026-10-30.
-Estado: A y B cerradas con evidencia; C preparada para revisión; D y E no autorizadas; F pendiente de la validación y entrega al LLM consumidor. La certificación matemática de Lite y Plus es una línea de trabajo separada.
+Estado: roadmap reorientado al plano de control Observer → Bridge. La lectura Observer→Bridge está probada en staging; la coordinación integral y el despacho mediado por Observer siguen pendientes de implementación y validación. No se añade ningún servicio. La certificación matemática de Lite y Plus continúa siendo el objetivo final.
 
 Este documento es la fuente de seguimiento. Sustituye la sección «Trabajo de integración pendiente» de `docs/observer-bridge-integration.md`. La evidencia más reciente de los HEAD y runs prevalece sobre los registros históricos de PR.
 
@@ -16,11 +16,20 @@ Este documento es la fuente de seguimiento. Sustituye la sección «Trabajo de i
 
 Un LLM sin GitHub es el consumidor previsto de Observador. El LLM que construye/mantiene la herramienta necesita acceso a GitHub; el humano administra Render y los secretos.
 
-## Decisión de diseño vigente
+## Decisión de diseño vigente — Observer como único interlocutor del LLM
 
-La interfaz que recibe el LLM/alumno es Observador y es GET-only. No se añade una ruta POST de despacho ni se entrega al modelo un token de GitHub.
+La arquitectura canónica es **LLM → Observer → Bridge → GitHub Actions Runner → Lite/Plus**, con retorno de recibos, estados y evidencias **Lite/Plus → Runner → Bridge → Observer → LLM**.
 
-El despacho, cuando se autorice, se solicita al Bridge mediante `POST /api/runs`, con `X-Bridge-Key` e `Idempotency-Key`, por un operador o cliente autorizado con capacidad de escritura. Observador permite después consultar el recibo Bridge y la evidencia de Actions. Añadir despacho mediado por Observador sería un cambio arquitectónico nuevo.
+- **LLM / Action:** una sola conexión hacia Observer. Puede consultar y solicitar una operación; no conoce URL, claves ni endpoints de Bridge/GitHub.
+- **Observer:** interfaz central, plano de control y orquestador. Integra las consultas de estado de Bridge con las lecturas GitHub existentes, evalúa plan/estado, valida autorización y scopes, decide RUN/WAIT/REUSE/RECONCILE y, cuando la solicitud está autorizada, invoca Bridge de servidor a servidor.
+- **Bridge:** componente interno de despacho, recibos e idempotencia. Solo acepta solicitudes autenticadas desde Observer; aplica allowlist y validación final, registra la operación y despacha el workflow fijo. No es una Action ni una API consumida directamente por el LLM.
+- **Runner:** ejecuta los workflows ya existentes en Lite/Plus y publica evidencia. No se crea un segundo Runner ni se duplica la lógica de planificación.
+
+No se añade una nueva capa o servicio. Se reutilizan Observer, Bridge, los runners actuales, Render y Supabase ya desplegados. GET /v1/bridge/runs/{run_id} queda integrado como lectura de Observer; el siguiente cambio funcional es una operación protegida de solicitud de despacho en Observer, que internamente llama POST /api/runs de Bridge.
+
+La autorización debe validarse en Observer antes de llamar Bridge y volver a validarse en Bridge con una credencial de servicio y permisos/scopes limitados. La Action solo recibe la credencial de Observer. La clave Bridge nunca se devuelve ni se documenta en el contrato público de la Action. Idempotency-Key debe conservarse extremo a extremo; los timeouts o resultados ambiguos pasan a reconciliación, nunca a reintento ciego.
+
+Ningún despacho real se ejecutará durante el trabajo documental o las pruebas sin efectos. dry_run=true en Bridge también inicia un workflow y, por tanto, cuenta como despacho real sujeto a autorización.
 
 ## Estado ejecutivo
 
@@ -160,3 +169,54 @@ El proyecto Supabase `precision-lab-bridge-db` (`umxtvefdcjwkiqsubfpb`) aparece 
 La única clave de Bridge observada tiene etiqueta `staging-read-only-verification`, no está revocada y expira el **2026-10-31 09:05 UTC** (2026-10-31 03:05 hora de Honduras). No se consultó ni registró su hash, prefijo ni valor secreto. Si se pretende continuar probando staging después de esa hora, habrá que emitir una clave temporal nueva en Bridge y actualizar únicamente `llm` de staging en Render. No rotar ni modificar ahora la clave de producción.
 
 La tabla `bridge_idempotency` está vacía: el recibo histórico consultado no prueba el flujo de despacho durable/idempotente actual. Por tanto, el estado del conjunto es: **lectura Bridge verificada; despacho idempotente end-to-end todavía no verificado**.
+
+
+## Reorientación canónica del roadmap — 2026-10-30
+
+Esta sección supersede cualquier instrucción anterior de este documento que indique que Observer debe permanecer GET-only, que el despacho debe solicitarse directamente a Bridge por un operador/LLM, o que un POST mediado por Observer esté fuera de alcance.
+
+### Secuencia obligatoria
+
+1. **Consolidar Observer como interfaz central de lectura y coordinación.** Mantener en Observer el estado bilateral, planificación de gates, evidencia GitHub, consulta de recibos Bridge, interpretación de bloqueos y decisiones RUN/WAIT/REUSE/RECONCILE.
+2. **Integrar las consultas de Bridge dentro de Observer.** El LLM consulta recibos/estado únicamente por endpoints Observer; las llamadas upstream y credenciales quedan en servidor.
+3. **Incorporar en Observer una operación protegida para solicitar despachos a Bridge.** El contrato público acepta una solicitud validada y autorización explícita; Observer hace el POST interno a Bridge.
+4. **Mantener Bridge inaccesible directamente desde la Action del LLM.** Una única Action/OpenAPI apunta a Observer. No se publica una segunda Action, URL ni credencial Bridge.
+5. **Validar autorización, scopes, idempotencia y trazabilidad de extremo a extremo.** Observer valida identidad/permiso/alcance; Bridge acepta únicamente la identidad de servicio Observer y limita targets/gates/workflow/ref; la misma clave idempotente y correlation/validation IDs se trazan desde la solicitud hasta el receipt y el run de Actions. Timeouts ambiguos → RECONCILE.
+6. **Cerrar la infraestructura auxiliar y regresar a la certificación matemática.** No ampliar servicios, no crear runners paralelos y no seguir añadiendo funciones una vez validados los criterios de salida.
+
+### Plan de ejecución y criterios de salida
+
+| Bloque | Trabajo | Criterio de salida |
+|---|---|---|
+| O1 | Revisar y consolidar los endpoints de lectura de Observer, incluidos status, plan, evidencia y recibo Bridge | Un solo contrato LLM→Observer; datos de Bridge consultables sin exponer Bridge |
+| O2 | Implementar operación protegida de solicitud de ejecución en Observer | Validación de esquema, autorización por solicitud, scopes y límites; ninguna llamada Bridge si falla autorización |
+| O3 | Endurecer autenticación interna Observer→Bridge | Credencial de servicio separada de la Action; Bridge rechaza llamadas no autorizadas y no confía en credenciales del LLM |
+| O4 | Idempotencia y reconciliación | Reutilización segura de solicitudes equivalentes; conflictos de fingerprint rechazados; outcome incierto no se reintenta ciegamente |
+| O5 | Pruebas de seguridad y trazabilidad | Tests para auth, scopes, allowlist, no exposición de secretos, audit trail y relación request→receipt→Actions run→Runner record |
+| O6 | Validación end-to-end controlada | Solo tras autorización expresa para un despacho real; comparar run IDs antes/después y demostrar repetición idempotente sin segundo workflow |
+| O7 | Cierre auxiliar | Evidencias y límites documentados; detener cambios en Observer/Bridge y retomar Lite/Plus |
+
+### Límites operativos
+
+- No se crea otra capa de servicios ni otro Runner.
+- No se duplica en Observer la persistencia transaccional/idempotencia que corresponde a Bridge; Observer coordina y Bridge registra/ejecuta.
+- Observer es el único interlocutor del LLM y el único servidor que puede invocar Bridge en este diseño.
+- Bridge no recibe tráfico desde la Action del LLM. La restricción debe verificarse en el contrato OpenAPI y en pruebas, no solo en documentación.
+- La operación de Observer no puede despachar automáticamente por inferir intención. Debe exigir autorización explícita y vinculada a los parámetros exactos (repositorio, gate, branch/SHA y modo).
+- Un dry_run=true que crea un workflow se considera ejecución real.
+- No hacer merge, despliegue ni rotación de secretos como consecuencia automática de este cambio documental.
+- La fase O6 requiere autorización separada; la aprobación para reorientar el roadmap no equivale a autorizar un workflow de Lite/Plus.
+
+### Estado inicial de los bloques
+
+- O1: parcialmente implementado; GET de recibo Bridge está en Observer PR #4 y fue probado en staging sobre el commit desplegado histórico. Verificar la rama/HEAD actual y ampliar consultas necesarias.
+- O2: pendiente; el app/bridge_api.py inspeccionado es GET-only y app/main.py no contiene operación de despacho.
+- O3: pendiente de definir/implementar scopes específicos para identidad Observer→Bridge. La implementación actual inspeccionada reutiliza X-Bridge-Key para lectura y escritura; no se ha demostrado separación de permisos.
+- O4: Bridge contiene mecanismos de idempotencia, pero la tabla bridge_idempotency estaba vacía en la última evidencia; no existe aún prueba real de despacho idempotente extremo a extremo.
+- O5: pendiente.
+- O6: no autorizado y no ejecutado.
+- O7: pendiente de O1–O6.
+
+### Actualización de la prioridad
+
+La fase F anterior (entrega de una Action LLM GET-only) deja de ser el criterio final. La Action debe ser única y apuntar a Observer, pero su contrato final incluirá consultas y una solicitud protegida de despacho. No se habilita una Action directa a Bridge. La certificación matemática de Lite/Plus no debe quedar subordinada a mejoras cosméticas o nuevas capacidades auxiliares.

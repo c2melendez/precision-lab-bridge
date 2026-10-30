@@ -154,6 +154,35 @@
     {
       "id": "observer-production-unchanged",
       "fact": "No se realizó corte de producción; Compass original y producción permanecen intactos."
+    },
+    {
+      "id": "observer-bridge-phase-a",
+      "fact": "Fase A cerrada: lectura staging autenticada 200 y anónima 401 del recibo Bridge existente; no se despacharon workflows nuevos.",
+      "bridge_run_uuid": "94c102a5-5242-48ba-bdb7-4754a57513db",
+      "lite_actions_run_id": "41005884405",
+      "plus_baseline_actions_run_id": "40970642558",
+      "status": "PASS"
+    },
+    {
+      "id": "observer-bridge-phase-b",
+      "fact": "Fase B cerrada: README_CONTRACT.md y openapi.yaml documentan GET /v1/bridge/runs/{run_id}, autenticación y semántica de identificadores.",
+      "observer_ci_run_id": "41051691930",
+      "observer_ci_head_sha": "ed6a5726c3564054897f4a3d34f73194dfcc6954",
+      "bridge_ci_run_id": "41050127027",
+      "status": "PASS"
+    },
+    {
+      "id": "bridge-sixth-migration-reconciled",
+      "fact": "Sexta migración aplicada y registrada en Supabase; archivo versionado coincide con 20261030200900.",
+      "project_id": "umxtvefdcjwkiqsubfpb",
+      "migration_version": "20261030200900",
+      "migration_path": "supabase/migrations/20261030200900_bridge_security_ownership_and_rpc_integrity.sql",
+      "migration_blob_sha": "488779521e6df48964234e171ec15db07d82c8fb",
+      "alignment_commit": "e0bc3e35c89fa152cd59177c18863ac140e28bcb",
+      "ci_run_58": "41121256457",
+      "ci_run_59": "41121381925",
+      "ci_head_sha": "f8ea3afa74c0f6d5546c1a5bc3e3f2e26f768239",
+      "remote_verified": true
     }
   ],
   "invariants": [
@@ -321,14 +350,15 @@
       "url": "https://github.com/c2melendez/precision-lab-bridge/pull/1",
       "number": 1,
       "state": "open",
-      "draft": false,
-      "head_sha": "99a439c11726e8d4424b48f43d74a11508848366",
-      "ci_run_id": "41065225032",
+      "draft": true,
+      "head_sha": "f8ea3afa74c0f6d5546c1a5bc3e3f2e26f768239",
+      "ci_run_id": "41121381925",
       "ci_head_sha": "4c2d22172d59fac0b76b95cc880c77c74ba90bcf",
       "ci_status": "success",
       "last_code_ci_sha": "40371c903232a4a1e3226176c92f09c3d6c2e96f",
       "last_code_ci_run_id": "41064782173",
-      "last_code_ci_status": "success"
+      "last_code_ci_status": "success",
+      "migration_ci_run_id": "41121256457"
     }
   },
   "deferred_items": [
@@ -338,7 +368,7 @@
       "title": "Docs: reconcile live API verification with Render status",
       "status": "open",
       "disposition": "deferred_non_blocking",
-      "note": "PR histórico documental; reevaluar utilidad o cierre administrativo. No bloquea A/B ni la certificación matemática."
+      "note": "PR histórico documental, sigue abierto; diferido, no bloquea A/B ni certificación matemática."
     },
     {
       "repo": "c2melendez/precision-lab-readonly-api",
@@ -346,15 +376,15 @@
       "title": "test(planner): cover fingerprint technical input categories",
       "status": "open",
       "disposition": "deferred_non_blocking",
-      "note": "CI histórico no llegó a asignar runner; no declarar PASS. Comparar con HEAD actual antes de reactivar o cerrar como no planificado."
+      "note": "PR histórico de tests; los intentos registrados no asignaron runner ni ejecutaron pytest. No declarar PASS; diferido, no bloqueante."
     },
     {
       "repo": "c2melendez/precision-lab-readonly-api",
       "pr": 3,
       "title": "[WIP] feat(ops): isolated runner dispatch API",
-      "status": "open_draft_blocked",
+      "status": "open_draft",
       "disposition": "deferred_blocked",
-      "note": "Requiere PostgreSQL dedicado activo/migración, CI verde, revisión de permisos, pruebas idempotencia/concurrencia y autorización. Mantener OPS_DISPATCH_ENABLED deshabilitado."
+      "note": "PR histórico Draft de despacho directo; no reactivar bajo arquitectura Observer→Bridge. No fusionar/desplegar ni habilitar OPS_DISPATCH_ENABLED."
     }
   ],
   "deployment_reconciliation": {
@@ -427,6 +457,54 @@
       "expires_at_utc": "2026-11-06T13:50:27Z",
       "configured_on_observer_as": "BRIDGE_DISPATCH_KEY",
       "value_or_hash_read": false
+    }
+  },
+  "latest_reconciliation": {
+    "observed_at": "2026-10-30",
+    "bridge_migration": {
+      "version": "20261030200900",
+      "remote_status": "applied",
+      "file_blob_sha": "488779521e6df48964234e171ec15db07d82c8fb",
+      "ci_58": {
+        "run_id": "41121256457",
+        "conclusion": "success",
+        "jobs": 2
+      },
+      "ci_59": {
+        "run_id": "41121381925",
+        "head_sha": "f8ea3afa74c0f6d5546c1a5bc3e3f2e26f768239",
+        "conclusion": "success",
+        "jobs": 2
+      }
+    },
+    "remote_database": {
+      "project_id": "umxtvefdcjwkiqsubfpb",
+      "status": "ACTIVE_HEALTHY",
+      "table_counts": {
+        "bridge_keys": 2,
+        "bridge_runs": 1,
+        "bridge_calls": 2,
+        "bridge_idempotency": 0
+      },
+      "invalid_ownership": 0,
+      "orphan_idempotency": 0,
+      "security_definer_rpc": 0,
+      "anon_execute_rpc": 0,
+      "authenticated_execute_rpc": 0,
+      "service_role_execute_rpc": 5,
+      "rls_enabled_tables": 4,
+      "advisor_info": {
+        "rls_enabled_no_policy": 4,
+        "unused_index": 2
+      }
+    },
+    "scope": {
+      "bridge_pr_1": "open_draft_unmerged",
+      "observer_historical_prs_1_to_3": "deferred",
+      "production_cutover": "out_of_scope",
+      "bridge_deployment": "out_of_scope",
+      "real_dispatch": "out_of_scope",
+      "lite_plus_workflows": "not_dispatched"
     }
   }
 }

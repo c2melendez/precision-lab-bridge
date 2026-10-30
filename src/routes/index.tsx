@@ -30,6 +30,7 @@ function Admin() {
   const [err, setErr] = useState("");
   const [label, setLabel] = useState("llm");
   const [days, setDays] = useState(30);
+  const [scopePreset, setScopePreset] = useState<"read" | "read,dispatch">("read");
   const [fresh, setFresh] = useState("");
 
   const load = async () => {
@@ -63,9 +64,19 @@ function Admin() {
           <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Label" />
           <Input type="number" className="w-28" value={days} onChange={(e) => setDays(Number(e.target.value))} />
           <span className="self-center text-muted-foreground">days</span>
+          <select
+            aria-label="Key permissions"
+            className="rounded border border-border bg-background px-2"
+            value={scopePreset}
+            onChange={(e) => setScopePreset(e.target.value as "read" | "read,dispatch")}
+          >
+            <option value="read">Read only</option>
+            <option value="read,dispatch">Read + dispatch</option>
+          </select>
           <Button
             onClick={async () => {
-              const r = await create({ data: { password, label, days } });
+              const scopes = scopePreset === "read" ? ["read"] : ["read", "dispatch"];
+              const r = await create({ data: { password, label, days, scopes } });
               setFresh(r.key);
               load();
             }}
@@ -84,12 +95,13 @@ function Admin() {
       <section>
         <h2 className="mb-2 font-semibold">Keys</h2>
         <table className="w-full text-left">
-          <thead className="text-muted-foreground"><tr><th>Label</th><th>Prefix</th><th>Expires</th><th>Last used</th><th></th></tr></thead>
+          <thead className="text-muted-foreground"><tr><th>Label</th><th>Prefix</th><th>Scopes</th><th>Expires</th><th>Last used</th><th></th></tr></thead>
           <tbody>
             {data.keys.map((k) => (
               <tr key={k.id} className="border-t border-border">
                 <td>{k.label}</td>
                 <td>{k.key_prefix}…</td>
+                <td>{Array.isArray(k.scopes) ? k.scopes.join(", ") : "read (legacy default)"}</td>
                 <td>{new Date(k.expires_at).toLocaleDateString()}</td>
                 <td>{k.last_used_at ? new Date(k.last_used_at).toLocaleString() : "—"}</td>
                 <td>

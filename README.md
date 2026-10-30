@@ -42,7 +42,7 @@ Copy `.env.example` to `.env` for local development, then supply values through 
 | Variable | Purpose | Exposure |
 |---|---|---|
 | `SUPABASE_URL` | Supabase project URL used by server code | Server |
-| `SUPABASE_SERVICE_ROLE_KEY` | Privileged database client used by bridge operations | **Server secret only** |
+| `SUPABASE_SECRET_KEY` | Modern server-side Supabase secret key used by Bridge operations; legacy `SUPABASE_SERVICE_ROLE_KEY` remains a temporary fallback | **Server secret only** |
 | `SUPABASE_PUBLISHABLE_KEY` | Supabase publishable key for server auth validation | Server |
 | `VITE_SUPABASE_URL` | Supabase URL available to the browser client | Public |
 | `VITE_SUPABASE_PUBLISHABLE_KEY` | Supabase publishable key available to the browser client | Public |

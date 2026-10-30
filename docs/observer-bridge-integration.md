@@ -167,3 +167,19 @@ Pruebas añadidas:
 - las pruebas existentes de replay, conflicto, concurrencia, lease, error definitivo y resultado incierto permanecen activas.
 
 La migración está registrada en Supabase como `20261030133052_bridge_key_scopes` y en Drizzle como `0003_bridge_key_scopes`. La CI Bridge en SHA `74a592253b293a1919dc7387bfbc74f239524044` completó unit/regression tests, ESLint y build con SUCCESS. La actualización posterior de la UI administrativa se valida en una ejecución separada.
+
+
+
+## Despliegues staging verificados — 2026-10-30
+
+Workspace Render: `My Workspace` (`tea-da4esd7qj5pc73d1fss0`).
+
+- Bridge: commit `99a439c11726e8d4424b48f43d74a11508848366`, deploy `dep-dbia0bm7bikc73aijvn0`, `live`.
+- Observer: commit `6e712094a7e4b06a13224f66d6f3a6c26f991152`, deploy `dep-dbia1b9srm7s73dltcpg`, `live`.
+- CI Bridge `41065225032` y Observer `41064924977`: SUCCESS en los HEADs desplegados.
+- Observer recibió `BRIDGE_BASE_URL` y `BRIDGE_DISPATCH_KEY`; la clave es dispatch-only, con expiración de siete días. Su ID es `9f7affec-b6a7-4d8f-b0bd-629a778adfd9`; no documentar el valor ni el hash.
+- La clave `llm` de lectura permanece independiente y no fue rotada.
+
+La comprobación SQL confirmó que la clave dispatch está activa, pero todavía no tiene llamadas registradas; `bridge_idempotency` sigue vacía y `bridge_runs` conserva únicamente el recibo histórico. No se ha invocado el POST de Observer, ni hay un nuevo Actions run.
+
+O6 permanece abierto. La sesión actual no ofrece un cliente HTTP autenticado para invocar el POST de Observer con headers/body; no se simula el recorrido mediante SQL ni se sustituye por dispatch directo a GitHub. Se requiere una llamada real a `POST /v1/bridge/dispatch`, su reconciliación posterior por la misma clave idempotente y evidencia del Runner antes de cerrar la infraestructura auxiliar.

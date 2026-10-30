@@ -11,7 +11,7 @@ Este documento es la fuente de seguimiento. Sustituye la sección «Trabajo de i
 2. Distingue entre CI de los repositorios auxiliares, prueba de lectura staging y una certificación matemática de Lite/Plus. No son equivalentes.
 3. No rehagas fases A o B: están cerradas con evidencia HTTP y CI.
 4. No declares validado el despacho end-to-end: todavía no existe una prueba controlada completa Bridge → GitHub Actions Runner → recibo → Observador.
-5. No fusiones PR, no cambies producción, no rotes/revoques claves ni despaches Lite/Plus sin autorización expresa del usuario en esa conversación.
+5. Ejecuta autónomamente las operaciones ordinarias dentro del alcance y políticas ya aprobados. Escala al usuario solo decisiones materiales no resueltas por el contrato, las pruebas o los límites definidos; no pidas aprobación por cada despacho rutinario.
 6. Anota SHA, URL de run, códigos HTTP y cualquier cambio de configuración no secreta. Nunca registres valores de credenciales.
 
 Un LLM sin GitHub es el consumidor previsto de Observador. El LLM que construye/mantiene la herramienta necesita acceso a GitHub; el humano administra Render y los secretos.
@@ -29,7 +29,7 @@ No se añade una nueva capa o servicio. Se reutilizan Observer, Bridge, los runn
 
 La autorización debe validarse en Observer antes de llamar Bridge y volver a validarse en Bridge con una credencial de servicio y permisos/scopes limitados. La Action solo recibe la credencial de Observer. La clave Bridge nunca se devuelve ni se documenta en el contrato público de la Action. Idempotency-Key debe conservarse extremo a extremo; los timeouts o resultados ambiguos pasan a reconciliación, nunca a reintento ciego.
 
-Ningún despacho real se ejecutará durante el trabajo documental o las pruebas sin efectos. dry_run=true en Bridge también inicia un workflow y, por tanto, cuenta como despacho real sujeto a autorización.
+La autorización operativa general del usuario permite automatizar el flujo ordinario dentro de los repositorios, gates, ramas, workflows y límites ya definidos. No se exige aprobación humana por cada despacho. dry_run=true en Bridge también inicia un workflow y debe tratarse como ejecución real: puede utilizarse automáticamente solo cuando la operación esté dentro de la política preaprobada y sus pruebas la permitan.
 
 ## Estado ejecutivo
 
@@ -118,11 +118,11 @@ El PR #1 de Bridge es distinto y corresponde al servicio independiente actual; p
 
 ## Fase D — Corte de lectura en producción
 
-No iniciar sin autorización expresa. Antes del cambio deben verificarse la clave Bridge de reemplazo y la propiedad de un recibo de prueba. El operador configuraría la URL/clave de producción en Render, se repetiría una lectura y se comprobaría que Lite/Plus no recibieron workflows nuevos. Compass original debe seguir recuperable hasta validar el corte. No revocar la clave antigua en el mismo paso.
+La migración/corte se ejecuta automáticamente cuando el checklist técnico y las pruebas de staging acrediten los criterios de salida; escalar solo si hay una decisión material no especificada (por ejemplo, reemplazar producción/Compass o revocar una credencial todavía en uso). Antes del cambio deben verificarse la clave Bridge de reemplazo y la propiedad de un recibo de prueba. El operador configuraría la URL/clave de producción en Render, se repetiría una lectura y se comprobaría que Lite/Plus no recibieron workflows nuevos. Compass original debe seguir recuperable hasta validar el corte. No revocar la clave antigua en el mismo paso.
 
 ## Fase E — Despacho controlado
 
-No iniciar sin autorización expresa. Requiere confirmar permisos de escritura mínimos del token Bridge, salud de la base/idempotencia, allowlist de repos/workflow/ref, protección contra dispatch duplicado y plan de reversión. Un solo despacho autorizado debe seguirse desde recibo hasta Actions y registro del Runner. Repetir la misma clave idempotente debe demostrar que no aparece un segundo workflow. No confundir HTTP 201/202 con gate completado ni con certificación PASS.
+Ejecutar validaciones y despachos rutinarios automáticamente una vez que los tests demuestren permisos mínimos del token Bridge, salud de la base/idempotencia, allowlist de repos/workflow/ref y protección contra duplicados. Escalar únicamente si el cambio requerido excede el alcance preaprobado o las pruebas no definen una decisión segura. Un solo despacho autorizado debe seguirse desde recibo hasta Actions y registro del Runner. Repetir la misma clave idempotente debe demostrar que no aparece un segundo workflow. No confundir HTTP 201/202 con gate completado ni con certificación PASS.
 
 ## Fase F — Entrega al LLM sin GitHub
 
@@ -146,7 +146,7 @@ Pendiente de validar una Action de consumidor real. La entrega debe incluir:
 
 ## Definición de terminado
 
-La herramienta auxiliar se considera entregada al LLM cuando la lectura staging/producción elegida y la Action consumidora estén validadas (A, B y F; D solo si se decide el corte a producción). La capacidad de despacho requiere una validación separada y autorización (E). La fusión de PR es una decisión de mantenimiento/revisión, no prueba de funcionamiento.
+La herramienta auxiliar se considera entregada al LLM cuando la lectura staging/producción elegida y la Action consumidora estén validadas (A, B y F; D solo si se decide el corte a producción). La capacidad de despacho requiere que las pruebas y la validación end-to-end demuestren los criterios de salida (E); no requiere aprobación manual por operación rutinaria. La fusión de PR es una decisión de mantenimiento/revisión, no prueba de funcionamiento.
 
 Una vez validada la superficie de observación y, si se autoriza, el despacho, se detiene el desarrollo auxiliar y se retoma la certificación matemática de Lite y Plus.
 
@@ -220,3 +220,50 @@ Esta sección supersede cualquier instrucción anterior de este documento que in
 ### Actualización de la prioridad
 
 La fase F anterior (entrega de una Action LLM GET-only) deja de ser el criterio final. La Action debe ser única y apuntar a Observer, pero su contrato final incluirá consultas y una solicitud protegida de despacho. No se habilita una Action directa a Bridge. La certificación matemática de Lite/Plus no debe quedar subordinada a mejoras cosméticas o nuevas capacidades auxiliares.
+
+
+## Política operativa de autonomía — aclaración del usuario, 2026-10-30
+
+Esta sección supersede toda frase anterior de este documento que exija aprobación humana por cada despacho, por cada prueba de ejecución o para continuar una operación rutinaria ya comprendida en el alcance aprobado.
+
+### Principio rector
+
+La autorización general para completar autónomamente la infraestructura auxiliar y la certificación matemática dentro del alcance y límites establecidos ya está concedida por el usuario. El objetivo de Observer/Bridge es automatizar, reducir pasos manuales y permitir que el LLM inspeccione, planifique, solicite, ejecute, observe, reconcilie y continúe sin pedir confirmaciones repetitivas.
+
+**No solicitar aprobación humana para operaciones ordinarias** que:
+- estén dentro de los repositorios Lite/Plus y de los gates/workflows/ramas permitidos por la configuración canónica;
+- cumplan los contratos, allowlists, scopes y límites de seguridad existentes;
+- tengan cobertura de pruebas suficiente y resultados deterministas;
+- sean necesarias para completar el siguiente bloque de certificación;
+- no impliquen una decisión de producto, alcance, licencia, publicación, exposición de datos o riesgo nuevo que el usuario no haya delegado.
+
+La autorización general no debe interpretarse como permiso para ignorar contratos, tests, allowlists o evidencia. La autonomía se gobierna por esas reglas y se demuestra con pruebas; no mediante una cadena de aprobaciones manuales.
+
+### Cuándo escalar al usuario
+
+Solo escalar cuando exista una decisión material que no pueda resolverse con la especificación y las pruebas, por ejemplo:
+- ambigüedad real en los criterios de aceptación o conflicto entre documentos canónicos;
+- cambio de alcance, repositorios, gates, ramas protegidas, workflow objetivo o política de seguridad;
+- decisión de licencia, titularidad, exposición pública de datos o publicación irreversible no contemplada;
+- necesidad de desactivar una protección o aceptar un riesgo fuera de los límites ya establecidos;
+- fallo de pruebas que requiera elegir entre resultados o comportamientos de producto no definidos.
+
+Un fallo técnico ordinario no requiere aprobación: investigar, corregir, reforzar tests, volver a ejecutar y documentar. Si no hay un camino seguro dentro de las reglas vigentes, detener solo la operación afectada y presentar el bloqueo concreto, no pedir autorización genérica para seguir trabajando.
+
+### Las pruebas son la fuente de verdad operativa
+
+- Reforzar primero tests de contrato, autorización/scopes, allowlist, idempotencia, concurrencia, reconciliación, trazabilidad, regresión y comportamiento ante errores.
+- Automatizar despachos ordinarios cuando esas pruebas acrediten que la solicitud está dentro de política.
+- Para operaciones inciertas, aplicar RECONCILE; nunca reintentar ciegamente.
+- Un dry_run=true que crea un workflow es un despacho real, pero no exige una aprobación por evento si está dentro de la política general delegada y las pruebas autorizan ese comportamiento.
+- Un workflow SUCCESS solo acredita el resultado de esa ejecución; el estado matemático PASS sigue dependiendo de las pruebas y evidencias de certificación correspondientes.
+- No crear un segundo mecanismo externo de aprobación, confirmación o autorización humana para compensar carencias de tests. La autorización y el control deben estar implementados en los contratos, roles y políticas existentes y probados automatizadamente.
+
+### Autonomía y límites de mantenimiento
+
+- Observer decide y coordina; Bridge valida, persiste idempotencia y despacha; Runner ejecuta los workflows existentes.
+- La Action LLM se conecta exclusivamente a Observer.
+- El LLM puede encadenar bloques, reconciliar resultados y continuar automáticamente mientras se mantenga dentro de los límites probados.
+- No añadir servicios, capas, runners ni aprobaciones manuales por operación.
+- Mantener la trazabilidad request → receipt → Actions run → Runner record → resultado de certificación.
+- Una vez satisfechos los criterios O1–O7, congelar la infraestructura auxiliar y priorizar la certificación matemática Lite/Plus.

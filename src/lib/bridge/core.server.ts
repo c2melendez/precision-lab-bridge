@@ -133,6 +133,11 @@ export async function trigger(endpoint: string, key: string | null, raw: Record<
     await logCall(endpoint, key, safeParams, 401, out);
     return { status: 401, body: out };
   }
+  if (!Array.isArray(k.scopes) || !k.scopes.includes("dispatch")) {
+    const out = { error: "insufficient_scope", required_scope: "dispatch" };
+    await logCall(endpoint, key, safeParams, 403, out);
+    return { status: 403, body: out };
+  }
   const v = validateTrigger(raw);
   if (!v.ok) {
     const out = { error: v.error };
@@ -207,6 +212,9 @@ export async function runStatus(key: string | null, id: string) {
     const out = { error: "invalid, expired or revoked key" };
     await logCall(endpoint, key, { id }, 401, out);
     return { status: 401, body: out };
+  }
+  if (!Array.isArray(k.scopes) || !k.scopes.includes("read")) {
+    return { status: 403, body: { error: "insufficient_scope", required_scope: "read" } };
   }
   if (!/^[0-9a-f-]{36}$/i.test(id)) return { status: 400, body: { error: "bad id" } };
   // Scope the run itself to its owning bridge key. Legacy rows without key_id are

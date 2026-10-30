@@ -411,3 +411,10 @@ Compass Runner se considera cerrado para el alcance de la conciliación document
 ### Addendum r360 — Runner push posterior a AS-EXP-03
 
 Lite generó un nuevo run de Certification Runner [41140700509](https://github.com/c2melendez/precision-lab-lite/actions/runs/41140700509) en SHA `4e8e57ef8bc731c41a270facef42cac6a4fe708c`. Terminó SUCCESS: rama canónica resuelta, checkout, BASE_SHA y fingerprint correctos; Push summary SUCCESS. Los pasos de gate policy, dry-run, detección/espera, dispatch, registro QA, persistencia y commit documental quedaron SKIPPED. Confirma nuevamente PASS_SCOPED del camino push/no-dispatch, no el despacho real. AS-EXP-03 usa ese SHA y sus gates de CI/cumulative/H1d/Scientific UI seguían en curso al corte; el resultado Runner no equivale a aceptación del caso matemático.
+
+
+### Runner contract parity — detalle adicional r360
+
+- Lite y Plus conservan el mismo test de contrato `scripts/certification/test_runner_contract.py`, blob `ff5c499cb6eae8277279265a26a897ff982288a0`. La evidencia de regresión registrada es Lite 44/44 en [41130209548](https://github.com/c2melendez/precision-lab-lite/actions/runs/41130209548) y Plus 63/63 en [41129595065](https://github.com/c2melendez/precision-lab-plus/actions/runs/41129595065).
+- Los workflows YAML no son byte-identical, pero la diferencia observada se limita a defaults y comentarios propios del repositorio: `target_repo=lite` frente a `target_repo=plus`, más texto explicativo. Ambos exponen `both`, gate y `dry_run`, resuelven la rama canónica desde README y protegen push/dry-run frente a dispatch.
+- Runner Lite más reciente: [41141037836](https://github.com/c2melendez/precision-lab-lite/actions/runs/41141037836), SHA `0a85b448298df0691b043269648d327d0a7aec0b`, SUCCESS en push/no-dispatch. Los gates del motor AS-EXP-03 en ese SHA continúan en validación; no confundir el run del Runner con aceptación del caso.

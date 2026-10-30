@@ -103,3 +103,39 @@ Use this pre-existing successful run from Precision Lab Lite:
 This specific existing run was fetched from the GitHub Actions REST API. It is suitable for a GET-only status fixture. The verification will add a single owner-scoped `bridge_runs` record to the isolated new database, pointing to this existing GitHub run. It will not call the Bridge trigger route and will not create a new GitHub workflow run.
 
 Before inserting that fixture, the user must sign into the new Bridge Admin UI and create a one-day temporary key labelled `staging-read-only-verification`. The raw key must be copied and retained by the user only; never paste it into ChatGPT. Once the row is visible in `bridge_keys`, its non-secret UUID and prefix can be used to attach the run fixture to that key. The user can then run the supplied local PowerShell GET check with their retained key. Do not send the key in the chat.
+
+## Temporary key and existing-run fixture created — 2026-10-30
+
+The user confirmed creation of the temporary key in Bridge Admin. The new database contains:
+- Temporary key UUID: `03e83eb7-ca16-431c-9bb7-90823e632eda`
+- Label: `staging-read-only-verification`
+- Non-secret display prefix: `plb_E0pmYm`
+- Expires: `2026-10-31T09:05:53.224Z`
+- The raw key is not retrievable from the database; only its SHA-256 hash is stored. The user retains the raw key. It was not requested or shared in chat.
+
+A single owner-scoped read-only fixture was inserted into `bridge_runs`:
+- Bridge run UUID: `94c102a5-5242-48ba-bdb7-4754a57513db`
+- `target_repo=lite`, `gate=cumulative`, `dry_run=true`
+- Owner key ID is the temporary key UUID above.
+- `gh_runs` references the already-existing GitHub run `41005884405`, whose latest REST read confirms `completed/success` on `main`.
+- The fixture timestamp uses the original GitHub run creation time, 2026-10-30T04:59:19Z.
+
+No `bridge_idempotency` row was inserted for the fixture. No POST dispatch route was called. The test still requires the user to execute one authenticated GET using the retained raw temporary key. Do not request the raw key in chat.
+
+PowerShell verification (run locally; it prompts securely and does not print the key):
+
+```powershell
+$secure = Read-Host "Introduce la clave temporal de Bridge" -AsSecureString
+$ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
+try {
+    $bridgeKey = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr)
+    $headers = @{ "X-Bridge-Key" = $bridgeKey }
+    Invoke-RestMethod -Method Get -Uri "https://precision-lab-bridge.onrender.com/api/runs/94c102a5-5242-48ba-bdb7-4754a57513db" -Headers $headers -TimeoutSec 90 | ConvertTo-Json -Depth 8
+}
+finally {
+    if ($ptr -ne [IntPtr]::Zero) { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ptr) }
+    $bridgeKey = $null
+}
+```
+
+Expected response: HTTP 200, Bridge run UUID `94c102a5-5242-48ba-bdb7-4754a57513db`, one run entry for `precision-lab-lite`, status `completed`, conclusion `success`. On the Free plan the request may need up to 90 seconds to wake the service. Report only the HTTP status and whether the returned fields match; never paste the key.

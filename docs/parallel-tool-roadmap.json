@@ -5,7 +5,7 @@
   "as_of": "2026-10-30",
   "language": "es",
   "status": "in_progress",
-  "summary": "Fases A/B cerradas. Certification Runner Lite/Plus PASS_SCOPED_PUSH_ONLY: Lite 41144150833 SUCCESS en SHA c791540390b2e5a3c27f11b7a9a444ad04012a20; Plus 41136660038 SUCCESS en SHA 218d682848a03a000930e2028f057563847381f3. En ambos dispatch/registro/persistencia SKIPPED. O5 IN_PROGRESS por falta de trazabilidad E2E y replay idempotente; O6 PENDING por ausencia deliberada de dispatch real; O7 PENDING. Lite AS-EXP-06 PASS_SCOPED; AS-EXP-07 en ejecución (CI/cumulative/H1d pendientes al corte). No merge, deploy ni producción.",
+  "summary": "Fases A/B cerradas. Certification Runner Lite/Plus PASS_SCOPED_PUSH_ONLY: Lite 41144150833 SUCCESS en SHA c791540390b2e5a3c27f11b7a9a444ad04012a20; Plus 41136660038 SUCCESS en SHA 218d682848a03a000930e2028f057563847381f3. Dispatch/receipt/persistencia SKIPPED. O5 IN_PROGRESS por falta de E2E Observer→Bridge→Actions→Runner y replay; O6 PENDING por ausencia deliberada de dispatch real; O7 PENDING. AS-EXP-06/07 Lite PASS_SCOPED; siguiente AS-EXP-08. Global OPEN.",
   "canonical_markdown": {
     "repo": "c2melendez/precision-lab-bridge",
     "branch": "hardening/secure-status-independent-runtime",
@@ -333,7 +333,8 @@
         "Decisión Runner: PASS_SCOPED para evento push/no-dispatch en ambos repositorios. No acredita workflow_dispatch, gate dispatch, receipt durable, registro runner post-dispatch ni replay idempotente.",
         "Los resultados de los gates matemáticos AS-EXP-02 Lite (CI 41138509410, cumulative 41138509481, H1d 41138509536) son evidencia del motor, no evidencia de dispatch del mecanismo paralelo.",
         "R365 Runner reconciliation: Lite push run 41142684118 SUCCESS on SHA 5901316519ca98d0810ac0f228c91abe6380ee7f; Plus push run 41136660038 SUCCESS on SHA 218d682848a03a000930e2028f057563847381f3. Both resolve canonical branch, checkout, record base SHA, calculate read-only fingerprint and finish Push summary. Dispatch, QA receipt, continuity persistence and documentary commit are SKIPPED. Runner remains PASS_SCOPED_PUSH_ONLY; no E2E receipt chain or idempotent replay is proven.",
-        "Current PR snapshot: Bridge PR #1 remains open/draft at HEAD ce634c5a5078d57de1f54a8f77a352077487373b; CI 41142813306 is pending. The previously verified Bridge CI 41131674843 was SUCCESS on prior HEAD 4427b5871bd8a46f9cc5fd03032eb053bf448d1e. Observer PR #4 remains open/ready at HEAD 6e712094a7e4b06a13224f66d6f3a6c26f991152 with CI 41064924977 SUCCESS."
+        "Current PR snapshot: Bridge PR #1 remains open/draft at HEAD ce634c5a5078d57de1f54a8f77a352077487373b; CI 41142813306 is pending. The previously verified Bridge CI 41131674843 was SUCCESS on prior HEAD 4427b5871bd8a46f9cc5fd03032eb053bf448d1e. Observer PR #4 remains open/ready at HEAD 6e712094a7e4b06a13224f66d6f3a6c26f991152 with CI 41064924977 SUCCESS.",
+        "R367 Runner refresh: Lite push run 41144150833 SUCCESS on SHA c791540390b2e5a3c27f11b7a9a444ad04012a20; Plus push run 41136660038 SUCCESS on SHA 218d682848a03a000930e2028f057563847381f3. Both remain PASS_SCOPED_PUSH_ONLY; no dispatch, durable receipt or replay."
       ],
       "exit_criteria": "Evidencia de pruebas demuestra no duplicación, reconciliación y trazabilidad request→receipt→Actions→Runner."
     },
@@ -674,7 +675,7 @@
       "shared_contract": "target_repo=both; workflow_dispatch gate and dry_run inputs; canonical README branch resolution; push and dry-run cannot dispatch; security gate remains blocked in Plus."
     }
   },
-  "next_step": "Finish verifying Lite AS-EXP-07 on SHA c791540390b2e5a3c27f11b7a9a444ad04012a20. Require CI, cumulative and H1d SUCCESS; Scientific UI is complementary. Then continue AS-EXP-08 with an independent oracle. Keep the Runner push-only status and Observer/Bridge O5/O6/O7 status separate. No real dispatch, merge, deploy or production cut.",
+  "next_step": "Continue Lite Algebra114 at AS-EXP-08 using the source row (x+2)(x-3)(x+1)=x^3-7x-6 and independent arithmetic oracle. Keep Runner PASS_SCOPED_PUSH_ONLY distinct from Observer/Bridge O5/O6/O7. No real dispatch, merge, deploy or production cut.",
   "mathematical_progress_r360": {
     "repository": "c2melendez/precision-lab-lite",
     "status": "PASS_SCOPED",
@@ -848,6 +849,70 @@
     },
     "previous_case": "ALGEBRA114-AS-EXP-06",
     "previous_status": "PASS_SCOPED",
+    "global_status": "OPEN"
+  },
+  "runner_certification_r367": {
+    "status": "PASS_SCOPED_PUSH_ONLY",
+    "canonical_branch": "qa/syntax-audit-in625-a1",
+    "lite": {
+      "run_id": 41144150833,
+      "run_url": "https://github.com/c2melendez/precision-lab-lite/actions/runs/41144150833",
+      "sha": "c791540390b2e5a3c27f11b7a9a444ad04012a20",
+      "event": "push",
+      "conclusion": "success"
+    },
+    "plus": {
+      "run_id": 41136660038,
+      "run_url": "https://github.com/c2melendez/precision-lab-plus/actions/runs/41136660038",
+      "sha": "218d682848a03a000930e2028f057563847381f3",
+      "event": "push",
+      "conclusion": "success"
+    },
+    "verified_steps": [
+      "Canonical branch resolution",
+      "Canonical checkout",
+      "BASE_SHA capture",
+      "Read-only fingerprint",
+      "Push summary"
+    ],
+    "skipped_steps": [
+      "Gate policy",
+      "Dry-run",
+      "Equivalent run wait",
+      "Workflow dispatch",
+      "QA receipt",
+      "Continuity persistence",
+      "Documentary commit"
+    ],
+    "not_proven": [
+      "workflow_dispatch",
+      "gate dispatch",
+      "durable receipt",
+      "E2E request-to-runner evidence",
+      "idempotent replay"
+    ],
+    "global_status": "OPEN",
+    "updated_utc": "2026-10-30T23:25:12Z"
+  },
+  "mathematical_progress_r367": {
+    "repository": "c2melendez/precision-lab-lite",
+    "case": "ALGEBRA114-AS-EXP-07",
+    "status": "PASS_SCOPED",
+    "sha": "c791540390b2e5a3c27f11b7a9a444ad04012a20",
+    "test_blob": "06f362c0aeced0100b266c7dcf6465c06324f8b1",
+    "acceptance": "qa/certification/ALGEBRA114_AS_EXP_07_ACCEPTANCE_R366.md",
+    "runs": {
+      "ci": 41144150978,
+      "cumulative": 41144150867,
+      "h1d": 41144150866,
+      "runner": 41144150833,
+      "scientific_ui": {
+        "id": 41144150819,
+        "status": "in_progress",
+        "role": "complementary; not required for scoped algebra acceptance"
+      }
+    },
+    "next_case": "ALGEBRA114-AS-EXP-08",
     "global_status": "OPEN"
   }
 }

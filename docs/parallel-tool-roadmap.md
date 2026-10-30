@@ -500,3 +500,10 @@ Sin merge, deploy, cambio de producción ni despacho real. La certificación glo
 - Lite AS-EXP-06: PASS_SCOPED en SHA `5901316519ca98d0810ac0f228c91abe6380ee7f`, aceptación `ALGEBRA114_AS_EXP_06_ACCEPTANCE_R365.md`.
 - Lite AS-EXP-07 está en ejecución en SHA `c791540390b2e5a3c27f11b7a9a444ad04012a20`; test blob `06f362c0aeced0100b266c7dcf6465c06324f8b1`. CI 41144150978, cumulative 41144150867 y H1d 41144150866 estaban IN_PROGRESS al corte; Runner 41144150833 SUCCESS/no-dispatch. No aceptar AS-EXP-07 hasta que los tres gates obligatorios terminen SUCCESS en el mismo SHA.
 - Fases A/B continúan CLOSED; O5 IN_PROGRESS; O6 PENDING por ausencia deliberada de dispatch real; O7 PENDING y dependiente de O6. No hay merge, deploy, corte de producción ni dispatch real.
+
+## Reconciliación r369 — AS-EXP-07 y Runner push (2026-10-30 UTC)
+
+- **AS-EXP-07 Lite — PASS_SCOPED.** SHA `c791540390b2e5a3c27f11b7a9a444ad04012a20`; CI [41144150978](https://github.com/c2melendez/precision-lab-lite/actions/runs/41144150978), cumulative [41144150867](https://github.com/c2melendez/precision-lab-lite/actions/runs/41144150867), H1d [41144150866](https://github.com/c2melendez/precision-lab-lite/actions/runs/41144150866) SUCCESS. Runner [41144150833](https://github.com/c2melendez/precision-lab-lite/actions/runs/41144150833) SUCCESS push/no-dispatch. Scientific UI 41144150819 quedó IN_PROGRESS al corte y es complementario. Aceptación `ALGEBRA114_AS_EXP_07_ACCEPTANCE_R366.md`.
+- **Certification Runner:** Lite 41144150833 SUCCESS sobre SHA c791540390b2e5a3c27f11b7a9a444ad04012a20; Plus 41136660038 SUCCESS sobre SHA 218d682848a03a000930e2028f057563847381f3. Ambos PASS_SCOPED_PUSH_ONLY; dispatch, recibo y persistencia SKIPPED.
+- **Mecanismo paralelo:** A/B CLOSED; O5 IN_PROGRESS; O6 PENDING por no existir despacho real; O7 PENDING y dependiente de O6. No hay traza E2E ni replay idempotente real.
+- **Siguiente caso matemático Lite:** AS-EXP-08 `(x+2)(x-3)(x+1)=x^3-7x-6`, con oráculo aritmético independiente. Global OPEN; sin merge, deploy, producción ni dispatch real.

@@ -3,7 +3,7 @@ name: Bridge CI
 on:
   pull_request:
     branches: [main]
-    types: [ready_for_review]
+    types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
 
 permissions:

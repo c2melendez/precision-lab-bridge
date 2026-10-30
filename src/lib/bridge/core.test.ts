@@ -59,6 +59,17 @@ describe("claim must precede every external dispatch", () => {
     expect(mocks.fetch).not.toHaveBeenCalled();
   });
 
+  it("rejects security for Plus or both before claiming or dispatching", async () => {
+    for (const target_repo of ["plus", "both"]) {
+      const result = await trigger("test", "plb_test", { ...raw, target_repo, gate: "security" });
+      expect(result.status).toBe(400);
+      expect(result.body).toMatchObject({ error: expect.stringContaining("only available for lite") });
+    }
+    expect(mocks.claim).not.toHaveBeenCalled();
+    expect(mocks.fetch).not.toHaveBeenCalled();
+  });
+
+
   it("does not dispatch without a durable claim", async () => {
     mocks.claim.mockRejectedValue(new Error("database failure with sensitive detail"));
     const result = await trigger("test", "plb_test", raw);

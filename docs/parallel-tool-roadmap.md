@@ -378,3 +378,31 @@ Bridge PR #1 es un PR distinto: permanece abierto y Draft. CI #59 acredita su HE
 - Las pruebas cubren autenticación del POST `/v1/bridge/dispatch`, plan live `RUN`, rechazo de `WAIT` y SHA obsoleto antes de llamar Bridge, uso de la credencial dispatch-only y reconciliación mediante la credencial read-only.
 - Son pruebas de contrato/unidad con Bridge simulado. No se realizó POST live ni workflow dispatch. Observer PR #4 permanece abierto, sin merge.
 - El HEAD documental Bridge `4427b5871bd8a46f9cc5fd03032eb053bf448d1e` pasó Bridge CI [41131674843](https://github.com/c2melendez/precision-lab-bridge/actions/runs/41131674843). La evidencia de código, política e idempotencia se ejecutó en su commit padre `b244d8c1bd768fd9368aedfaf1be394c2828b145`.
+
+
+## Reconciliación r360 — Certification Runner y mecanismo paralelo (2026-10-30 UTC)
+
+### Certification Runner Lite/Plus
+
+Los runs push más recientes se inspeccionaron por metadata, jobs, pasos y logs:
+
+| Repositorio | SHA del checkout | Run Runner | Resultado | Alcance acreditado |
+|---|---|---|---|---|
+| Lite | `c8c29d820e5bd16ab4df8a528bcea9b4a72f8acc` | [41138509571](https://github.com/c2melendez/precision-lab-lite/actions/runs/41138509571) | SUCCESS | Rama canónica, checkout, BASE_SHA, fingerprint read-only y Push summary |
+| Plus | `218d682848a03a000930e2028f057563847381f3` | [41136660038](https://github.com/c2melendez/precision-lab-plus/actions/runs/41136660038) | SUCCESS | Rama canónica, checkout, BASE_SHA, fingerprint read-only y Push summary |
+
+En ambos runs los pasos de gate policy, dry-run summary, detección/espera de run equivalente, dispatch, registro del resultado en QA, persistencia de continuidad y commit documental fueron `SKIPPED`. Esta es una validación **PASS_SCOPED del camino push/no-dispatch**, no una certificación completa del Runner. No demuestra el camino `workflow_dispatch`, el dispatch del gate, receipt durable ni replay idempotente.
+
+Los gates matemáticos de AS-EXP-02 en Lite (CI 41138509410, cumulative 41138509481, H1d 41138509536 y Scientific UI 41138509494) validan el motor y su UI sobre el SHA técnico Lite; no se cuentan como dispatch producido por Observer/Bridge.
+
+### Estado del mecanismo paralelo
+
+- **A — CERRADA.** Se conserva la evidencia staging autenticada 200 / anónima 401 para lectura de un recibo existente.
+- **B — CERRADA.** Contrato GET/OpenAPI y CI asociado permanecen cerrados; no reabrir por esta reconciliación.
+- **O5 — IN_PROGRESS.** Hay evidencia sólida de idempotencia Bridge/DB, pruebas de contrato Observer y paridad de contrato Runner, más PASS_SCOPED del camino push/no-dispatch en ambos productos. Sigue faltando la cadena real Observer → Bridge → GitHub Actions → Runner → evidencia y su replay sin duplicación.
+- **O6 — PENDING.** No se ejecutó POST de despacho desde Observer ni `workflow_dispatch` real; el usuario mantiene expresamente inactivo el despacho real. Los runs push no sustituyen esta evidencia.
+- **O7 — PENDING.** Depende de O1–O6; no declarar cerrada toda la infraestructura auxiliar.
+
+### Disposición operativa
+
+Compass Runner se considera cerrado para el alcance de la conciliación documental vigente y no debe reintroducirse como prerrequisito matemático. Es distinto del Certification Runner integrado en Lite/Plus y del mecanismo Observer/Bridge descrito en esta hoja. No se han hecho merges, deploys, cambios productivos ni despachos reales. La certificación global matemática continúa OPEN; la siguiente tarea de motor Lite es AS-EXP-03.

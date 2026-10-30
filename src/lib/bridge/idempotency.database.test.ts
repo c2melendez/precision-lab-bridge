@@ -27,7 +27,8 @@ describe.skipIf(!configured)("real Cloud idempotency, no real workflows", () => 
       return nativeFetch(input, init);
     });
     const { data, error } = await supabaseAdmin.from("bridge_keys").insert({ label: prefix, key_hash: await sha256(bridgeKey),
-      key_prefix: bridgeKey.slice(0, 10), expires_at: new Date(Date.now() + 600_000).toISOString() }).select("id").single();
+      key_prefix: bridgeKey.slice(0, 10), scopes: ["read", "dispatch"],
+      expires_at: new Date(Date.now() + 600_000).toISOString() }).select("id").single();
     if (error || !data) throw new Error("Unable to create isolated database test fixture");
     keyId = data.id;
     process.env["GH_OWNER"] ||= "test-owner";

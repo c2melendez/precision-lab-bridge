@@ -91,7 +91,7 @@ Estos números corresponden al repositorio `c2melendez/precision-lab-readonly-ap
 |---|---|---|---|
 | [#1](https://github.com/c2melendez/precision-lab-readonly-api/pull/1) | Reconciliación documental de historial API/Render | Abierto | Diferido; no bloquea la integración actual. Revaluar si sigue siendo útil o cerrar administrativamente. |
 | [#2](https://github.com/c2melendez/precision-lab-readonly-api/pull/2) | Cobertura de categorías de fingerprint | Abierto; evidencia CI histórica sin runner | Diferido; no declarar PASS. Revisar contra HEAD actual antes de decidir reabrir trabajo o cerrar como no planificado. |
-| [#3](https://github.com/c2melendez/precision-lab-readonly-api/pull/3) | API de despacho aislado e idempotencia | Abierto, Draft; bloqueado | Mantener deshabilitado. Requiere PostgreSQL dedicado activo, migración, CI verificable, permisos mínimos, pruebas de concurrencia/idempotencia y autorización expresa. No desplegar ni fusionar. |
+| [#3](https://github.com/c2melendez/precision-lab-readonly-api/pull/3) | API de despacho aislado e idempotencia (diseño anterior) | Histórico / fuera de la arquitectura vigente | No reactivar: su ruta de despacho directo a GitHub duplica responsabilidades y contradice Observer→Bridge. La ruta actual es PR #4 con despacho server-to-server mediante Bridge. |
 
 El PR #1 de Bridge es distinto y corresponde al servicio independiente actual; permanece abierto para revisión.
 

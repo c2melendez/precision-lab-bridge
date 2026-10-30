@@ -6,7 +6,14 @@ BEGIN
   IF EXISTS (SELECT 1 FROM public.bridge_runs WHERE key_id IS NULL) THEN RAISE EXCEPTION 'bridge_runs has NULL key_id'; END IF;
   IF EXISTS (SELECT 1 FROM public.bridge_runs r LEFT JOIN public.bridge_keys k ON k.id=r.key_id WHERE k.id IS NULL) THEN RAISE EXCEPTION 'bridge_runs has orphan key_id'; END IF;
   IF EXISTS (SELECT 1 FROM public.bridge_idempotency i LEFT JOIN public.bridge_keys k ON k.id=i.key_id WHERE k.id IS NULL) THEN RAISE EXCEPTION 'bridge_idempotency has orphan key_id'; END IF;
-END $$;
+  IF EXISTS (
+    SELECT 1 FROM public.bridge_keys
+    WHERE cardinality(scopes) NOT BETWEEN 1 AND 2
+      OR scopes <@ ARRAY['read','dispatch']::text[] IS NOT TRUE
+      OR array_position(scopes,NULL) IS NOT NULL
+      OR cardinality(scopes) <> (SELECT count(DISTINCT scope) FROM unnest(scopes) AS scope)
+  ) THEN RAISE EXCEPTION 'bridge_keys has invalid or duplicate scopes'; END IF;
+END $;
 
 ALTER TABLE public.bridge_runs ALTER COLUMN key_id SET NOT NULL;
 ALTER TABLE public.bridge_runs ADD CONSTRAINT bridge_runs_key_id_fkey FOREIGN KEY (key_id) REFERENCES public.bridge_keys(id) NOT VALID;
@@ -110,16 +117,47 @@ BEGIN
 END $$;
 
 CREATE OR REPLACE FUNCTION public.bridge_finish(p_id uuid,p_token uuid,p_state text,p_status integer,p_response jsonb,p_error text DEFAULT NULL)
-RETURNS boolean LANGUAGE plpgsql SECURITY INVOKER SET search_path=public AS $$
+RETURNS boolean LANGUAGE plpgsql SECURITY INVOKER SET search_path=public AS $
+DECLARE r public.bridge_idempotency; expected_repos text[];
 BEGIN
-  IF p_state IS NULL OR p_state NOT IN ('BLOCKED','FAILED','RUNNING','SUCCEEDED') THEN RAISE EXCEPTION 'INVALID_STATE'; END IF;
-  IF p_status IS NULL OR p_status NOT BETWEEN 100 AND 599 OR p_response IS NULL THEN RAISE EXCEPTION 'INVALID_FINISH_RESPONSE'; END IF;
+  IF p_state IS NULL OR p_state NOT IN ('BLOCKED','FAILED','RUNNING') THEN RAISE EXCEPTION 'INVALID_STATE'; END IF;
+  IF p_status IS NULL OR p_status NOT BETWEEN 100 AND 599 OR p_response IS NULL OR jsonb_typeof(p_response)<>'object' THEN
+    RAISE EXCEPTION 'INVALID_FINISH_RESPONSE';
+  END IF;
+  SELECT * INTO r FROM public.bridge_idempotency
+  WHERE id=p_id AND state='RUNNING' AND lease_token=p_token
+    AND lease_expires_at>clock_timestamp() AND response IS NULL
+  FOR UPDATE;
+  IF NOT FOUND THEN RETURN false; END IF;
+
+  -- A successful 201 receipt is only valid after every requested repository
+  -- has a durable ACCEPTED intent and exactly one registered GitHub run.
+  IF p_state='RUNNING' THEN
+    IF p_status<>201 OR r.run_id IS NULL THEN RETURN false; END IF;
+    expected_repos := CASE r.repo
+      WHEN 'lite' THEN ARRAY['precision-lab-lite']::text[]
+      WHEN 'plus' THEN ARRAY['precision-lab-plus']::text[]
+      WHEN 'both' THEN ARRAY['precision-lab-lite','precision-lab-plus']::text[]
+      ELSE ARRAY[]::text[]
+    END;
+    IF cardinality(expected_repos)=0 OR EXISTS (
+      SELECT 1 FROM unnest(expected_repos) AS expected(repo)
+      WHERE r.dispatch_intents->>expected.repo IS DISTINCT FROM 'ACCEPTED'
+        OR (SELECT count(*) FROM jsonb_array_elements(r.gh_runs) AS item
+            WHERE item->>'repo'=expected.repo)<>1
+    ) THEN RETURN false; END IF;
+    IF EXISTS (
+      SELECT 1 FROM public.bridge_runs br
+      WHERE br.id=r.run_id AND br.key_id=r.key_id
+    ) IS NOT TRUE THEN RETURN false; END IF;
+  END IF;
+
   UPDATE public.bridge_idempotency SET state=p_state,outcome_state=p_state,http_status=p_status,response=p_response,error_code=p_error,
     updated_at=clock_timestamp(),finished_at=CASE WHEN p_state='RUNNING' THEN NULL ELSE clock_timestamp() END,
     lease_token=NULL,lease_expires_at=NULL
   WHERE id=p_id AND state='RUNNING' AND lease_token=p_token AND lease_expires_at>clock_timestamp() AND response IS NULL;
   RETURN FOUND;
-END $$;
+END $;
 
 REVOKE ALL ON FUNCTION public.bridge_claim(text,uuid,text,jsonb,text,text,text,text,text) FROM PUBLIC,anon,authenticated;
 REVOKE ALL ON FUNCTION public.bridge_prepare(uuid,uuid) FROM PUBLIC,anon,authenticated;

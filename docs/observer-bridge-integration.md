@@ -127,3 +127,23 @@ Remaining:
 3. Open the admin page and sign in using BRIDGE_ADMIN_PASSWORD.
 4. Create a temporary test key (not llm) and validate it only against a synthetic/test-owned run; do not call POST dispatch.
 5. Validate GET status against that owned run, ensuring no new GitHub run was created. Only after this will Observador's BRIDGE_BASE_URL and replacement llm key be considered for controlled cutover.
+
+
+## Decisión arquitectónica vigente — 2026-10-30 (supersede las secciones anteriores)
+
+La dirección anterior de mantener Observer exclusivamente GET-only y solicitar despachos directamente a Bridge queda supersedida por el roadmap canónico en docs/parallel-tool-roadmap.md y docs/parallel-tool-roadmap.json.
+
+La arquitectura aprobada es:
+
+LLM / Action → Observer → Bridge → GitHub Actions Runner → Lite/Plus
+Lite/Plus → Runner → Bridge → Observer → LLM / Action
+
+Observer es la única interfaz del LLM y el plano central de lectura, interpretación, autorización y coordinación. La Action solo conoce el contrato, host y credencial de Observer. Observer integra las consultas Bridge y, cuando la solicitud esté autorizada, invoca Bridge internamente de servidor a servidor.
+
+Bridge permanece como componente interno de despacho, validación final, recibos e idempotencia. No se crea una Action de Bridge, no se entrega al LLM su URL ni su credencial y no se crea otra capa de servicios.
+
+La operación de despacho se expondrá en Observer mediante un contrato protegido aún por diseñar e implementar. Observer validará autorización y scopes ligados a los parámetros exactos; Bridge validará la identidad de servicio de Observer, allowlist y permisos de despacho. La idempotencia y los identificadores de correlación/validación deberán conservarse desde la solicitud hasta el recibo, el run de Actions y el registro del Runner. Los resultados ambiguos requieren reconciliación, nunca reintento ciego.
+
+La aprobación para reorientar el roadmap no autoriza por sí sola ningún despacho real. dry_run=true en Bridge también inicia un workflow y requiere autorización específica. No hacer merge, producción cutover ni rotación/revocación de secretos como efecto colateral.
+
+No añadir un nuevo servicio, segundo Runner ni duplicar la lógica de planificación o persistencia. Al completar los criterios O1–O6 del roadmap, cerrar la infraestructura auxiliar y regresar a la certificación matemática de Lite y Plus.

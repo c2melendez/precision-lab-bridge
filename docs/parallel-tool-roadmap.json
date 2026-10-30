@@ -5,7 +5,7 @@
   "as_of": "2026-10-30",
   "language": "es",
   "status": "in_progress",
-  "summary": "Fases A/B cerradas. Certification Runner Lite/Plus tiene PASS_SCOPED para el camino push/no-dispatch; los runs Lite 41138509571 y 41140700509 y Plus 41136660038 terminaron SUCCESS en sus SHAs verificados. Resolución canónica, checkout y fingerprint correctos; dispatch/espera/registro/persistencia SKIPPED. O5 IN_PROGRESS por falta de traza E2E Observer→Bridge→Actions→Runner y replay sin duplicación. O6 PENDING porque no se ha autorizado ni ejecutado dispatch real en esta iteración; O7 PENDING. AS-EXP-03 Lite en ejecución independiente. No merge, deploy ni producción.",
+  "summary": "Fases A/B cerradas. Certification Runner Lite/Plus tiene PASS_SCOPED para el camino push/no-dispatch; Lite runs 41138509571, 41140700509 y 41141037836, Plus run 41136660038 terminaron SUCCESS en SHAs verificados. La suite de contrato Runner es idéntica en ambos repos (blob ff5c499c); las diferencias de workflow son defaults repo-locales y comentarios. Resolución canónica, checkout y fingerprint correctos; dispatch/espera/registro/persistencia SKIPPED. O5 IN_PROGRESS por falta de traza E2E Observer→Bridge→Actions→Runner y replay sin duplicación. O6 PENDING porque no se ha ejecutado dispatch real; O7 PENDING. AS-EXP-03 Lite en validación sobre SHA 0a85b448; gates pendientes de completar. No merge, deploy ni producción.",
   "canonical_markdown": {
     "repo": "c2melendez/precision-lab-bridge",
     "branch": "hardening/secure-status-independent-runtime",
@@ -581,10 +581,16 @@
       "sha": "c8c29d820e5bd16ab4df8a528bcea9b4a72f8acc",
       "event": "push",
       "conclusion": "success",
-      "latest_run_id": 41140700509,
-      "latest_run_url": "https://github.com/c2melendez/precision-lab-lite/actions/runs/41140700509",
-      "latest_sha": "4e8e57ef8bc731c41a270facef42cac6a4fe708c",
+      "latest_run_id": 41141037836,
+      "latest_run_url": "https://github.com/c2melendez/precision-lab-lite/actions/runs/41141037836",
+      "latest_sha": "0a85b448298df0691b043269648d327d0a7aec0b",
       "runs": [
+        {
+          "run_id": 41141037836,
+          "sha": "0a85b448298df0691b043269648d327d0a7aec0b",
+          "conclusion": "success",
+          "event": "push"
+        },
         {
           "run_id": 41140700509,
           "sha": "4e8e57ef8bc731c41a270facef42cac6a4fe708c",
@@ -629,7 +635,29 @@
       "durable receipt correlation",
       "idempotent replay without duplicate workflow"
     ],
-    "global_status": "OPEN"
+    "global_status": "OPEN",
+    "contract_test": {
+      "path": "scripts/certification/test_runner_contract.py",
+      "blob_sha_lite": "ff5c499cb6eae8277279265a26a897ff982288a0",
+      "blob_sha_plus": "ff5c499cb6eae8277279265a26a897ff982288a0",
+      "identical": true,
+      "historical_suite_evidence": {
+        "lite": {
+          "run_id": 41130209548,
+          "tests": "44/44"
+        },
+        "plus": {
+          "run_id": 41129595065,
+          "tests": "63/63"
+        }
+      },
+      "workflow_blobs_differ_intentionally": true,
+      "differences": [
+        "Lite default target_repo is lite; Plus default target_repo is plus",
+        "The two comment lines differ to describe local behavior"
+      ],
+      "shared_contract": "target_repo=both; workflow_dispatch gate and dry_run inputs; canonical README branch resolution; push and dry-run cannot dispatch; security gate remains blocked in Plus."
+    }
   },
   "next_step": "Continue the mathematical certification in Lite at AS-EXP-03; keep Runner and Observer/Bridge status recorded independently. Do not dispatch real workflows, merge PRs, deploy or cut production unless separately authorized."
 }

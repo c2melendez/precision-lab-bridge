@@ -117,7 +117,7 @@ BEGIN
 END $$;
 
 CREATE OR REPLACE FUNCTION public.bridge_finish(p_id uuid,p_token uuid,p_state text,p_status integer,p_response jsonb,p_error text DEFAULT NULL)
-RETURNS boolean LANGUAGE plpgsql SECURITY INVOKER SET search_path=public AS $
+RETURNS boolean LANGUAGE plpgsql SECURITY INVOKER SET search_path=public AS $bridge_finish$
 DECLARE r public.bridge_idempotency; expected_repos text[];
 BEGIN
   IF p_state IS NULL OR p_state NOT IN ('BLOCKED','FAILED','RUNNING') THEN RAISE EXCEPTION 'INVALID_STATE'; END IF;
@@ -161,7 +161,7 @@ BEGIN
     lease_token=NULL,lease_expires_at=NULL
   WHERE id=p_id AND state='RUNNING' AND lease_token=p_token AND lease_expires_at>clock_timestamp() AND response IS NULL;
   RETURN FOUND;
-END $;
+END $bridge_finish$;
 
 REVOKE ALL ON FUNCTION public.bridge_claim(text,uuid,text,jsonb,text,text,text,text,text) FROM PUBLIC,anon,authenticated;
 REVOKE ALL ON FUNCTION public.bridge_prepare(uuid,uuid) FROM PUBLIC,anon,authenticated;

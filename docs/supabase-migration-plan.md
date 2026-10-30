@@ -25,7 +25,7 @@ The isolated Supabase project has been created and initialized:
 - Default privileges for future public objects were tightened. Supabase Security Advisor reports four informational RLS Enabled No Policy findings; this is intentional because the tables are server-only and have no client policies.
 - No legacy records or key hashes have been imported. The source database remains untouched.
 
-This database is now connected to the independent Bridge Render service. On 2026-10-30, the deployed service successfully served an authenticated GET for the existing receipt 94c102a5-5242-48ba-bdb7-4754a57513db through Observador staging (HTTP 200); the anonymous Observador request returned HTTP 401. The database currently contains 1 bridge key, 1 bridge run, 2 bridge call audit rows, and 0 bridge_idempotency rows. This proves authenticated status retrieval for a pre-existing receipt, not the durable idempotent dispatch path or a new workflow dispatch. The source/Compass service remains untouched.
+This database is now connected to the independent Bridge Render service. On 2026-10-30, the deployed service successfully served an authenticated GET for the existing receipt 94c102a5-5242-48ba-bdb7-4754a57513db through Observador staging (HTTP 200); the anonymous Observador request returned HTTP 401. The latest read-only inspection found 2 bridge keys, 1 bridge run, 2 bridge call audit rows, and 0 bridge_idempotency rows. This proves authenticated status retrieval for a pre-existing receipt, not the durable idempotent dispatch path or a new workflow dispatch. The source/Compass service remains untouched.
 
 # Supabase target and migration plan
 
@@ -59,7 +59,7 @@ The first durable migration defines `bridge_claim`, `bridge_prepare`, `bridge_be
 - The initial migration does not define client-facing RLS policies. The intended access model is privileged server-side access only.
 - `bridge_idempotency.key_id` is NOT NULL but has no foreign key to `bridge_keys(id)`.
 - `bridge_runs.key_id` is nullable and has no foreign key. The status endpoint intentionally does not expose ownerless legacy rows.
-- The source `drizzle/schema.ts` is intentionally blank. The SQL migration chain and Drizzle journal are present, but the ORM schema file is not a complete declarative representation of the tables.
+- The original recovered `drizzle/schema.ts` was blank. This PR now defines all four tables, their relevant indexes, constraints and ownership foreign keys in the Drizzle schema. The new ownership constraints remain pending in the proposed SQL until the CLI-generated migration is validated.
 
 ## 2. Repository and Supabase discovery findings
 
@@ -129,7 +129,7 @@ Do not copy data until the destination schema and server-side access tests pass.
 
 ## Runtime verification update — 2026-10-30
 
-- Supabase project `umxtvefdcjwkiqsubfpb` was read through the connected Supabase integration and reports `ACTIVE_HEALTHY`; the four migrations above are present.
+- Supabase project `umxtvefdcjwkiqsubfpb` was read through the connected Supabase integration and reports `ACTIVE_HEALTHY`; the five migration versions above are present.
 - Table counts at verification: `bridge_keys=1`, `bridge_runs=1`, `bridge_calls=2`, `bridge_idempotency=0`. All four tables have RLS enabled.
 - Existing receipt `94c102a5-5242-48ba-bdb7-4754a57513db` points to Lite cumulative Actions run `41005884405`; Bridge call audit shows `GET /api/runs/:id` HTTP 200.
 - The key metadata query returned label `staging-read-only-verification`, not revoked, expiring `2026-10-31T09:05:53Z`. No key hash, prefix or plaintext value was read. After expiry, a new temporary staging key will be required if further staging tests are desired; production credentials must remain unchanged.

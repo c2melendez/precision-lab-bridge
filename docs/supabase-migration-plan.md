@@ -13,7 +13,7 @@ The isolated Supabase project has been created and initialized:
 - Default privileges for future public objects were tightened. Supabase Security Advisor reports four informational RLS Enabled No Policy findings; this is intentional because the tables are server-only and have no client policies.
 - No legacy records or key hashes have been imported. The source database remains untouched.
 
-This is a prepared database target, not yet connected to a deployed Bridge service. Do not switch the currently running Lovable/Render integration until the independent Bridge host is configured and its read-only connection test passes.
+This database is now connected to the independent Bridge Render service. On 2026-10-30, the deployed service successfully served an authenticated GET for the existing receipt 94c102a5-5242-48ba-bdb7-4754a57513db through Observador staging (HTTP 200); the anonymous Observador request returned HTTP 401. The database currently contains 1 bridge key, 1 bridge run, 2 bridge call audit rows, and 0 bridge_idempotency rows. This proves authenticated status retrieval for a pre-existing receipt, not the durable idempotent dispatch path or a new workflow dispatch. The source/Compass service remains untouched.
 
 # Supabase target and migration plan
 
@@ -97,7 +97,7 @@ Do not copy data until the destination schema and server-side access tests pass.
 - The original/source database was not queried or changed.
 - No source data, key hashes, runs, idempotency entries or audit records were exported or imported.
 - No key values, environment files, connection strings or credentials copied.
-- No Render service created/deployed.
+- The independent Bridge Render service was created and deployed; this migration work did not deploy a new revision or change production.
 - No GitHub certification-runner workflow dispatched.
 - No changes to Precision Lab Lite or Precision Lab Plus.
 
@@ -110,5 +110,15 @@ Do not copy data until the destination schema and server-side access tests pass.
 - [x] New project schema, functions, grants and RLS verified.
 - [ ] Table-level data export/import plan reconciled with actual source counts.
 - [ ] Test restore succeeds and all row/integrity counts match.
-- [ ] Runtime is configured with new secrets and status/read-only tests pass.
+- [x] Independent Bridge runtime is configured and an authenticated read-only receipt lookup passed through Observador staging.
+- [ ] Durable idempotent dispatch path is exercised end-to-end under explicit authorization.
 - [ ] Separate approval obtained before enabling any real GitHub workflow dispatch.
+
+
+## Runtime verification update — 2026-10-30
+
+- Supabase project `umxtvefdcjwkiqsubfpb` was read through the connected Supabase integration and reports `ACTIVE_HEALTHY`; the four migrations above are present.
+- Table counts at verification: `bridge_keys=1`, `bridge_runs=1`, `bridge_calls=2`, `bridge_idempotency=0`. All four tables have RLS enabled.
+- Existing receipt `94c102a5-5242-48ba-bdb7-4754a57513db` points to Lite cumulative Actions run `41005884405`; Bridge call audit shows `GET /api/runs/:id` HTTP 200.
+- The key metadata query returned label `staging-read-only-verification`, not revoked, expiring `2026-10-31T09:05:53Z`. No key hash, prefix or plaintext value was read. After expiry, a new temporary staging key will be required if further staging tests are desired; production credentials must remain unchanged.
+- Because `bridge_idempotency` has zero rows, durable idempotency has not yet been demonstrated by an actual Bridge dispatch. Do not treat the old receipt's `dry_run=true` field as evidence of a new dispatch; the Actions run predates this test.

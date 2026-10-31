@@ -188,7 +188,7 @@ export async function dispatchAcceptedCommand(
         errorCode: "GITHUB_DISPATCH_OUTCOME_UNKNOWN",
       };
     } else {
-      const run = await resolveRun(repo, commandId, startedAtMs);
+      const run = await resolveRun(repositoryName, commandId, startedAtMs);
       outcome = {
         outcome: "queued",
         actionsRunId: run.id,
@@ -199,7 +199,7 @@ export async function dispatchAcceptedCommand(
   } catch (error) {
     const message = error instanceof Error ? error.message : "GITHUB_DISPATCH_OUTCOME_UNKNOWN";
     // Network failures are ambiguous; look for the uniquely named run but never POST again.
-    const run = await resolveRun(repo, commandId, startedAtMs).catch(() => null);
+    const run = await resolveRun(repositoryName, commandId, startedAtMs).catch(() => null);
     outcome = run ? {
       outcome: "queued", actionsRunId: run.id, actionsRunUrl: run.url, errorCode: null,
     } : {

@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { createTca1KeyInputSchema, scopesForTca1AccessMode, tca1ExpiryIso } from "@/lib/tca/tca1-policy";
 
 async function assertAdmin(password: string) {
   const expected = process.env["BRIDGE_ADMIN_PASSWORD"];
@@ -47,6 +48,37 @@ export const createKey = createServerFn({ method: "POST" })
     });
     if (error) throw new Error(error.message);
     return { key };
+  });
+
+
+export const createTca1Key = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => createTca1KeyInputSchema.parse(d))
+  .handler(async ({ data }) => {
+    await assertAdmin(data.password);
+    const { newKey, sha256, prefixOf } = await import("./core.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const key = newKey();
+    const scopes = scopesForTca1AccessMode(data.accessMode);
+    const expiresAt = tca1ExpiryIso(data.ttlMinutes);
+    const { data: created, error } = await supabaseAdmin.from("bridge_keys")
+      .insert({
+        label: data.label,
+        key_hash: await sha256(key),
+        key_prefix: prefixOf(key),
+        scopes,
+        expires_at: expiresAt,
+      })
+      .select("id")
+      .single();
+    if (error || !created?.id) throw new Error("TCA1_KEY_CREATE_FAILED");
+    // The raw key is returned once to the admin UI only; only hash/prefix are persisted.
+    return {
+      key,
+      key_id: created.id,
+      key_prefix: prefixOf(key),
+      scopes,
+      expires_at: expiresAt,
+    };
   });
 
 export const revokeKey = createServerFn({ method: "POST" })

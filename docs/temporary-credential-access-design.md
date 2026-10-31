@@ -1,10 +1,10 @@
 # Temporary Credential Access (TCA) — diseño de acceso temporal a credenciales
 
-**Versión:** 1.0.0  
+**Versión:** 1.1.0  
 **Fecha:** 2026-10-31  
-**Estado:** DISEÑO PROPUESTO — no implementado ni habilitado  
+**Estado:** TCA-1A/TCA-1B IMPLEMENTACIÓN EN RAMA — pendiente CI y validación staging; no desplegado ni habilitado  
 **Ámbito:** Precision Lab Parallel Tool / Bridge / Observer / futuros adaptadores MCP y Function Calling.  
-**Relacionado:** `parallel-tool-consumer-probe-battery.md` v2.0.0, `parallel-tool-implementation-master.md` y `parallel-tool-roadmap.md`.
+**Relacionado:** `parallel-tool-consumer-probe-battery.md` v2.2.0, `parallel-tool-implementation-master.md` y `parallel-tool-roadmap.md`.
 
 ---
 
@@ -25,14 +25,16 @@ La rama de trabajo contiene estos elementos verificados en código:
 
 - El panel administrativo de Bridge está en `/` (`src/routes/index.tsx`).
 - `createKey` en `src/lib/bridge/admin.functions.ts` crea claves aleatorias `plb_...`, persiste SHA-256 y prefijo y devuelve el valor completo una sola vez.
-- El panel permite seleccionar scopes `read`, `dispatch`, `context:read`, `command:submit` y `command:read`.
-- La UI actual permite expiración entera de 1 a 365 días; no permite TTL de minutos.
-- `checkKey` valida hash, expiración y revocación en `src/lib/bridge/core.server.ts`.
+- El panel general permite scopes legacy/nuevos y expiración de 1 a 365 días.
+- La UI TCA-1 temporal se añade como flujo separado: `createTca1Key` en `src/lib/bridge/admin.functions.ts` y sección **Temporary TCA-1 consumer key** en `src/routes/index.tsx`.
+- TCA-1A limita TTL a 5–1440 minutos, etiqueta `tca1-...` y perfiles cerrados: read = `context:read`; submit = `context:read` + `command:submit` + `command:read`. No permite scopes legacy `read` ni `dispatch`.
+- `checkKey` valida hash, expiración y revocación en `src/lib/bridge/core.server.ts`; el esquema actual de DB ya soporta timestamps con precisión suficiente, sin migración.
+- TCA-1B añade `src/lib/tca/bridge-client.server.ts` y `src/lib/tca/tca1-tool-adapter.server.ts`: cliente HTTP server-side y catálogo neutral de herramientas/handlers, con `TCA1_BRIDGE_BASE_URL`, `TCA1_BRIDGE_KEY`, `TCA1_ACCESS_MODE` y `TCA1_HTTP_TIMEOUT_MS`.
 - Las rutas v1 autentican con `X-Bridge-Key`; las rutas observadas rechazan credenciales en query string.
 - El alcance `context:read` autoriza lectura de capacidades/contexto; `command:submit` permite intake de comandos tipados. El antiguo `dispatch` es un scope distinto y no debe confundirse con `command:submit`.
 - El panel administrativo utiliza `BRIDGE_ADMIN_PASSWORD`; esa contraseña no es una clave de consumidor.
 
-**Limitaciones actuales:** el panel no emite credenciales con TTL inferior a un día ni claves confinadas a un endpoint experimental. Tampoco existe un Credential Broker implementado. Por tanto, TCA-2 no puede activarse de forma segura solo creando una clave normal en el panel. Requiere un laboratorio separado o capacidad de emisión restringida adicional. Este documento no declara ninguna de esas capacidades implementadas.
+**Límites actuales del candidato:** TCA-1A permite TTL de minutos y perfiles de scopes restringidos, pero el valor se muestra una vez al operador; el host debe almacenarlo y el operador debe revocarlo al concluir si no espera al TTL. TCA-1B aporta un cliente y handler registry provider-neutral; todavía no es un MCP server ni una integración específica desplegada en ChatGPT/Claude/otro host. TCA-2 Credential Lab y Credential Broker siguen sin implementar. No hay migración de DB ni despliegue live incluidos en este cambio.
 
 Antes de utilizar el panel o crear claves se debe verificar que el SHA desplegado contiene el código esperado. La existencia de código en una rama o PR no demuestra que esté desplegado.
 
@@ -84,7 +86,7 @@ El LLM y cualquier contenido que lea (issues, README, código, logs, resultados)
 - Una clave por consumidor y entorno; no compartir claves de escritura.
 - Comenzar con `context:read`; elevar a command scopes solo para la campaña que lo necesita.
 - No conceder `dispatch`, `read` legacy, administración o permisos de GitHub a los consumidores salvo una decisión aparte y justificada.
-- La UI actual usa expiración de 1–365 días. Para una campaña corta se debe revocar manualmente al terminar; no describir esa opción como TTL de minutos.
+- La UI de claves generales conserva expiración de 1–365 días; el formulario TCA-1 separado admite 5–1440 minutos. Para campaña corta se recomienda TTL mínimo práctico y revocación inmediata al finalizar.
 - Para D1–D3, usar Bridge staging y `execution_enabled=false`; aun así se crean registros durables.
 - D4 solo en un entorno de prueba, con autorización específica, destino `agent/{command_id}`, sin auto-merge.
 - No introducir la clave en prompts, contexto del sistema, argumentos visibles, variables que el LLM pueda inspeccionar, terminal compartida ni logs.
@@ -94,9 +96,9 @@ El LLM y cualquier contenido que lea (issues, README, código, logs, resultados)
 
 | Host | Mecanismo de TCA-1 |
 |---|---|
-| MCP propio/local | Variable de entorno/secret manager del proceso MCP; wrapper HTTP adjunta la cabecera |
+| MCP propio/local | El host registra `createTca1ToolAdapterFromEnv()`; el proceso server-side carga `TCA1_BRIDGE_KEY` desde su secret store y los handlers usan `bridge-client.server.ts` |
 | MCP remoto | Autenticación soportada por el host; preferir OAuth para cliente remoto. No asumir que el host permite cabeceras arbitrarias |
-| Function Calling / Tool Use | El host ejecuta HTTP y adjunta la cabecera; la clave no forma parte de argumentos JSON |
+| Function Calling / Tool Use | Registrar `adapter.tools` y `adapter.handlers`; el host ejecuta los handlers server-side. La clave no forma parte de argumentos JSON |
 | GPT Actions | Campo de autenticación protegido, si el cliente lo admite; no incluir la clave en OpenAPI ni prompt |
 | Cliente MCP de ChatGPT | Usar el flujo de autenticación soportado por el cliente, normalmente OAuth para MCP remoto; no presuponer que acepta una X-Bridge-Key arbitraria |
 | SDK/CLI | Secret manager o almacén seguro del usuario; evitar argumentos de línea de comandos y logs de entorno |
@@ -105,7 +107,8 @@ Si un host no puede inyectar el secreto sin revelarlo al modelo, TCA-1 queda `BL
 
 ### 4.4 Criterios de aceptación TCA-1
 
-- Clave creada para consumidor individual y scopes mínimos verificados.
+- H1–H8 PASS o BLOCKED con motivo explícito; CI verifica H1–H6 y el comportamiento de redacción/redirects; H7 requiere staging.
+- Clave creada por flujo TCA-1A para consumidor individual, TTL 5–1440 minutos y perfil exacto read/submit.
 - Cabecera autenticada adjuntada por el runtime; el valor no aparece en prompt, historial, argumentos, salida, logs o artefactos.
 - Requests permitidos responden según contrato; requests sin scope responden 403.
 - Expiración y revocación producen 401 en las siguientes solicitudes.
@@ -241,8 +244,8 @@ Respuesta: detener la campaña, bloquear/revocar el canary, preservar evidencia 
 | Fase | Entregable | Criterio de salida |
 |---|---|---|
 | TCA-D0 | Diseño y threat model | Este documento revisado; no hay secretos creados ni servicios habilitados |
-| TCA-1A | Runbook de emisión y host injection | Clave por consumidor; scopes/TTL/revocación verificados en staging |
-| TCA-1B | Adaptador de host | Evidencia de que el modelo no ve la clave; llamadas Observer/Bridge pasan |
+| TCA-1A | Emisión temporal de claves TCA | Código en rama: TTL 5–1440 min, perfiles cerrados y clave one-time; pendiente CI y H7 staging |
+| TCA-1B | Cliente HTTP + tool handler registry server-side | Código/tests en rama; integración provider-specific y prueba real de no-exposición pendientes |
 | TCA-2A | Credential Lab aislado | Red, BD, endpoint, canary, expiración, rate limit y logging redactado verificados |
 | TCA-2B | G1–G5 | Resultados reproducibles para modelo/host; canary revocado |
 | TCA-B1 | Broker prototype | OAuth/OIDC, identidad, tokens cortos, scopes, revocación y JWKS/introspection |
@@ -262,4 +265,4 @@ El presente diseño no autoriza:
 
 Antes de TCA-1A se verifica el despliegue y se designa host/consumidor. Antes de TCA-2A se verifica el aislamiento de red y la ausencia de credenciales reales. Antes de TCA-B1 se versiona el contrato OAuth/OIDC y las pruebas de amenaza.
 
-**Estado al publicar este diseño:** TCA-D0 documentado; TCA-1, TCA-2, Credential Lab y Credential Broker no implementados/habilitados. M1/M2 y el resto de M0–M7 conservan sus estados previos.
+**Estado al publicar este diseño:** TCA-D0 documentado; TCA-1A y TCA-1B tienen implementación candidata en la rama de trabajo y quedan pendientes CI exacto, H7 staging e integración de host; no están desplegados ni habilitados. TCA-2 Credential Lab y Credential Broker no implementados. No se han creado claves ni cambiado secretos. M0–M7 conservan sus estados previos.

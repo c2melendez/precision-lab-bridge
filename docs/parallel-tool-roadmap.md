@@ -604,3 +604,52 @@ La decisión arquitectónica multientrada/multicanal, el catálogo de mecanismos
 - Lint: 0 errores; 6 warnings React Fast Refresh. Build Vite/Nitro: SUCCESS.
 
 **Limitaciones:** no se desplegó el commit ni se configuró el valor de `OBSERVER_SERVICE_KEY` en Render; por tanto no se declara llamada live Bridge→Observer. El proxy de archivos se reserva para M3. M1 solo registra comandos con estado `accepted` y `execution_enabled: false`; no ejecuta patches ni jobs. Sin merge, dispatch real, migración en producción o cambios en Lite/Plus. M2 permanece NOT_STARTED.
+
+
+## Revisión de mecanismos reportados por LLM — 2026-10-31
+
+**Alcance.** Se revisaron seis conversaciones exportadas (Copilot, Qwen, Qwen Coder, DeepSeek, Gemini y Meta AI) que describen qué mecanismos de la tabla P0–P3 creen tener disponibles. Cada afirmación se contrastó con la evidencia que la respalda. Registro estructurado: `llm_mechanism_review_2026_10_31` en el JSON.
+
+**Clasificación de la evidencia.**
+- Solo autodeclaración: Copilot, Qwen, DeepSeek, Gemini y Meta AI. Describen capacidades probables de su host, no accesos verificados a Observer ni a Bridge.
+- Sonda en sandbox, no evidencia de Precision Lab: Qwen Coder. Sus pruebas (curl público a `api.github.com` sin credenciales, validación de un OpenAPI 3.0.3 de ejemplo y peticiones HTTPS a endpoints públicos) demuestran salida HTTPS del sandbox. No demuestran acceso a Observer ni a Bridge.
+
+Las respuestas se contradicen en varios puntos (por ejemplo, Meta AI niega OpenAPI mientras Qwen Coder validó uno; Copilot responde distinto en sus dos exportaciones). Por eso se tratan como hipótesis.
+
+**Veredicto.** La arquitectura v2 no cambia. Casi todos los reportes admiten que no pueden llamar por sí solos a una API, un servidor MCP o un webhook arbitrario: necesitan que el host exponga una herramienta o un adaptador. El cuello de botella práctico es el adaptador por despliegue, no la Command API.
+
+**Hallazgos que cambian el roadmap.**
+1. **Function Calling** aparece como mecanismo propio en 5 de 6 reportes, condicionado a que el host lo exponga. Es el primer adaptador de M4 y debe generarse desde el mismo OpenAPI y desde `GET /api/v1/capabilities`, sin esquemas escritos a mano.
+2. **Ningún agente sin endpoint público recibe notificaciones.** Los resultados de comandos se leen por pull: `GET /api/v1/commands/{id}` o `lookup` por `Idempotency-Key`.
+3. **Las pruebas del sandbox del consumidor no son validación.** Solo cuentan los perfiles allowlisted del Runner.
+4. **La excepción de GitHub delegado puede saltarse Bridge.** Un agente con escritura directa podría modificar una rama sin `expected_sha` ni evidencia. La excepción no puede aplicarse a agentes que también usan Bridge, y debe seguir las mismas reglas de rama, SHA y evidencia.
+5. **Falta un barrido en segundo plano.** El roadmap no define qué cierra comandos `accepted`/`queued` sin recibo ni leases vencidos. Las pruebas cubren la expiración solo en el claim. Debe diseñarse antes de cerrar M2.
+
+**Decisiones sobre los mecanismos propuestos.**
+
+| Mecanismo | Reportado por | Decisión | Motivo |
+|---|---|---|---|
+| Streaming de estado (SSE, WebSocket) | Qwen, DeepSeek, Copilot, Qwen Coder | Diferido, opcional, lectura, después de M3 | El polling de `GET /commands/{id}` basta para M2–M3. Un stream añade conexiones sin necesidad medida. |
+| Notificaciones salientes al agente | Qwen | Rechazado como mecanismo; se adopta como invariante | Los agentes no reciben push. La finalización se consulta por pull. |
+| Tareas programadas | Meta AI | Necesidad interna, no mecanismo LLM | Hace falta el barrido del punto 5. |
+| Sandbox de ejecución | Copilot, DeepSeek, Qwen, Qwen Coder, Meta AI | Solo consumidor; no es evidencia | Válido para pruebas locales; no reemplaza el Runner. |
+| Adjuntos y archivos | Qwen | Ya cubierto | `artifact_refs` en el sobre del Command API. |
+| RAG / memoria vectorial | Copilot, Qwen, DeepSeek | Diferido; si hace falta, vive en Observer | Observer es la fuente de verdad; otro índice sería una segunda fuente. |
+| Descubrimiento de herramientas | Copilot, Qwen | Ya cubierto | `GET /api/v1/capabilities`. |
+| Git sobre HTTPS, SSH, TCP crudo, gRPC | Qwen Coder, Copilot, DeepSeek | Rechazado | Contradice la ausencia de shell arbitrario y la escritura solo por operaciones tipadas. |
+| GraphQL | DeepSeek | Rechazado | Duplica OpenAPI sin consumidor que lo pida. |
+| Voz, navegador o control de escritorio | Qwen, DeepSeek | Rechazado | Fuera del plano de comandos. |
+| Conectores personales (correo, drives, chat, calendario) | Copilot, Meta AI | Rechazado | Son conectores del host, no mecanismos de este sistema. |
+| Sub-agentes de una misma plataforma | Meta AI | No cuenta para M6 | M6 exige dos agentes con identidades y claves distintas. |
+
+**Ajustes al roadmap.**
+1. **Sonda por consumidor.** Cada LLM usa su propia clave. Verificar: `GET /api/v1/capabilities` y `GET /api/v1/context/status` con `context:read` (200); `POST` sin `command:submit` (403); `POST` con `command:submit` (202); replay exacto (200); `GET` por id y `lookup`. El resultado se registra por mecanismo y por consumidor. Estado: PENDIENTE hasta desplegar Bridge→Observer.
+2. **Rutas por consumidor.** La ruta se asigna según la sonda, no por diseño global. Un consumidor sin HTTP saliente usa un adaptador o la ruta híbrida.
+3. **Adaptador Function Calling (M4).** Se genera desde el mismo OpenAPI y desde `capabilities`.
+4. **Excepción GitHub revisada.** Sin escritura directa a ramas canónicas para agentes que usan Bridge.
+5. **Barrido de comandos y leases.** Job en Bridge que mueve a `reconcile_required` los comandos vencidos sin recibo y los leases expirados, sin redespachar.
+6. **M6 con identidades reales.** Dos consumidores distintos, cada uno con su clave y su host.
+
+**Pendiente.** Identificar el runtime de cada consumidor (los reportes no lo dicen). No se asigna ruta a ningún consumidor hasta ejecutar su sonda.
+
+**Estado.** Esta revisión no cambia ningún estado PASS, PENDING o IN_PROGRESS. M0–M7 siguen igual. No hubo cambios de código, secretos, despliegues ni despachos.

@@ -1833,6 +1833,7 @@
     "credential_broker": "future OAuth 2.1/OIDC identity and short-lived scoped token service",
     "TCA_2_required_for_M6": false,
     "no_credentials_created": true,
-    "no_production_changes": true
+    "no_production_changes": true,
+    "observer_credential_issuer": "Separate from Bridge admin panel; not verified in this repository. Direct Observer route stays BLOCKED until its safe issuance/provisioning flow is documented. Never reuse a Bridge key."
   }
 }

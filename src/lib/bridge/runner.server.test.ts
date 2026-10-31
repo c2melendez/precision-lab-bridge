@@ -60,6 +60,7 @@ const validResult = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.args.length = 0;
   mocks.rpc.mockImplementation(async (name: string) => {
     if (name === "bridge_command_claim_runner") {
       return { data: { action: "claimed", lease_token: lease, manifest }, error: null };

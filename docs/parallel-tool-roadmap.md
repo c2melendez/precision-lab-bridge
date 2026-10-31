@@ -142,14 +142,16 @@ La fusión automática de PR no se presume. Solo puede ocurrir cuando un contrat
 
 ## Diseño TCA — acceso temporal a credenciales
 
-Se incorpora [Temporary Credential Access (TCA)](./temporary-credential-access-design.md) v1.0.0:
-- **TCA-D0: DESIGN DOCUMENTED.** No crea claves, endpoints, servicios ni despliegues.
-- **TCA-1:** modo provisional operativo; el host/MCP/conector inyecta la clave individual por consumidor desde su secret store. El modelo no conoce el valor. Comienza con `context:read`; scopes de comando solo en staging y según necesidad. La UI actual tiene expiración mínima de un día, por lo que exige revocación manual al terminar.
-- **TCA-2:** Credential Lab independiente con canary sintético, TTL objetivo máximo 15 minutos, intentos limitados, sin red ni credenciales de producción. No es una clave Bridge y nunca habilita acceso a repositorios. G1–G5 son investigación independiente, no requisito de M6.
-- **Credential Broker:** destino final OAuth 2.1/OIDC con identidad por consumidor, tokens cortos, scopes, audiencia y revocación. No implementado.
-- **TCA-2-Bridge-ReadOnly:** variante futura deshabilitada; no usar con Bridge de producción.
+Se incorpora [Temporary Credential Access (TCA)](./temporary-credential-access-design.md) v1.1.0 y su batería de certificación [v2.2.0](./parallel-tool-consumer-probe-battery.md):
+- **TCA-D0: DESIGN DOCUMENTED.**
+- **TCA-1A: CODE CANDIDATE IN BRANCH.** El panel contiene el flujo **Temporary TCA-1 consumer key**. TTL permitido: 5–1440 minutos. Perfil read: `context:read`; perfil submit: `context:read`, `command:submit`, `command:read`. La DB almacena hash/prefijo, scopes y expiración; el valor se muestra una sola vez. Pendiente CI del SHA final, H1/H2 y prueba H7 en staging. No desplegado ni habilitado.
+- **TCA-1B: CODE CANDIDATE IN BRANCH.** Cliente HTTP server-side y tool handler registry provider-neutral (`bridge-client.server.ts`, `tca1-tool-adapter.server.ts`). Lee la clave desde `TCA1_BRIDGE_KEY`, solo inyecta `X-Bridge-Key`, rechaza URL insegura/redirects y no incluye credenciales en tool definitions. Pendiente CI y binding real a cada host/MCP/Function Calling; no afirmar integración MCP remota ya desplegada.
+- **Certificación TCA-1:** H1–H8; H1–H6 automatizables en CI, H7 requiere staging real, H8 verifica redacción/redirects. No PASS hasta evidencia exacta.
+- **TCA-2:** Credential Lab independiente con canary sintético, TTL objetivo máximo 15 minutos e intentos limitados; no implementado y no es requisito productivo.
+- **Credential Broker:** destino final OAuth 2.1/OIDC con identidad por consumidor, tokens cortos, scopes, audiencia y revocación; no implementado.
+- **TCA-2-Bridge-ReadOnly:** variante futura bloqueada; no usar Bridge de producción.
 
-No cambiar los estados M0–M7 ni activar claves, feature flags, servicios, migraciones o ejecución por el hecho de documentar este diseño.
+**Certificación Parallel Tool:** Master + batería A–H + CB1–CB10 + OpenAPI + esta especificación son artefactos normativos. TCA-1 y CB forman parte de la evidencia M6; G1–G5/TCA-2 es investigación opcional. No cambiar estados M0–M7 ni activar despliegues, claves, flags o ejecución real por documentar el diseño.
 
 **Conservación de trabajo previo:** Fases A/B de la integración Observer→Bridge (GET autenticado 200 y anónimo 401; contrato/OpenAPI y CI asociados) permanecen CERRADAS y no se repiten. No demuestran por sí solas la nueva Command API ni modificación de repositorios. La ruta Observer-only, las fases O1–O7 y su estado previo se conservan como historial de la arquitectura v1; quedan supersedidas como plan de aceptación final, no se borran como evidencia.
 

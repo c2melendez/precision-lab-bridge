@@ -3,7 +3,7 @@
 **Document type:** implementation and LLM handoff contract  
 **Version:** 1.0.0  
 **Architecture baseline:** Multi-Agent Command Plane v2  
-**Status:** M1 implementation in progress; M2 not started  
+**Status:** M1 PASS_SCOPED; M2 IN_PROGRESS (Runner worker code and component-level CI/DB evidence exist; bilateral PR acceptance and live execution remain open)  
 **Canonical repository:** `c2melendez/precision-lab-bridge`  
 **Working branch:** `hardening/secure-status-independent-runtime`  
 **Last verified architecture commit:** `0670da3901685f7af14ad0058f8c685d0ee383e9`
@@ -111,7 +111,7 @@ Required invariants:
 9. Persist only after live Observer state is fetched and expected branch/SHA are checked.
 10. Record an audit trail without recording raw API keys or secrets.
 
-Lifecycle values: `accepted`, `queued`, `validating`, `running`, `awaiting_review`, `completed`, `failed`, `blocked`, `reconcile_required`. M1 only accepts and records; it must report `execution_enabled: false` until M2 exists.
+Lifecycle values: `accepted`, `queued`, `validating`, `running`, `awaiting_review`, `completed`, `failed`, `blocked`, `reconcile_required`. The M1 intake API remains durable-only. Receipts must keep `execution_enabled: false` until the M2 runtime is deployed, configured and explicitly enabled; M2 source code existing in draft PRs does not enable execution.
 
 ## 6. M1 implementation checklist
 
@@ -129,19 +129,23 @@ M1 is complete only when all items below are implemented and verified on the sam
 - [x] CI passes for the exact branch HEAD; test skips caused by missing DB secrets are reported as skipped, not PASS for database integration.
 - [x] No deployment, live command execution, or Runner dispatch is inferred from a unit/CI pass.
 
-## 7. M2 Runner checklist
+## 7. M2 Runner implementation checklist
 
-M2 begins only after M1 acceptance:
-- [ ] Durable command claim/lease with expiry and bounded attempts.
-- [ ] Runner workflow is in existing Lite/Plus Actions plane; no separate public Runner service.
-- [ ] Workflow input contains opaque command ID only; no raw secrets or unbounded patch body.
-- [ ] Runner obtains command manifest using OIDC/workload identity or one-time short TTL lease token.
-- [ ] Verify command owner, lease, expiry, schema, payload fingerprint, target, expected branch/SHA and allowlisted profile.
-- [ ] Apply patch in isolated `agent/{command_id}` branch using compare-and-swap expected SHA.
-- [ ] Run named tests; no arbitrary shell command supplied by LLM.
-- [ ] Create commit and PR only after required checks pass; never merge automatically.
-- [ ] Authenticated callback stores Actions run, status, commit and PR receipt.
-- [ ] Duplicate workflow delivery is idempotent; expired/ambiguous work reconciles rather than double-commits.
+M1 acceptance is complete, so M2 implementation is underway. The following items describe code-level implementation, not M2 phase acceptance:
+- [x] Durable command claim/lease with 60-minute expiry and bounded attempts in the M2 migration/RPCs.
+- [x] Separate `workflow_dispatch` worker workflows in the existing Lite/Plus Actions planes; no public Runner service and no changes to `certification-runner.yml`.
+- [x] Workflow input contains only opaque `command_id`; request payloads and credentials stay server-side.
+- [x] Runner obtains GitHub OIDC identity; Bridge validates signature, issuer, audience, repository ID/name, workflow path, event, default branch and run identity.
+- [x] Claim/callback service verifies repository ownership, workflow run identity, lease token and typed manifest; SQL tests cover valid claim, wrong repository, invalid lease and idempotent callback replay.
+- [x] Worker applies typed create/replace/delete operations in isolated `agent/{command_id}` branches with expected-SHA and blob-SHA preconditions, path/symlink/secret limits and compare-and-swap checks.
+- [x] Fixed validation profiles only; Plus `unit` now runs backend pytest and frontend `npm test` after a clean `npm ci`.
+- [x] Successful patch validation creates/reuses a draft PR; no automatic merge.
+- [x] OIDC-authenticated callback persists the Actions run, status, commit and PR receipt.
+- [x] Dispatch intent, same-run claim and callback replay are guarded against duplicate delivery; ambiguous outcomes reconcile rather than blindly redispatch.
+- [ ] All required CI checks pass on the exact current HEAD of both target PRs. Lite remains blocked by the existing npm audit hard gate; Plus current-head checks are pending.
+- [ ] A controlled real Bridge → Actions → Runner → durable receipt end-to-end run and same-idempotency replay are verified. Not performed: execution flag remains false and no live dispatch is authorized in this work block.
+
+M2 therefore remains `IN_PROGRESS`, not `PASS_SCOPED` or `PASS`.
 
 ## 8. LLM execution protocol (mandatory for every handoff)
 
@@ -181,7 +185,27 @@ Use precise statuses: `NOT_STARTED`, `IN_PROGRESS`, `PASS_SCOPED`, `PASS`, `BLOC
 - Seguridad: claves existentes `read`/`dispatch` no se amplían; scopes nuevos son opt-in. La RPC comprueba la autorización dentro de DB; tabla privada con RLS/grants de service role. El replay devuelve el recibo inicial. El POST limita el cuerpo mientras lee el stream.
 - Límites: no es una prueba HTTP live contra Render/Observer. `OBSERVER_SERVICE_KEY` está declarado como variable server-only, pero su valor no se ha configurado en Render y no se ha desplegado esta versión. La lectura de archivos/contexto queda en M3. No hay Runner: recibos reportan `execution_enabled: false`. No se modificaron Lite/Plus, no hubo dispatch real, merge ni migración de producción.
 
-M1 se registra **PASS_SCOPED**: evidencia completa de código/CI/DB en el SHA citado, con activación operativa/live aún fuera del alcance. M2 permanece `NOT_STARTED`.
+M1 se registra **PASS_SCOPED**: evidencia completa de código/CI/DB en el SHA citado, con activación operativa/live aún fuera del alcance. M2 se registra **IN_PROGRESS**: hay implementación de worker en PRs Draft, pruebas unitarias y SQL de Bridge, y validación parcial de repositorios objetivo; aún faltan los checks bilaterales completos y la prueba end-to-end con despacho real.
+
+### M2 implementation evidence — IN_PROGRESS (2026-10-31)
+
+**Bridge**
+- PR [#1](https://github.com/c2melendez/precision-lab-bridge/pull/1), branch `hardening/secure-status-independent-runtime`, tested HEAD `11108701f4f0699ecb9fffa72daaadb0d7f3937b`.
+- CI [run 41177703847](https://github.com/c2melendez/precision-lab-bridge/actions/runs/41177703847): **SUCCESS** on the exact HEAD. Unit/regression tests, ESLint and Node build passed. The disposable Supabase job replayed the migration history, verified RPC security/RLS/grants, exercised legacy/M1/M2 RPC contracts, passed the database-backed idempotency/command API suite (**19/19**) and `supabase db lint`.
+- The dispatch reconciliation lookup was corrected to use the repository slug rather than the owner/repository full name (which duplicated the owner in the REST path). Dispatch intent is now not persisted unless the feature flag and a valid server-side `GH_TOKEN` are both present. Tests cover exact lookup URL, no duplicate POST, missing credentials, unrelated Actions runs and callback lease hashing.
+
+**Lite**
+- Draft PR [#60](https://github.com/c2melendez/precision-lab-lite/pull/60), branch `feature/m2-command-runner-bridge`, current HEAD `18700426e5c014821fe8b337c53d772acb0fc4fc`.
+- CI [run 41177838853](https://github.com/c2melendez/precision-lab-lite/actions/runs/41177838853): Runner safety-contract job **SUCCESS**. The main frontend job remains **FAILURE** at the existing `npm audit` hard gate: 11 findings (3 low, 8 moderate; none high/critical in that report); typecheck, unit/parity tests and build are skipped by the gate. The audit policy was not weakened and vulnerable dependencies were not blindly downgraded.
+- The latest-head Playwright and cross-browser runs [41177838863](https://github.com/c2melendez/precision-lab-lite/actions/runs/41177838863) and [41177838834](https://github.com/c2melendez/precision-lab-lite/actions/runs/41177838834) were still queued at this record.
+
+**Plus**
+- Draft PR [#41](https://github.com/c2melendez/precision-lab-plus/pull/41), branch `feature/m2-command-runner-bridge`, current HEAD `9ad247947c131c8e95711323ed7ce7ad2bff794f`.
+- Lockfile-only commit [`d54d80a`](https://github.com/c2melendez/precision-lab-plus/commit/d54d80af0294ba781d9d8d30114f82bb8891cc93) synchronized `frontend/package-lock.json` to `frontend/package.json`, including the existing security overrides. A temporary, subsequently removed validation workflow [run 41177671725](https://github.com/c2melendez/precision-lab-plus/actions/runs/41177671725) completed successfully: `npm ci`, typecheck, frontend unit tests and production build. This is targeted dependency evidence, not final PR CI on the current M2 SHA.
+- The normal current-head CI [run 41177839617](https://github.com/c2melendez/precision-lab-plus/actions/runs/41177839617) and Playwright [run 41177839673](https://github.com/c2melendez/precision-lab-plus/actions/runs/41177839673) were still queued at this record.
+- Both Lite/Plus Runner worker scripts now remove the stale Plus frontend-lockfile guard. The Plus `unit` profile performs clean frontend installation, backend pytest and frontend `npm test`; worker safety tests include this profile contract. No live worker dispatch was performed.
+
+**Operational boundary:** all three PRs remain Draft/open and unmerged; no production deploy, secret change, production DB migration, live workflow dispatch, command-generated PR or mathematical certification was performed. `BRIDGE_COMMAND_EXECUTION_ENABLED=false` remains the required state. O6/O7 remain PENDING. Component CI success does not prove real Bridge → Actions → Runner → receipt → Observer E2E.
 
 ## 10. Phase status at this revision
 
@@ -191,7 +215,7 @@ M1 se registra **PASS_SCOPED**: evidencia completa de código/CI/DB en el SHA ci
 | B | PASS (historical) | Observer contract/read checks; preserve evidence |
 | M0 | COMPLETED | Architecture v2 recorded in roadmap Markdown/JSON |
 | M1 | PASS_SCOPED | Command API, DB/RPC, scopes, Observer context client, routes and acceptance tests passed in CI on code SHA `b622a26605b1402c73fe1aff327fc2f1941bc1e2`; runtime deployment/live Observer auth not verified |
-| M2 | NOT_STARTED | Runner repository worker not implemented |
+| M2 | IN_PROGRESS | OIDC Runner, typed patch worker, leases, callbacks and DB lifecycle are implemented on Lite/Plus Draft PRs and Bridge branch. Bridge CI/DB checks pass; Lite remains blocked by npm audit; Plus normal PR checks are pending. No deploy or live dispatch, so phase acceptance is open |
 | M3 | NOT_STARTED | Route parity / hybrid paths acceptance |
 | M4 | NOT_STARTED | REST/OpenAPI, Function Calling, GPT Actions and MCP adapters |
 | M5 | NOT_STARTED / CONDITIONAL | SDKs, CLI, webhooks, A2A and framework/provider adapters |
@@ -202,7 +226,7 @@ The historical A/B results do not prove M1/M2. CI on this documentation commit d
 
 ## 11. Handoff prompt for an independent LLM
 
-> You are continuing Precision Lab Parallel Tool implementation. Read `docs/parallel-tool-implementation-master.md`, `docs/parallel-tool-roadmap.md`, and `docs/parallel-tool-roadmap.json` before acting. Use live GitHub repository state as source of truth. M1 is PASS_SCOPED on code SHA `b622a26605b1402c73fe1aff327fc2f1941bc1e2`, CI run 41172743808; do not repeat it absent invalidating evidence. M2 is the next phase and remains NOT_STARTED in this handoff. Begin it as a separate implementation block after the M1 acceptance record is reviewed. Keep GitHub/Supabase/Observer/Runner credentials server-side; never request or expose them to the LLM. Preserve old scopes and legacy routes; no arbitrary shell; no production deployment, live Runner dispatch, merge, or mathematical certification run unless explicitly authorized. Use expected-SHA concurrency protection. Verify all tests and CI against the exact final HEAD, record evidence using section 9, update the roadmap and this master with factual status, and proceed to the next phase without asking for routine continuation. If repository state differs from this document, report and reconcile against live source before editing.
+> You are continuing Precision Lab Parallel Tool implementation. Read `docs/parallel-tool-implementation-master.md`, `docs/parallel-tool-roadmap.md`, and `docs/parallel-tool-roadmap.json` before acting. Use live GitHub repository state as source of truth. M1 is PASS_SCOPED on code SHA `b622a26605b1402c73fe1aff327fc2f1941bc1e2`, CI run 41172743808; do not repeat it absent invalidating evidence. M2 is IN_PROGRESS: stabilize the existing Bridge PR #1, Lite PR #60 and Plus PR #41; review the current M2 evidence in section 10, finish exact-head target CI, and keep Lite's npm audit gate intact. Do not treat component-level CI as phase acceptance. Keep GitHub/Supabase/Observer/Runner credentials server-side; never request or expose them to the LLM. Preserve old scopes and legacy routes; no arbitrary shell; no production deployment, live Runner dispatch, merge, or mathematical certification run unless explicitly authorized. Keep `BRIDGE_COMMAND_EXECUTION_ENABLED=false`. Use expected-SHA concurrency protection. Record exact tests, SHA, workflow runs and blockers. Once M2 is accepted, continue M3 without asking for routine continuation. If repository state differs from this document, reconcile against live source before editing.
 
 ## 12. Related authoritative records
 

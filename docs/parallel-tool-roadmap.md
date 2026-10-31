@@ -1,7 +1,7 @@
 # Hoja de ruta — herramienta paralela para LLMs sin GitHub
 
-Fecha de actualización: 2026-10-30.
-Estado: arquitectura v2 multientrada/multicanal; M0 documentado; M1 PASS_SCOPED con migración/RPC, rutas, pruebas y CI exitosos en SHA `b622a26605b1402c73fe1aff327fc2f1941bc1e2`. Fases A/B permanecen cerradas. M2–M7 no iniciadas. El estado histórico O1–O7 corresponde al diseño v1 Observer-only y no define ya la aceptación multiagente. La certificación matemática de Lite/Plus sigue siendo el objetivo final.
+Fecha de actualización: 2026-10-31.
+Estado: arquitectura v2 multientrada/multicanal; M0 COMPLETED; M1 PASS_SCOPED; M2 IN_PROGRESS con worker OIDC en PRs Draft de Lite/Plus y Bridge CI/DB SUCCESS en el HEAD de trabajo. M3–M7 siguen pendientes. Fases A/B permanecen cerradas. El estado histórico O1–O7 corresponde al diseño v1 Observer-only y no define ya la aceptación multiagente. La certificación matemática de Lite/Plus sigue siendo el objetivo final.
 
 Este documento es la fuente de seguimiento. Sustituye la sección «Trabajo de integración pendiente» de `docs/observer-bridge-integration.md`. La evidencia más reciente de los HEAD y runs prevalece sobre los registros históricos de PR.
 
@@ -142,7 +142,16 @@ La fusión automática de PR no se presume. Solo puede ocurrir cuando un contrat
 
 **Conservación de trabajo previo:** Fases A/B de la integración Observer→Bridge (GET autenticado 200 y anónimo 401; contrato/OpenAPI y CI asociados) permanecen CERRADAS y no se repiten. No demuestran por sí solas la nueva Command API ni modificación de repositorios. La ruta Observer-only, las fases O1–O7 y su estado previo se conservan como historial de la arquitectura v1; quedan supersedidas como plan de aceptación final, no se borran como evidencia.
 
-**Estado actualizado tras la implementación M1 (2026-10-30/31):** M0 COMPLETED; M1 PASS_SCOPED en SHA `b622a26605b1402c73fe1aff327fc2f1941bc1e2`, CI [41172743808](https://github.com/c2melendez/precision-lab-bridge/actions/runs/41172743808) SUCCESS. M2–M7 siguen sin iniciar. La aceptación M1 cubre código, migración reproducible, RPC, tests y CI en DB local desechable; no implica deploy, configuración de `OBSERVER_SERVICE_KEY`, petición live, ejecución Runner ni certificación matemática.
+**Estado de M1 (conservado):** M0 COMPLETED; M1 PASS_SCOPED en SHA `b622a26605b1402c73fe1aff327fc2f1941bc1e2`, CI [41172743808](https://github.com/c2melendez/precision-lab-bridge/actions/runs/41172743808) SUCCESS. La aceptación M1 cubre código, migración reproducible, RPC, tests y CI en DB local desechable; no implica deploy, configuración de `OBSERVER_SERVICE_KEY`, petición live, ejecución Runner ni certificación matemática.
+
+**Reconciliación M2 (2026-10-31): IN_PROGRESS, no aceptada todavía.**
+- Bridge PR [#1](https://github.com/c2melendez/precision-lab-bridge/pull/1), HEAD `11108701f4f0699ecb9fffa72daaadb0d7f3937b`. CI [41177703847](https://github.com/c2melendez/precision-lab-bridge/actions/runs/41177703847) SUCCESS: tests unitarios, lint, build, cadena completa de migraciones, RLS/grants/RPC, contratos SQL legacy/M1/M2, suite DB de idempotencia/Command API (19/19) y `supabase db lint`.
+- Lite PR [#60](https://github.com/c2melendez/precision-lab-lite/pull/60), HEAD `18700426e5c014821fe8b337c53d772acb0fc4fc`. CI [41177838853](https://github.com/c2melendez/precision-lab-lite/actions/runs/41177838853): Runner safety-contract SUCCESS; frontend CI BLOCKED por el hard gate npm audit (11 findings: 3 low, 8 moderate); typecheck, tests y build quedan SKIPPED por el gate. No se redujo la política ni se degradaron dependencias para hacer pasar CI.
+- Plus PR [#41](https://github.com/c2melendez/precision-lab-plus/pull/41), HEAD `9ad247947c131c8e95711323ed7ce7ad2bff794f`. El lockfile se sincronizó en el commit [`d54d80a`](https://github.com/c2melendez/precision-lab-plus/commit/d54d80af0294ba781d9d8d30114f82bb8891cc93), conservando los overrides de seguridad. El workflow temporal de validación [41177671725](https://github.com/c2melendez/precision-lab-plus/actions/runs/41177671725) confirmó `npm ci`, typecheck, tests unitarios y build SUCCESS; luego se eliminó ese workflow. El CI normal actual [41177839617](https://github.com/c2melendez/precision-lab-plus/actions/runs/41177839617) y Playwright [41177839673](https://github.com/c2melendez/precision-lab-plus/actions/runs/41177839673) aún estaban QUEUED al corte.
+- Los workers de Lite/Plus admiten el perfil Plus `unit` con backend pytest más frontend `npm test`; se quitó el bloqueo temporal de patches a `frontend/` una vez sincronizado el lockfile. El test de contrato incluye esta conducta.
+- Los tres PR siguen Draft/abiertos. No se fusionó ni desplegó código, no se ejecutó workflow_dispatch ni se modificó Supabase remoto. `BRIDGE_COMMAND_EXECUTION_ENABLED=false`. O6/O7 permanecen PENDING; no existe aún traza E2E Bridge → Actions → Runner → recibo → Observer ni replay real sin duplicados.
+
+M2 no puede declararse PASS mientras los checks de los PR objetivo no terminen en sus SHA exactos y falte la aceptación end-to-end controlada.
 
 
 ## Estado ejecutivo
@@ -152,7 +161,7 @@ La fusión automática de PR no se presume. Solo puede ocurrir cuando un contrat
 | Repositorios Lite, Plus, Bridge y Observador | Públicos | Metadatos de repositorios |
 | Observador PR #4 | Abierto, Ready for review, no fusionado; HEAD `6e712094a7e4b06a13224f66d6f3a6c26f991152` | [PR #4](https://github.com/c2melendez/precision-lab-readonly-api/pull/4) |
 | Observador CI | PASS en HEAD actual | [Run 41064924977](https://github.com/c2melendez/precision-lab-readonly-api/actions/runs/41064924977) |
-| Bridge PR #1 | Abierto, Draft, no fusionado; HEAD `b622a26605b1402c73fe1aff327fc2f1941bc1e2` | [PR #1](https://github.com/c2melendez/precision-lab-bridge/pull/1) |
+| Bridge PR #1 | Abierto, Draft, no fusionado; HEAD `11108701f4f0699ecb9fffa72daaadb0d7f3937b` | [PR #1](https://github.com/c2melendez/precision-lab-bridge/pull/1) |
 | Bridge CI | PASS en el mismo HEAD `b622a26605b1402c73fe1aff327fc2f1941bc1e2` | [Run 41172743808](https://github.com/c2melendez/precision-lab-bridge/actions/runs/41172743808): ambos jobs SUCCESS, incluidas migraciones, seguridad DB y 19/19 tests DB |
 | Observador staging → Bridge independiente | Fase A PASS | HTTP 200 autenticado y 401 anónimo; UUID `94c102a5-5242-48ba-bdb7-4754a57513db` |
 | Evidencia de Actions del recibo | Run preexistente, no nuevo | Lite `41005884405`, cumulative, completed/success |

@@ -66,6 +66,71 @@ function Admin() {
     <main className="mx-auto max-w-5xl space-y-8 p-8 font-mono text-sm">
       <h1 className="text-xl font-bold">Precision Lab Bridge</h1>
 
+      <section className="space-y-3 rounded border border-border p-4">
+        <h2 className="font-semibold">Temporary TCA-1 consumer key</h2>
+        <p className="text-xs text-muted-foreground">
+          Short-lived key for one consumer. The raw value is shown once; copy it directly into that host's secret manager, never into an LLM prompt.
+        </p>
+        <div className="flex flex-wrap items-center gap-3">
+          <Input
+            value={tca1Label}
+            onChange={(e) => setTca1Label(e.target.value)}
+            placeholder="tca1-consumer-id"
+            aria-label="TCA-1 consumer label"
+          />
+          <Input
+            type="number"
+            min={5}
+            max={1440}
+            className="w-28"
+            value={tca1TtlMinutes}
+            onChange={(e) => setTca1TtlMinutes(Number(e.target.value))}
+            aria-label="TCA-1 TTL in minutes"
+          />
+          <span className="self-center text-muted-foreground">minutes (5–1440)</span>
+          <select
+            aria-label="TCA-1 access mode"
+            className="h-10 rounded border border-input bg-background px-3"
+            value={tca1AccessMode}
+            onChange={(e) => setTca1AccessMode(e.target.value as "read" | "submit")}
+          >
+            <option value="read">Read only — context:read</option>
+            <option value="submit">Submit — context:read + command:submit + command:read</option>
+          </select>
+          <Button
+            onClick={async () => {
+              setErr("");
+              setFreshTca1(null);
+              try {
+                const created = await createTca1({
+                  data: {
+                    password,
+                    label: tca1Label,
+                    ttlMinutes: tca1TtlMinutes,
+                    accessMode: tca1AccessMode,
+                  },
+                });
+                setFreshTca1(created);
+                await load();
+              } catch (e) {
+                setErr(e instanceof Error ? e.message : "TCA1_KEY_CREATE_FAILED");
+              }
+            }}
+          >
+            Create temporary key
+          </Button>
+        </div>
+        {freshTca1 && (
+          <div className="rounded border border-border bg-muted p-3">
+            <p className="mb-1 text-muted-foreground">Shown only once — store it securely now:</p>
+            <code className="break-all">{freshTca1.key}</code>
+            <p className="mt-2 text-xs text-muted-foreground">
+              ID: {freshTca1.key_id} · Scopes: {freshTca1.scopes.join(", ")} · Expires: {new Date(freshTca1.expires_at).toLocaleString()}
+            </p>
+          </div>
+        )}
+      </section>
+
       <section className="space-y-3">
         <h2 className="font-semibold">New key</h2>
         <div className="flex gap-2">

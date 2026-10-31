@@ -622,7 +622,7 @@ Las respuestas se contradicen en varios puntos (por ejemplo, Meta AI niega OpenA
 1. **Function Calling** aparece como mecanismo propio en 5 de 6 reportes, condicionado a que el host lo exponga. Es el primer adaptador de M4 y debe generarse desde el mismo OpenAPI y desde `GET /api/v1/capabilities`, sin esquemas escritos a mano.
 2. **Ningún agente sin endpoint público recibe notificaciones.** Los resultados de comandos se leen por pull: `GET /api/v1/commands/{id}` o `lookup` por `Idempotency-Key`.
 3. **Las pruebas del sandbox del consumidor no son validación.** Solo cuentan los perfiles allowlisted del Runner.
-4. **La excepción de GitHub delegado puede saltarse Bridge.** Un agente con escritura directa podría modificar una rama sin `expected_sha` ni evidencia. La excepción no puede aplicarse a agentes que también usan Bridge, y debe seguir las mismas reglas de rama, SHA y evidencia.
+4. **Un consumidor con conectores de escritura puede escribir fuera de Bridge.** Esto incluye GitHub, Render u otro conector. Sin `expected_sha` ni evidencia, ese cambio no pasa por las reglas del sistema. La excepción debe cubrir cualquier conector con capacidad de escritura, no solo GitHub, y ese consumidor no cuenta como sin credenciales para M6.
 5. **Falta un barrido en segundo plano.** El roadmap no define qué cierra comandos `accepted`/`queued` sin recibo ni leases vencidos. Las pruebas cubren la expiración solo en el claim. Debe diseñarse antes de cerrar M2.
 
 **Decisiones sobre los mecanismos propuestos.**
@@ -643,13 +643,35 @@ Las respuestas se contradicen en varios puntos (por ejemplo, Meta AI niega OpenA
 | Sub-agentes de una misma plataforma | Meta AI | No cuenta para M6 | M6 exige dos agentes con identidades y claves distintas. |
 
 **Ajustes al roadmap.**
-1. **Sonda por consumidor.** Cada LLM usa su propia clave. Verificar: `GET /api/v1/capabilities` y `GET /api/v1/context/status` con `context:read` (200); `POST` sin `command:submit` (403); `POST` con `command:submit` (202); replay exacto (200); `GET` por id y `lookup`. El resultado se registra por mecanismo y por consumidor. Estado: PENDIENTE hasta desplegar Bridge→Observer.
+1. **Sonda por consumidor.** Cada LLM usa su propia clave. Verificar: `GET /api/v1/capabilities` y `GET /api/v1/context/status` con `context:read` (200); `POST` sin `command:submit` (403); `POST` con `command:submit` (202); replay exacto (200); `GET` por id y `lookup`. El resultado se registra por mecanismo y por consumidor. Estado: PENDIENTE hasta desplegar Bridge→Observer. Batería ejecutable: `docs/parallel-tool-consumer-probe-battery.md` (33 pruebas, grupos A–F).
 2. **Rutas por consumidor.** La ruta se asigna según la sonda, no por diseño global. Un consumidor sin HTTP saliente usa un adaptador o la ruta híbrida.
 3. **Adaptador Function Calling (M4).** Se genera desde el mismo OpenAPI y desde `capabilities`.
-4. **Excepción GitHub revisada.** Sin escritura directa a ramas canónicas para agentes que usan Bridge.
+4. **Excepción de conectores revisada.** Ningún conector con capacidad de escritura (GitHub, Render u otro) escribe en ramas canónicas ni en infraestructura fuera de Bridge. Un agente que usa Bridge solo puede usar esos conectores en lectura, salvo trabajo no canónico autorizado con las mismas reglas de rama, `expected_sha` y evidencia. Cada conector se inventaría por consumidor sin invocar escrituras.
 5. **Barrido de comandos y leases.** Job en Bridge que mueve a `reconcile_required` los comandos vencidos sin recibo y los leases expirados, sin redespachar.
 6. **M6 con identidades reales.** Dos consumidores distintos, cada uno con su clave y su host.
 
 **Pendiente.** Identificar el runtime de cada consumidor (los reportes no lo dicen). No se asigna ruta a ningún consumidor hasta ejecutar su sonda.
 
 **Estado.** Esta revisión no cambia ningún estado PASS, PENDING o IN_PROGRESS. M0–M7 siguen igual. No hubo cambios de código, secretos, despliegues ni despachos.
+
+### Consumidor 4: Claude (2026-10-31)
+
+- **Fuente:** conversación exportada el 2026-10-31, 00:54 a 00:59 hora local. Autodeclaración, no probada.
+- **Plan declarado:** gratuito.
+- **Red de salida:** shell limitado a registros npm/pip y GitHub; lectura de páginas públicas con WebFetch (GET).
+- **Conectores MCP activos declarados:** Render y GitHub. Ambos con capacidad de escritura.
+- **Sin webhooks entrantes, sin A2A, sin tareas programadas** (según su propia declaración).
+- **Elegibilidad M6:** no. Tiene conectores de escritura de GitHub y Render; solo sería elegible desconectándolos durante la prueba, con registro de la desconexión.
+- **Ruta asignada:** ninguna hasta ejecutar la batería.
+- **Estado de sonda:** PENDIENTE.
+
+Condiciones de la sonda:
+1. El operador configura la clave por consumidor fuera del prompt.
+2. Ejecutar A1 a A7, B1 a B9 y C1 a C8 en modo lectura y validación.
+3. D1 a D3 solo con autorización explícita del operador.
+4. D4 bloqueada hasta que `BRIDGE_COMMAND_EXECUTION_ENABLED=true` y haya autorización.
+5. E1 y E2 solo como inventario de capacidades, sin invocar escrituras.
+6. Registrar plan y host con cada resultado.
+7. Ningún valor secreto en la salida.
+
+Posiciones 1 a 3 del registro: sin entradas previas en esta versión. Se asignan cuando se confirme su host y plan.

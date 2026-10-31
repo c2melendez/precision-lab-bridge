@@ -24,7 +24,8 @@ function enabled(): boolean {
 }
 
 export function commandExecutionEnabled(): boolean {
-  return enabled() && Boolean(process.env["GH_TOKEN"]);
+  const value = process.env["GH_TOKEN"];
+  return enabled() && typeof value === "string" && value.length > 0 && value.length <= 500;
 }
 
 function token(): string {

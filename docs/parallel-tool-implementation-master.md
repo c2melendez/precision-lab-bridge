@@ -228,8 +228,9 @@ The historical A/B results do not prove M1/M2. CI on this documentation commit d
 
 ### M6 — cualificación de consumidores y capacidades LLM
 
-M6 contiene dos pistas independientes, definidas en `docs/parallel-tool-consumer-probe-battery.md` v2.1.0:
+M6 contiene dos pistas independientes, definidas en `docs/parallel-tool-consumer-probe-battery.md` v2.2.0:
 - **Conectividad y seguridad (A–F):** rutas Observer/Bridge, scopes, contratos, idempotencia, aislamiento de rama, auditoría de conectores e higiene de secretos.
+- **TCA-1A/TCA-1B (H1–H8):** emisión de claves limitadas por minutos y perfiles de scope; configuración segura del cliente; inyección de cabecera; perfiles read/submit; idempotencia; expiración/revocación y redacción. H7 exige staging real.
 - **Capacidad técnica (CB1–CB10):** comprensión del repositorio, diagnóstico, planificación, generación de correcciones, selección de pruebas, interpretación de CI, corrección iterativa, incertidumbre, resistencia a prompt injection y continuidad multiagente.
 - **Acceso de credenciales (TCA):** TCA-1 inyecta claves Bridge desde el host sin revelarlas al modelo; TCA-2 usa exclusivamente un canary sintético en un laboratorio separado. G1–G5 son pruebas de exposición controlada, independientes de M6.
 
@@ -237,9 +238,18 @@ No confundir PASS de conectividad con competencia técnica ni benchmark offline 
 
 **Política de credenciales:** el operador provisiona claves de consumidor directamente en el gestor de secretos/host/MCP/conector; el runtime adjunta las cabeceras. Nunca pedir ni incluir claves en prompts, mensajes, archivos, argumentos visibles de herramientas o reportes. Si no existe una frontera segura que oculte el secreto al modelo, la prueba se marca `BLOCKED/credential_not_provisioned`. Cada consumidor tiene identidad propia y scopes mínimos. Secretos internos Bridge→Observer, GitHub, Supabase, Render y Runner permanecen server-side. El panel Bridge solo emite `X-Bridge-Key`; cualquier clave de consumidor `X-API-Key` de Observer es independiente y su emisión debe verificarse con el administrador de Observer. `OBSERVER_SERVICE_KEY` permanece únicamente en Bridge.
 
-**Emisión de claves Bridge:** esta rama contiene el panel de administración en `/` (`src/routes/index.tsx`) y la función `createKey` (`src/lib/bridge/admin.functions.ts`). El operador entra en el panel del despliegue verificado, introduce allí `BRIDGE_ADMIN_PASSWORD` directamente, asigna etiqueta/duración/scopes y crea la clave. La clave completa se muestra una sola vez; se copia directamente al secret store del host y no al prompt. Bridge persiste hash/prefijo, no el valor recuperable. Verificar que el SHA desplegado contiene esta implementación antes de depender del panel. La contraseña admin no es una credencial de consumidor.
+**Emisión de claves Bridge:** el panel general en `/` mantiene `createKey`; el flujo temporal nuevo añade `createTca1Key` en `src/lib/bridge/admin.functions.ts` y el formulario **Temporary TCA-1 consumer key** en `src/routes/index.tsx`. TCA-1A acepta TTL de 5–1440 minutos y solo perfiles read (`context:read`) o submit (`context:read`, `command:submit`, `command:read`). El valor se muestra una vez; la DB recibe hash/prefijo, scopes y expiración. Verificar el SHA desplegado antes de usarlo; la contraseña admin no es una credencial de consumidor.
 
-**Diseño TCA:** ver `docs/temporary-credential-access-design.md`. TCA-D0 queda documentado; TCA-1, Credential Lab TCA-2 y Credential Broker no están implementados ni habilitados. TCA-2 no es requisito de M6 ni permite utilizar una clave Bridge real visible al LLM.
+**Especificación TCA:** `docs/temporary-credential-access-design.md` v1.1.0 es la especificación de seguridad/implementación; `docs/parallel-tool-consumer-probe-battery.md` v2.2.0 es la batería ejecutable de certificación. TCA-1A (emisión temporal) y TCA-1B (cliente/handler registry server-side provider-neutral) tienen código candidato en esta rama; quedan pendientes CI del SHA final, H1–H8 y validación H7 en staging. No están desplegados/habilitados. TCA-2 Credential Lab y Credential Broker siguen como diseños futuros; G1–G5 no son requisito de M6.
+
+**Artefactos normativos de certificación Parallel Tool:**
+- `docs/parallel-tool-implementation-master.md`: autoridad de alcance, fases y criterios de aceptación.
+- `docs/parallel-tool-consumer-probe-battery.md` v2.2.0: 33 pruebas A–F, CB1–CB10, G1–G5 (investigación TCA-2) y H1–H8 (TCA-1A/TCA-1B).
+- `docs/temporary-credential-access-design.md` v1.1.0: especificación de amenazas, límites de confianza, flujos TCA, configuración del adaptador, criterios de aceptación y evolución a Credential Broker.
+- `docs/parallel-tool-command-openapi.v1.yaml`: contrato de la API Bridge.
+- `docs/parallel-tool-roadmap.md` y `docs/parallel-tool-roadmap.json`: estado y evidencia de las fases.
+
+**Regla de aceptación:** M6 no puede aprobarse solo con CI unitario. Requiere A–F + H1–H8 (incluido H7 live staging), CB1–CB10, dos modelos/identidades y dos transportes, y trazabilidad end-to-end. G1–G5/TCA-2 es investigación opcional y queda fuera de aceptación productiva. Los estados BLOCKED no cuentan como PASS.
 
 La aceptación M6 exige dos modelos LLM distintos (model_id/versión diferenciados), dos identidades de consumidor independientes y dos transportes reales, y una traza completa request → command → receipt → Actions → Runner → commit/PR → tests → reconciliación, con replay sin duplicado y sin credenciales GitHub entregadas a los agentes.
 
@@ -249,7 +259,8 @@ La aceptación M6 exige dos modelos LLM distintos (model_id/versión diferenciad
 
 ## 12. Related authoritative records
 
-- [Temporary Credential Access design](./temporary-credential-access-design.md)
+- [TCA-1/TCA-2 design and implementation specification](./temporary-credential-access-design.md)
+- [Consumer qualification battery v2.2.0](./parallel-tool-consumer-probe-battery.md)
 - [Architecture roadmap (Markdown)](./parallel-tool-roadmap.md)
 - [Architecture roadmap (JSON)](./parallel-tool-roadmap.json)
 - Bridge CI workflow: `.github/workflows/bridge-ci.yml`

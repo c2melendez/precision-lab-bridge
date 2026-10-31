@@ -5,7 +5,7 @@
   "as_of": "2026-10-31",
   "language": "es",
   "status": "m1_pass_scoped_m2_in_progress",
-  "summary": "M1 PASS_SCOPED. M2 IN_PROGRESS: Bridge OIDC dispatcher/lease/callback and typed workers exist on Draft PRs. Bridge code CI+DB passed on SHA 1110870...; newer docs HEAD validation has tests/lint/build success and disposable DB job queued. Lite and Plus now enforce npm audit inside every Node Runner profile. Lite current-head checks are queued; prior SHA exposed the existing npm audit hard-gate blocker. Plus prior-head CI passed; current SHA checks are running/queued. No deploy, merge, real dispatch or mathematical certification.",
+  "summary": "M1 PASS_SCOPED. M2 IN_PROGRESS: Bridge OIDC dispatcher/lease/callback and typed workers exist on Draft PRs. Bridge code CI+DB passed on SHA 1110870...; newer docs HEAD validation has tests/lint/build success and disposable DB job queued. Lite and Plus now enforce npm audit inside every Node Runner profile. Lite current-head checks are queued; prior SHA exposed the existing npm audit hard-gate blocker. Plus prior-head CI passed; current SHA checks are running/queued. No deploy, merge, real dispatch or mathematical certification. Revisión de mecanismos reportados por LLM (2026-10-31): sin cambio de arquitectura v2; se añaden invariantes de finalización por pull, evidencia por sonda de cada consumidor y revisión de la excepción GitHub delegado.",
   "canonical_markdown": {
     "repo": "c2melendez/precision-lab-bridge",
     "branch": "hardening/secure-status-independent-runtime",
@@ -285,7 +285,10 @@
     "GitHub Actions SUCCESS, command completed, test PASS and mathematical certification PASS remain distinct states.",
     "Existing A/B Observer→Bridge read tests remain closed and are not repeated absent invalidating changes.",
     "Routine operations inside delegated scope need no human approval per event; escalate material unresolved decisions.",
-    "Keep existing certification-runner.yml as gate executor; any repository worker workflow is an entrypoint in the same Runner execution plane, not a second Runner service."
+    "Keep existing certification-runner.yml as gate executor; any repository worker workflow is an entrypoint in the same Runner execution plane, not a second Runner service.",
+    "Command completion is observed by pull only: an agent without an inbound endpoint reads GET /api/v1/commands/{command_id} or lookup by Idempotency-Key. Bridge never pushes results to LLMs.",
+    "Self-declared LLM capabilities and results from a consumer's own sandbox are hypotheses or local checks. Only a per-consumer probe against Bridge or Observer using that consumer's own key, and allowlisted Runner profiles, count as evidence.",
+    "A consumer with delegated GitHub access must not write to a canonical branch outside Bridge's expected_sha and evidence rules, and the GitHub exception must not be used to bypass Bridge for agents that also use Bridge."
   ],
   "phases": [
     {
@@ -463,7 +466,11 @@
     "Do not confuse command acceptance, workflow SUCCESS, test PASS and mathematical certification PASS.",
     "Do not reopen phases A/B or repeat their read-only tests unless a code/contract change invalidates the evidence.",
     "Do not require human approval per routine operation already within delegated policy; escalate material unresolved decisions only.",
-    "Do not merge PR, deploy production, rotate/revoke production credentials or change production routing as a side effect of this documentation decision."
+    "Do not merge PR, deploy production, rotate/revoke production credentials or change production routing as a side effect of this documentation decision.",
+    "Do not add GraphQL, gRPC, raw TCP/SSH, Git transports, WebSocket command channels, voice/realtime, or browser/computer-use paths to the command plane.",
+    "Do not count a consumer's sandbox tests, generated specs or curl results as Lite/Plus validation or as proof of access to Observer or Bridge.",
+    "Do not assign a consumer a route from its self-description; assign it only after its consumer probe.",
+    "Do not let sub-agents of a single platform stand in for two independent agents in M6 acceptance."
   ],
   "definition_of_done": {
     "required_phases": [
@@ -1411,7 +1418,8 @@
     "Lite PR #60 current HEAD f7c4cf6ac31967b74e936ba38d1597404e652e33 has new npm audit enforcement in every Runner Node profile; current CI/E2E/cross-browser runs are queued. Prior CI failed at npm audit with 11 findings (3 low, 8 moderate), while prior worker-head Playwright and cross-browser succeeded.",
     "Plus PR #41 current HEAD 5288fae3f42065e3246f62e9f017098a1bad5cc4 has new npm audit enforcement in every Runner Node profile; current CI is running and Playwright queued. Prior worker-head normal CI and S23/S25/S20/S21 checks passed; earlier E2E/S19 mutation runs were still running at last observation.",
     "Every Node-based Runner profile runs npm ci then npm audit --package-lock-only before tests/lint/typecheck/build. Lite's audit gate is not waived or softened.",
-    "BRIDGE_COMMAND_EXECUTION_ENABLED remains false. No live dispatch, deploy, production DB migration, secret update, merge, command-generated PR or mathematical certification performed. Observer live auth is not verified; M3 covers file/context parity. O6/O7 remain PENDING."
+    "BRIDGE_COMMAND_EXECUTION_ENABLED remains false. No live dispatch, deploy, production DB migration, secret update, merge, command-generated PR or mathematical certification performed. Observer live auth is not verified; M3 covers file/context parity. O6/O7 remain PENDING.",
+    "Reportes de LLM (2026-10-31): las respuestas son autodeclaraciones; solo las pruebas de Qwen Coder se ejecutaron, y solo demuestran salida HTTPS del sandbox a endpoints públicos. Ninguna sonda contra Bridge u Observer se ejecutó en esta revisión."
   ],
   "latest_m2_reconciliation": {
     "as_of": "2026-10-31",
@@ -1488,5 +1496,186 @@
       "o6": "PENDING",
       "o7": "PENDING"
     }
+  },
+  "llm_mechanism_review_2026_10_31": {
+    "status": "DOCUMENTARY_DECISION_RECORDED",
+    "as_of": "2026-10-31",
+    "scope": "Six exported conversations (Copilot, Qwen, Qwen Coder, DeepSeek, Gemini, Meta AI) listing the mechanisms each LLM believes it can use, reviewed against the P0-P3 catalog and the v2 architecture.",
+    "evidence_classification": {
+      "self_report_only": [
+        "Copilot",
+        "Qwen",
+        "DeepSeek",
+        "Gemini",
+        "Meta AI"
+      ],
+      "sandbox_probe_not_precision_lab_evidence": [
+        "Qwen Coder"
+      ],
+      "sandbox_probe_detail": "Public curl to api.github.com without credentials, validation of a sample OpenAPI 3.0.3 spec, and urllib/https requests to public endpoints. These prove outbound HTTPS from the sandbox only."
+    },
+    "contradictions_observed": [
+      "Meta AI states it has no OpenAPI capability; Qwen Coder validated an OpenAPI 3.0.3 sample in its sandbox.",
+      "Copilot gives two different answers to the same question across its two exports.",
+      "Copilot and DeepSeek say a GitHub connector may exist; Qwen Coder found no token or GitHub App in its environment.",
+      "Qwen's export truncates the user's first message; Gemini refers to a second image with /api/v1/ routes that is not part of this review."
+    ],
+    "verdict": "The v2 architecture does not change. Most reports say they cannot call an arbitrary REST API, MCP server or webhook on their own, so the practical bottleneck is the host adapter per deployment, not the Command API. Routes are assigned per consumer after probing.",
+    "findings": [
+      "Function Calling is named as a consumer's own mechanism in 5 of 6 reports, but every report conditions it on the host exposing the tool. It is the first adapter to build in M4, generated from the same OpenAPI document.",
+      "No agent without a public endpoint can receive inbound notifications, so command outcomes are read by pull (GET by command_id or lookup by Idempotency-Key).",
+      "Consumer sandboxes can run local checks and generate patches, but their results are never validation evidence for Lite/Plus.",
+      "A consumer with delegated GitHub access could write without passing through Bridge. The exception needs the same branch, SHA and evidence rules, and must not apply to agents that already use Bridge.",
+      "The roadmap does not define a background process that closes abandoned accepted/queued commands or expired leases without a receipt. Bridge tests cover lease expiry at claim time only. This must be designed before M2 closes."
+    ],
+    "candidate_decisions": [
+      {
+        "id": "streaming_status",
+        "mechanism": "SSE or WebSocket for status",
+        "reported_by": [
+          "Qwen",
+          "DeepSeek",
+          "Copilot",
+          "Qwen Coder"
+        ],
+        "decision": "DEFERRED_OPTIONAL",
+        "condition": "Read-only GET /api/v1/commands/{command_id}/events after M3, only if polling is shown insufficient. Polling remains the baseline."
+      },
+      {
+        "id": "outbound_push_to_llm",
+        "mechanism": "Outbound notifications to the agent",
+        "reported_by": [
+          "Qwen"
+        ],
+        "decision": "REJECTED_AS_MECHANISM",
+        "condition": "Adopted as invariant: completion is observed by pull only."
+      },
+      {
+        "id": "scheduled_jobs",
+        "mechanism": "Scheduled tasks and reminders",
+        "reported_by": [
+          "Meta AI"
+        ],
+        "decision": "ADOPTED_INTERNAL_NEED",
+        "condition": "Not an LLM mechanism. Needed as a Bridge background sweep for abandoned commands and expired leases; design before M2 closes."
+      },
+      {
+        "id": "code_sandbox",
+        "mechanism": "Code execution sandbox",
+        "reported_by": [
+          "Copilot",
+          "DeepSeek",
+          "Qwen",
+          "Qwen Coder",
+          "Meta AI"
+        ],
+        "decision": "CONSUMER_SIDE_ONLY",
+        "condition": "Consumers may run local checks; only Runner allowlisted profiles count as validation."
+      },
+      {
+        "id": "artifacts_files",
+        "mechanism": "File attachments and storage references",
+        "reported_by": [
+          "Qwen"
+        ],
+        "decision": "ALREADY_COVERED",
+        "condition": "artifact_refs in the Command API envelope."
+      },
+      {
+        "id": "rag_memory",
+        "mechanism": "RAG, vector store, persistent memory",
+        "reported_by": [
+          "Copilot",
+          "Qwen",
+          "DeepSeek"
+        ],
+        "decision": "DEFERRED",
+        "condition": "If needed, lives in Observer as information plane. A separate semantic index would become a second source of truth."
+      },
+      {
+        "id": "tool_discovery",
+        "mechanism": "Dynamic tool discovery",
+        "reported_by": [
+          "Copilot",
+          "Qwen"
+        ],
+        "decision": "ALREADY_COVERED",
+        "condition": "GET /api/v1/capabilities; it should also be the source for generated tool schemas."
+      },
+      {
+        "id": "git_ssh_tcp_grpc",
+        "mechanism": "Git over HTTPS, SSH, raw TCP, gRPC",
+        "reported_by": [
+          "Qwen Coder",
+          "Copilot",
+          "DeepSeek"
+        ],
+        "decision": "REJECTED",
+        "condition": "Conflicts with no arbitrary shell and with writes only through typed operations. gRPC duplicates the REST contract with no consumer requesting it."
+      },
+      {
+        "id": "graphql",
+        "mechanism": "GraphQL",
+        "reported_by": [
+          "DeepSeek"
+        ],
+        "decision": "REJECTED",
+        "condition": "Duplicates the OpenAPI contract without a consumer that needs it."
+      },
+      {
+        "id": "voice_browser_desktop",
+        "mechanism": "Voice/WebRTC, browser or desktop control",
+        "reported_by": [
+          "Qwen",
+          "DeepSeek"
+        ],
+        "decision": "REJECTED",
+        "condition": "Outside the scope of the command plane."
+      },
+      {
+        "id": "personal_connectors",
+        "mechanism": "Personal and enterprise connectors (mail, drives, chat, calendar, social graph)",
+        "reported_by": [
+          "Copilot",
+          "Meta AI"
+        ],
+        "decision": "REJECTED",
+        "condition": "These are host connectors, not Precision Lab mechanisms."
+      },
+      {
+        "id": "sub_agents",
+        "mechanism": "Sub-agents of one platform",
+        "reported_by": [
+          "Meta AI"
+        ],
+        "decision": "NOT_COUNTED_FOR_M6",
+        "condition": "M6 requires two independent agents with separate identities and keys."
+      },
+      {
+        "id": "web_search",
+        "mechanism": "Web search",
+        "reported_by": [
+          "Copilot",
+          "Meta AI",
+          "DeepSeek"
+        ],
+        "decision": "OUTSIDE_COMMAND_PLANE",
+        "condition": "Host tool; does not change the contract."
+      }
+    ],
+    "roadmap_adjustments": [
+      "Consumer probe: each LLM that connects uses its own key. Checks: GET /api/v1/capabilities and GET /api/v1/context/status return 200 with context:read; POST without command:submit returns 403; POST with command:submit returns 202; exact replay returns 200; GET by command_id and lookup succeed. Record result per mechanism and per consumer. Status: PENDING until Bridge to Observer is deployed and configured.",
+      "Routes are assigned per consumer from probe results, not from a global design. A consumer without outbound HTTP uses an adapter or the hybrid route.",
+      "Function Calling adapter (M4): generate tool schemas from the same OpenAPI document and from GET /api/v1/capabilities. Do not maintain separate hand-written schemas.",
+      "GitHub exception: no agent that uses Bridge may also hold direct write access to canonical branches. Agents with delegated GitHub access follow the same branch, expected_sha and evidence rules.",
+      "Add a Bridge background sweep for accepted/queued commands without receipt and for expired leases, moving them to reconcile_required without redispatch. Design and test before M2 closes.",
+      "M6 uses two independent consumers, each with its own key and host. Sub-agents of one platform do not count."
+    ],
+    "open_items": [
+      "Identify the host runtime of each consumer LLM; the reports do not state it and cannot be assumed.",
+      "Confirm the design of the background sweep (schedule, lease expiry window, reconcile_required transition).",
+      "Run the consumer probe after OBSERVER_SERVICE_KEY is configured and the Bridge build is deployed. Until then no route is assigned to any consumer."
+    ],
+    "no_state_changes": "This review changes no PASS, PENDING or IN_PROGRESS status. M0-M7 are unchanged. No code, secrets, deployments or workflow dispatches were involved."
   }
 }

@@ -5,7 +5,7 @@
   "as_of": "2026-10-31",
   "language": "es",
   "status": "m1_pass_scoped_m2_in_progress",
-  "summary": "M1 PASS_SCOPED. M2 IN_PROGRESS. Bridge current HEAD 50978189950cd36cdae6ea4e19f87006ce1aa1d5 passed full CI+DB validation. Lite current-head Runner safety-contract, Playwright E2E and cross-browser passed; normal CI is blocked solely by npm audit (11 findings: 3 low, 8 moderate, 0 high/critical), including upstream deepmerge@4.3.1 with no patched npm release. Plus current-head normal CI passed; Playwright E2E is still in progress. All PRs remain Draft; no deploy, merge, live dispatch or mathematical certification. User-authored mechanism review is preserved. M6 acceptance is extended to include the A–F consumer connectivity/security battery and CB1–CB10 LLM capability benchmark; credentials must be runtime-injected and never exposed to models.",
+  "summary": "M1 PASS_SCOPED. M2 IN_PROGRESS. Bridge current HEAD 50978189950cd36cdae6ea4e19f87006ce1aa1d5 passed full CI+DB validation. Lite current-head Runner safety-contract, Playwright E2E and cross-browser passed; normal CI is blocked solely by npm audit (11 findings: 3 low, 8 moderate, 0 high/critical), including upstream deepmerge@4.3.1 with no patched npm release. Plus current-head normal CI passed; Playwright E2E is still in progress. All PRs remain Draft; no deploy, merge, live dispatch or mathematical certification. User-authored mechanism review is preserved. M6 acceptance is extended to include the A–F consumer connectivity/security battery and CB1–CB10 LLM capability benchmark; credentials must be runtime-injected and never exposed to models. TCA v1.0.0 is documented only: TCA-1 host injection, TCA-2 isolated canary lab, and future OAuth/OIDC Credential Broker. None is deployed or enabled; no credential was created.",
   "canonical_markdown": {
     "repo": "c2melendez/precision-lab-bridge",
     "branch": "hardening/secure-status-independent-runtime",
@@ -431,16 +431,16 @@
         "M4"
       ],
       "steps": [
-        "Ejecutar la batería A–F de conectividad, contrato, scopes, idempotencia, seguridad y frontera de secretos por consumidor.",
-        "Provisionar una identidad/clave propia por consumidor en el gestor de secretos/host MCP/conector; el runtime adjunta la cabecera y el LLM nunca recibe el valor. Si no hay frontera segura: BLOCKED/credential_not_provisioned.",
-        "Ejecutar CB1–CB10 con fixtures versionados para comprensión, diagnóstico, planificación, patches, selección de pruebas, interpretación CI, corrección iterativa, incertidumbre, prompt injection y continuidad multiagente.",
+        "Ejecutar batería A–F v2.1.0: conectividad, contrato, scopes, idempotencia, seguridad y frontera de secretos por consumidor con TCA-1 o Broker equivalente.",
+        "Provisionar identidad individual en host/secret manager; el runtime adjunta la cabecera y el LLM nunca recibe el valor. Si no existe frontera segura: BLOCKED/credential_not_provisioned.",
+        "Ejecutar CB1–CB10 con fixtures versionados. G1–G5/TCA-2 son una investigación opcional e independiente, no requisito de M6/producción.",
         "Comparar modelos con mismo prompt, fixture/SHA, transporte, permisos y presupuesto; procurar al menos tres repeticiones por modelo/tarea y registrar host/transporte como factores separados.",
         "Use two distinct LLM models (different model IDs/versions), separate consumer identities/API keys and at least two real transport mechanisms; do not provide GitHub credentials to either agent.",
         "Leer estado/archivos, diagnosticar una corrección autorizada, enviar patch, ejecutar validaciones, obtener commit/PR y reconciliar recibos.",
         "Ejercitar 401/403, SHA obsoleto, WAIT/REUSE, conflicto de payload, replay exacto, concurrencia, timeout, callback fallido y prompt injection.",
         "Demostrar que no hay workflow duplicado y conservar traza request→command→receipt→Actions→Runner→commit/PR→test evidence."
       ],
-      "exit_criteria": "Dos modelos LLM distintos (model_id/version diferenciados), con dos identidades independientes y al menos dos transportes, completan el flujo autorizado sin credenciales GitHub entregadas a los agentes; la traza es completa, replay no duplica y el perfil CB1–CB10 queda publicado con fixtures y repeticiones comparables. Las pruebas bloqueadas por despliegue/secretos se reportan BLOCKED, no PASS."
+      "exit_criteria": "Dos modelos LLM distintos (model_id/version diferenciados), con identidades independientes y dos transportes, completan flujo autorizado mediante TCA-1 o Credential Broker sin credenciales GitHub entregadas a agentes; traza completa, replay sin duplicado y benchmark CB1–CB10 reproducible. TCA-2/G1–G5 no forma parte de la aceptación productiva. BLOCKED no se declara PASS."
     },
     {
       "id": "M7",
@@ -1784,17 +1784,19 @@
     }
   },
   "consumer_probe_battery": {
-    "version": "2.0.0",
+    "version": "2.1.0",
     "markdown_path": "docs/parallel-tool-consumer-probe-battery.md",
     "connectivity_security_tests": 33,
     "capability_benchmark_tests": 10,
+    "credential_exposure_lab_tests": 5,
     "test_groups": [
       "A",
       "B",
       "C",
       "D",
       "E",
-      "F"
+      "F",
+      "G"
     ],
     "benchmark_tests": [
       "CB1",
@@ -1807,6 +1809,30 @@
       "CB8",
       "CB9",
       "CB10"
+    ],
+    "credential_lab_tests": [
+      "G1",
+      "G2",
+      "G3",
+      "G4",
+      "G5"
     ]
+  },
+  "tca_design": {
+    "version": "1.0.0",
+    "document": "docs/temporary-credential-access-design.md",
+    "design_status": "documented",
+    "implementation_status": {
+      "TCA_1": "not_implemented",
+      "TCA_2_credential_lab": "not_implemented",
+      "credential_broker": "not_implemented"
+    },
+    "TCA_1": "host-injected Bridge credential; secret not visible to model; provisional operational mode",
+    "TCA_2": "separate synthetic canary lab; no Bridge/repository/production access",
+    "TCA_2_bridge_readonly": "future_optional_blocked",
+    "credential_broker": "future OAuth 2.1/OIDC identity and short-lived scoped token service",
+    "TCA_2_required_for_M6": false,
+    "no_credentials_created": true,
+    "no_production_changes": true
   }
 }

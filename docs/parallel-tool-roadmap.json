@@ -1761,7 +1761,26 @@
       "GH_TOKEN",
       "SUPABASE_SECRET_KEY",
       "BRIDGE_ADMIN_PASSWORD"
-    ]
+    ],
+    "key_issuance": {
+      "admin_ui_route": "/",
+      "implementation_files": [
+        "src/routes/index.tsx",
+        "src/lib/bridge/admin.functions.ts"
+      ],
+      "admin_auth_secret": "BRIDGE_ADMIN_PASSWORD",
+      "scopes_selectable": [
+        "context:read",
+        "command:submit",
+        "command:read",
+        "read",
+        "dispatch"
+      ],
+      "raw_key_display": "once_only",
+      "persistence": "sha256 hash and key prefix; raw credential is not recoverable",
+      "deployment_guard": "verify the actual deployed SHA contains this UI before relying on it",
+      "copy_destination": "directly into the consumer host/secret manager; never into prompts or chat"
+    }
   },
   "consumer_probe_battery": {
     "version": "2.0.0",

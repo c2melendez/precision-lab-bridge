@@ -1,7 +1,7 @@
 # Hoja de ruta — herramienta paralela para LLMs sin GitHub
 
 Fecha de actualización: 2026-10-30.
-Estado: fases A/B cerradas; el Certification Runner Lite/Plus está PASS_SCOPED_PUSH_ONLY, mientras que la cadena E2E Observer→Bridge→Actions→Runner y el replay idempotente siguen sin certificar. O5 IN_PROGRESS, O6 PENDING por ausencia deliberada de dispatch real y O7 PENDING. La certificación matemática de Lite y Plus continúa siendo el objetivo final.
+Estado: decisión arquitectónica v2 multientrada/multicanal registrada; M0 documentado. Fases A/B Observer→Bridge permanecen cerradas. M1–M7 pendientes según implementación. El estado histórico O1–O7 corresponde al diseño v1 Observer-only y no define ya la aceptación multiagente. La certificación matemática de Lite/Plus sigue siendo el objetivo final.
 
 Este documento es la fuente de seguimiento. Sustituye la sección «Trabajo de integración pendiente» de `docs/observer-bridge-integration.md`. La evidencia más reciente de los HEAD y runs prevalece sobre los registros históricos de PR.
 
@@ -16,20 +16,134 @@ Este documento es la fuente de seguimiento. Sustituye la sección «Trabajo de i
 
 Un LLM sin GitHub es el consumidor previsto de Observador. El LLM que construye/mantiene la herramienta necesita acceso a GitHub; el humano administra Render y los secretos.
 
-## Decisión de diseño vigente — Observer como único interlocutor del LLM
+## Decisión arquitectónica v2 — arquitectura multientrada y multicanal (2026-10-30)
 
-La arquitectura canónica es **LLM → Observer → Bridge → GitHub Actions Runner → Lite/Plus**, con retorno de recibos, estados y evidencias **Lite/Plus → Runner → Bridge → Observer → LLM**.
+**Esta es la decisión arquitectónica vigente y tiene prioridad sobre todas las secciones históricas posteriores que describan Observer como único interlocutor, prohíban el acceso LLM→Bridge o limiten Bridge a llamadas server-to-server de Observer.** La modificación documenta el diseño aprobado; no declara implementados los componentes pendientes.
 
-- **LLM / Action:** una sola conexión hacia Observer. Puede consultar y solicitar una operación; no conoce URL, claves ni endpoints de Bridge/GitHub.
-- **Observer:** interfaz central, plano de control y orquestador. Integra las consultas de estado de Bridge con las lecturas GitHub existentes, evalúa plan/estado, valida autorización y scopes, decide RUN/WAIT/REUSE/RECONCILE y, cuando la solicitud está autorizada, invoca Bridge de servidor a servidor.
-- **Bridge:** componente interno de despacho, recibos e idempotencia. Solo acepta solicitudes autenticadas desde Observer; aplica allowlist y validación final, registra la operación y despacha el workflow fijo. No es una Action ni una API consumida directamente por el LLM.
-- **Runner:** ejecuta los workflows ya existentes en Lite/Plus y publica evidencia. No se crea un segundo Runner ni se duplica la lógica de planificación.
+### Objetivo de resultado
 
-No se añade una nueva capa o servicio. Se reutilizan Observer, Bridge, los runners actuales, Render y Supabase ya desplegados. GET /v1/bridge/runs/{run_id} queda integrado como lectura de Observer; el siguiente cambio funcional es una operación protegida de solicitud de despacho en Observer, que internamente llama POST /api/runs de Bridge.
+Cualquier LLM/agente autorizado debe poder completar las operaciones que establece el prompt de continuidad de Precision Lab —leer el estado y los archivos, diagnosticar, proponer y aplicar cambios, ejecutar pruebas, generar commits/PR, despachar gates, observar resultados, corregir y continuar— **sin necesitar credenciales ni acceso directo a GitHub**.
 
-La autorización debe validarse en Observer antes de llamar Bridge y volver a validarse en Bridge con una credencial de servicio y permisos/scopes limitados. La Action solo recibe la credencial de Observer. La clave Bridge nunca se devuelve ni se documenta en el contrato público de la Action. Idempotency-Key debe conservarse extremo a extremo; los timeouts o resultados ambiguos pasan a reconciliación, nunca a reintento ciego.
+La arquitectura admite varias entradas y transportes. Observer, Bridge y Runner son componentes con responsabilidades distintas; no son una cadena obligatoria que todo agente deba recorrer en el mismo orden.
 
-La autorización operativa general del usuario permite automatizar el flujo ordinario dentro de los repositorios, gates, ramas, workflows y límites ya definidos. No se exige aprobación humana por cada despacho. dry_run=true en Bridge también inicia un workflow y debe tratarse como ejecución real: puede utilizarse automáticamente solo cuando la operación esté dentro de la política preaprobada y sus pruebas la permitan.
+### Responsabilidades no duplicadas
+
+| Componente | Responsabilidad vigente | No debe hacer |
+|---|---|---|
+| **Observer — plano de información y política** | Fuente de contexto del proyecto: estado bilateral, ramas/HEAD, lectura de archivos/repositorio, continuidad, planificación RUN/WAIT/REUSE/RECONCILE/REFRESH, evidencia y evaluación de bloqueos. Expone API de lectura y puede recibir solicitudes de ejecución que delega a Bridge. | No guardar idempotencia transaccional de comandos ni ejecutar commits directamente. |
+| **Bridge — puerta multiagente y plano de comandos** | Entrada directa para agentes, autenticación e identidad por cliente, scopes, contrato común de comandos, validación final, idempotencia durable, cola/lease, recibos, coordinación y reconciliación. Cuando entra una solicitud directa, consulta Observer internamente para obtener contexto/política actuales. También acepta solicitudes procedentes de Observer. | No confiar en un plan, SHA, autorización o conclusión declarados por el LLM; no dar al LLM credenciales GitHub/Supabase ni ejecutar shell arbitrario. |
+| **Runner — plano de ejecución** | Ejecuta los comandos tipados que autoriza Bridge dentro de GitHub Actions en Lite/Plus. Mantiene los workflows actuales de certificación y añade la capacidad controlada de modificar archivos, ejecutar perfiles de prueba, producir commits/PR y devolver evidencia. | No exponer credenciales GitHub al LLM, aceptar comandos arbitrarios ni duplicar el planificador/idempotencia de Bridge. |
+
+### Entradas y rutas válidas
+
+Un agente puede utilizar una sola ruta o combinar lectura y escritura por rutas diferentes:
+
+1. **LLM → Observer → Bridge → Runner.** Ruta de contexto y planificación; adecuada para agentes que consumen Observer/OpenAPI o necesitan primero leer y decidir.
+2. **LLM → Bridge → Runner.** Ruta directa de comandos. Bridge valida el cliente y consulta Observer internamente para recuperar estado, archivos, rama canónica, SHA y decisión vigente antes de ejecutar. El agente no necesita llamar Observer por separado.
+3. **LLM → Observer (GET) + LLM → Bridge (POST).** Ruta híbrida. El agente lee estado/archivos/plan desde Observer y envía el cambio directamente a Bridge.
+4. **LLM con GitHub autorizado → GitHub Actions/Runner.** Excepción para agentes que ya tienen acceso delegado a GitHub. No es requisito ni ruta base para un LLM sin GitHub; se somete a los mismos contratos de rama, cambios, pruebas y evidencia.
+
+**Runner no será una API pública independiente para LLM.** GitHub Actions es el runtime de ejecución; sin una credencial GitHub, el agente inicia la tarea a través de Bridge. No se debe crear un tercer servicio para resolver el acceso directo.
+
+En la ruta Bridge directa, Bridge debe poder consultar Observer mediante una identidad de servicio interna dedicada. Se propone configurar `OBSERVER_BASE_URL` y `OBSERVER_SERVICE_KEY` en el runtime Bridge; nunca se entregan al LLM. Observer conserva su token GitHub de solo lectura. Bridge conserva las credenciales de despacho y Supabase solo en servidor. La existencia/configuración actual de esa conexión Bridge→Observer no se presume.
+
+### Catálogo oficial de mecanismos de integración
+
+El catálogo es exhaustivo como inventario inicial de mecanismos, pero cada elemento tendrá estado independiente (implementado, adaptador pendiente, probado o no aplicable). No se debe inferir soporte real por aparecer en esta lista.
+
+| Prioridad | Mecanismo / familia | Conexión prevista | Disposición |
+|---|---|---|---|
+| P0 | REST/HTTPS | Observer y Bridge | Contrato base común; ampliar Bridge para comandos tipados. |
+| P0 | OpenAPI | Observer y Bridge | Especificación versionada/importable para generar clientes y herramientas. |
+| P0 | Function Calling / Tool Use | Adaptador de herramientas hacia Observer o Bridge | Esquemas JSON estables; el host ejecuta las llamadas HTTP. |
+| P1 | GPT Actions | Observer y, cuando el cliente/contrato lo permita, Bridge | Action como adaptador OpenAPI; credencial como secreto de autenticación, nunca en el prompt. |
+| P1 | MCP remoto (Streamable HTTP) | Servidores MCP en Observer y Bridge | Tools de lectura/contexto y comandos; transporte remoto autenticado. |
+| P1 | MCP local (stdio) | Adaptador/CLI local que reenvía a Observer o Bridge | No duplica lógica; usa las mismas API y credenciales locales seguras. |
+| P2 | SDK Python | Observer y Bridge | Cliente tipado con auth, correlación, polling y reconciliación. |
+| P2 | SDK TypeScript/JavaScript | Observer y Bridge | Equivalente al SDK Python; mismo contrato. |
+| P2 | CLI | Observer y Bridge | Comandos para agentes con terminal; configuración por entorno/gestor de secretos. |
+| P3 | Webhooks firmados | Bridge | Entrada de eventos/tareas desde sistemas externos; firma, timestamp, replay protection y allowlist. |
+| P3 | A2A (Agent2Agent) | Bridge como endpoint de tareas/agente | Agent Card, creación/consulta de tareas y artefactos; se implementa como adaptador del Command API. |
+| P3 | Frameworks de agentes | Adaptadores hacia SDK/API común | LangChain, LangGraph, CrewAI, AutoGen, LlamaIndex y otros; no crear APIs particulares por framework. |
+| P3 | Integraciones nativas de proveedores | Adaptadores según capacidades reales | Conectores/tools de proveedores; validar por proveedor y no asumir compatibilidad universal. |
+| Excepción | GitHub App / GitHub Connector / token delegado | GitHub/Runner | Solo agentes con acceso propio autorizado; nunca requisito del sistema multi-LLM. |
+
+OpenAPI, MCP, SDK, CLI, A2A, webhooks y Function Calling son superficies/adaptadores del mismo contrato; no son motores de ejecución separados. Los adaptadores locales/remotos no deben tener políticas distintas.
+
+### Command API común de Bridge
+
+Se establece como contrato objetivo una **Command API versionada y tipada**. Las rutas siguientes son propuestas contractuales; salvo los endpoints existentes documentados por separado, no se deben presentar como implementadas hasta que haya código, CI y prueba live.
+
+| Método | Ruta propuesta | Propósito |
+|---|---|---|
+| GET | `/api/v1/capabilities` | Capacidades, versiones, operaciones y límites disponibles para esa identidad. |
+| GET | `/api/v1/context/status` | Proxy interno/sanitizado del estado de Observer para clientes Bridge-only. |
+| GET | `/api/v1/context/files/{repo}/{path}` | Lectura de archivos/repositorio autorizados delegada al plano de información Observer. |
+| GET | `/api/v1/context/gates/{gate}/plan` | Plan actual live; nunca autoriza por sí solo al cliente a saltarse la validación final. |
+| POST | `/api/v1/commands` | Registrar y encolar un comando tipado con idempotencia durable. |
+| GET | `/api/v1/commands/{command_id}` | Estado, salida y recibo sanitizados. |
+| GET | `/api/v1/commands/lookup` | Recuperar/reconciliar por `Idempotency-Key`; nunca vuelve a despachar. |
+
+El contrato de comando v1 utiliza un sobre común:
+
+- `schema_version`, `command_type`, `target_repo` (solo `lite`/`plus`), `expected_branch`, `expected_sha`.
+- `idempotency_key`, `correlation_id`, `validation_id`; el actor se deriva de la credencial autenticada y no se acepta como identidad confiable del cuerpo.
+- `payload` tipado y validado por `command_type`; `validation_profile` usa nombres de perfiles permitidos, no comandos shell libres.
+- `artifact_refs` para payloads/patches grandes, con almacenamiento privado, checksum, tamaño, caducidad y propietario verificados.
+- El servidor genera `command_id`, fingerprint, estado, fechas, receipt UUID y vínculo con Actions run/Runner record.
+
+Tipos iniciales de comando: `repo.inspect`, `repo.patch` (crear/modificar/eliminar archivos mediante operaciones estructuradas), `repo.validate` (perfiles allowlisted), `repo.commit`, `repo.pull_request`, `certification.plan` y `certification.dispatch`. Un `repo.patch` no equivale a un shell remoto. Las operaciones se limitan a rutas, tamaños, tipos de archivo, repositorios y ramas permitidos; no se ejecutan scripts aportados libremente por el LLM.
+
+Estados mínimos: `accepted`, `queued`, `validating`, `running`, `awaiting_review`, `completed`, `failed`, `blocked` y `reconcile_required`. Una respuesta HTTP de aceptación no significa que el cambio se aplicó, que las pruebas pasaron ni que la certificación quedó aprobada.
+
+Se conserva `POST /api/runs` como contrato heredado para gates durante la transición. Debe converger internamente en la misma política/registro de comandos o quedar como adaptador compatible; no puede convertirse en un bypass distinto de idempotencia, allowlist o auditoría.
+
+### Capacidad de modificación en Runner
+
+El Runner de certificación existente se conserva para ejecutar gates. Se amplía el mismo plano de ejecución para recibir comandos de repositorio desde Bridge:
+
+1. Bridge registra el comando durablemente y crea una intención/lease antes de despachar.
+2. Bridge invoca un workflow de ejecución en el repositorio objetivo pasando solo un identificador opaco de comando y metadatos mínimos; no pasa secretos ni un patch ilimitado como inputs de workflow.
+3. El worker recupera el manifiesto desde Bridge con identidad de workload de corta duración (preferentemente identidad OIDC de GitHub Actions validada; alternativa: lease-token de un solo uso y TTL corto).
+4. Runner verifica allowlist, propietario, expiración, fingerprint, branch y `expected_sha`; si el SHA cambió, bloquea con conflicto y no sobrescribe.
+5. Runner trabaja en una rama aislada `agent/{command_id}`, aplica operaciones tipadas, ejecuta perfiles allowlisted y recoge logs/artefactos.
+6. Si las validaciones requeridas pasan, crea commit y PR (draft o ready según política). Si fallan, conserva el diagnóstico/artefacto y no fusiona. La rama canónica/protegida no se sobrescribe directamente.
+7. Runner devuelve a Bridge el resultado firmado/autenticado; Bridge actualiza recibo, estado e idempotencia y Observer puede reconciliarlo. El agente obtiene el resultado por el transporte original.
+
+Un workflow adicional de trabajo de repositorio puede ser un **entrypoint técnico del mismo Runner**; no constituye un segundo servicio Runner ni autoriza duplicar el planificador, seguridad, persistencia o política. El workflow `certification-runner.yml` existente permanece como ejecutor de gates hasta que cualquier cambio de contrato tenga pruebas bilaterales Lite/Plus. No se reutiliza `dry_run` como sustituto de una ejecución real de modificación.
+
+La fusión automática de PR no se presume. Solo puede ocurrir cuando un contrato de certificación y la política de rama lo permitan expresamente; en otro caso, el resultado de la tarea será commit/PR con evidencia para revisión.
+
+### Frontera de confianza y criterios obligatorios
+
+- **Credenciales separadas:** agente→Observer; agente→Bridge; Bridge→Observer interno; Bridge→GitHub/Actions; Runner→Bridge callback; Runner→GitHub; Bridge→Supabase. Ningún secreto de servicio cruza hacia el LLM.
+- **Identidad por agente:** credenciales independientes, hashes almacenados, scopes mínimos, expiración/revocación y auditoría. No distribuir una clave global de escritura a todos los modelos.
+- **Scopes objetivo:** conservar `read`/`dispatch` por compatibilidad y definir scopes explícitos para `context:read`, `command:submit`, `command:read` y administración. Las claves existentes no heredan permisos nuevos automáticamente. Las credenciales de dispatch y callback son server-only.
+- **Política y estado live:** Bridge directo obtiene de Observer el contexto/plan actual; nunca confía en branch/SHA/decision enviados por el LLM. Observer también puede validar antes de delegar.
+- **Rama/SHA y conflicto:** compare-and-swap sobre `expected_sha`; cambios concurrentes producen conflicto y reconciliación, nunca force-push silencioso.
+- **Idempotencia:** misma clave y mismo fingerprint → mismo command/receipt; misma clave y payload distinto → conflicto; outcome incierto → consulta por la misma clave, jamás POST ciego.
+- **Seguridad de payload:** validación de esquema, límites de tamaño, allowlist de rutas/extensiones/comandos de prueba, detección de secretos y prohibición de ejecución shell arbitraria.
+- **Auditoría:** actor, identidad de cliente, tipo de comando, target, SHA de entrada/salida, fingerprint, command_id, correlation_id, validation_id, receipt UUID, workflow/run ID, commit/PR y conclusión de cada prueba.
+- **Evidencia:** diferenciar comando aceptado, cambios aplicados, pruebas aprobadas, Actions SUCCESS y certificación matemática PASS.
+- **Autonomía:** operaciones rutinarias dentro del alcance delegado continúan sin aprobación humana por evento. Se escala solo por decisiones materiales no resueltas por contrato/pruebas.
+
+### Fases de trabajo de la arquitectura v2
+
+| Fase | Objetivo | Criterio de salida |
+|---|---|---|
+| M0 | Registrar esta decisión y contrato común en Markdown/JSON | Ambos artefactos coherentes, validados y versionados en el mismo commit/serie documental. |
+| M1 | Especificar/implementar Command API y scopes de Bridge | OpenAPI, esquema, auth por agente, capacidades, context proxy, registro durable, estados, idempotencia y pruebas de rechazo/replay/concurrencia. |
+| M2 | Implementar ejecución de cambios en Runner | Worker en Lite/Plus, lease seguro, verificación SHA, rama aislada, patch tipado, perfiles de prueba, commit/PR y callback autenticado. |
+| M3 | Conectar rutas multientrada y política | LLM→Observer, LLM→Bridge y ruta híbrida; Bridge→Observer interno; mismas decisiones y evidencia en todas. |
+| M4 | Entregar adaptadores P0/P1 | REST/OpenAPI, Function Calling, GPT Actions, MCP remoto y MCP stdio usando el mismo contrato. |
+| M5 | Entregar adaptadores P2/P3 | SDK Python/TS, CLI, webhooks, A2A y adaptadores de frameworks/proveedores según disponibilidad y valor demostrado. |
+| M6 | Certificar interoperabilidad multiagente | Dos agentes distintos y dos transportes completan sin GitHub: lectura → diagnóstico → patch → validación → commit/PR → reconciliación; demostrar replay sin duplicado. |
+| M7 | Congelar infraestructura auxiliar y reanudar matemática | Evidencia integral publicada; no quedan gaps de conexión/ejecución dentro del alcance; reanudar Lite/Plus según sus índices canónicos. |
+
+**Conservación de trabajo previo:** Fases A/B de la integración Observer→Bridge (GET autenticado 200 y anónimo 401; contrato/OpenAPI y CI asociados) permanecen CERRADAS y no se repiten. No demuestran por sí solas la nueva Command API ni modificación de repositorios. La ruta Observer-only, las fases O1–O7 y su estado previo se conservan como historial de la arquitectura v1; quedan supersedidas como plan de aceptación final, no se borran como evidencia.
+
+**Estado tras esta decisión:** M0 queda documentado. M1–M7 siguen pendientes de implementación/validación en sus criterios respectivos. La infraestructura actual, los PR y deploys no se consideran modificados por esta decisión documental.
+
 
 ## Estado ejecutivo
 
@@ -47,6 +161,8 @@ La autorización operativa general del usuario permite automatizar el flujo ordi
 | Certificación matemática Lite/Plus | Abierta | Fuera del alcance de esta hoja |
 
 ### Fases
+
+**Nota de vigencia:** A/B siguen siendo evidencia válida. Los estados C–F y los bloques O1–O7 que aparecen en los snapshots siguientes describen el alcance histórico de la integración v1 Observer-only. La aceptación vigente es M0–M7 de la decisión arquitectónica v2; no se deben usar las restricciones de entrada única como requisitos actuales.
 
 - **A — CERRADA.** Staging Observador consulta un recibo existente del Bridge independiente. Con `X-API-Key`: HTTP 200, `read_only: true`, UUID correcto y run Lite 41005884405. Sin clave: HTTP 401. La comparación posterior no mostró nuevos workflow runs en Lite ni Plus.
 - **B — CERRADA.** `README_CONTRACT.md` y `openapi.yaml` incluyen `GET /v1/bridge/runs/{run_id}`, protección `APIKeyHeader`, separación UUID Bridge / número Actions, respuestas 401/404 y semántica de auditoría/reconciliación. CI PASS 41053312777 en el HEAD actual.
@@ -171,56 +287,15 @@ La única clave de Bridge observada tiene etiqueta `staging-read-only-verificati
 La tabla `bridge_idempotency` está vacía: el recibo histórico consultado no prueba el flujo de despacho durable/idempotente actual. Por tanto, el estado del conjunto es: **lectura Bridge verificada; despacho idempotente end-to-end todavía no verificado**.
 
 
-## Reorientación canónica del roadmap — 2026-10-30
+## Decisión v1 supersedida — Observer como único interlocutor (2026-10-30)
 
-Esta sección supersede cualquier instrucción anterior de este documento que indique que Observer debe permanecer GET-only, que el despacho debe solicitarse directamente a Bridge por un operador/LLM, o que un POST mediado por Observer esté fuera de alcance.
+Esta sección conserva el registro de la arquitectura de entrada única adoptada previamente. **Queda supersedida por la decisión arquitectónica v2 multientrada/multicanal** que aparece al inicio del documento. Se mantiene únicamente para explicar el origen de las fases O1–O7 y preservar la trazabilidad histórica.
 
-### Secuencia obligatoria
+En v1 se había decidido que toda Action LLM se conectara exclusivamente a Observer y que Bridge aceptara solo llamadas server-to-server de Observer. Esa restricción ya no es la arquitectura objetivo. La versión v2 permite LLM→Observer, LLM→Bridge y rutas híbridas, siempre con política/estado compartidos, identidades separadas y validación final.
 
-1. **Consolidar Observer como interfaz central de lectura y coordinación.** Mantener en Observer el estado bilateral, planificación de gates, evidencia GitHub, consulta de recibos Bridge, interpretación de bloqueos y decisiones RUN/WAIT/REUSE/RECONCILE.
-2. **Integrar las consultas de Bridge dentro de Observer.** El LLM consulta recibos/estado únicamente por endpoints Observer; las llamadas upstream y credenciales quedan en servidor.
-3. **Incorporar en Observer una operación protegida para solicitar despachos a Bridge.** El contrato público acepta una solicitud estricta; Observer recalcula el plan live, comprueba rama/SHA canónicos y delegación general dentro de política, y hace el POST interno a Bridge sin aprobación humana por evento.
-4. **Mantener Bridge inaccesible directamente desde la Action del LLM.** Una única Action/OpenAPI apunta a Observer. No se publica una segunda Action, URL ni credencial Bridge.
-5. **Validar autorización, scopes, idempotencia y trazabilidad de extremo a extremo.** Observer valida identidad/permiso/alcance; Bridge acepta únicamente la identidad de servicio Observer y limita targets/gates/workflow/ref; la misma clave idempotente y correlation/validation IDs se trazan desde la solicitud hasta el receipt y el run de Actions. Timeouts ambiguos → RECONCILE.
-6. **Cerrar la infraestructura auxiliar y regresar a la certificación matemática.** No ampliar servicios, no crear runners paralelos y no seguir añadiendo funciones una vez validados los criterios de salida.
+Las antiguas fases O1–O7 y los snapshots que describen el POST `/v1/bridge/dispatch`, scopes `read`/`dispatch`, despliegues, pruebas A/B y el despacho aún no validado se conservan como evidencia de la implementación v1. No se reabren ni se invalidan las fases A/B por el cambio de arquitectura. Las partes de O1–O7 que coincidan con M1–M7 pueden reutilizarse como trabajo o evidencia, pero no deben imponer la regla de interlocutor único.
 
-### Plan de ejecución y criterios de salida
-
-| Bloque | Trabajo | Criterio de salida |
-|---|---|---|
-| O1 | Revisar y consolidar los endpoints de lectura de Observer, incluidos status, plan, evidencia y recibo Bridge | Un solo contrato LLM→Observer; datos de Bridge consultables sin exponer Bridge |
-| O2 | Implementar operación protegida de solicitud de ejecución en Observer | Validación de esquema, plan live, rama/SHA, scopes y límites; ninguna llamada Bridge si falla la política |
-| O3 | Endurecer autenticación interna Observer→Bridge | Credencial de servicio separada de la Action; Bridge rechaza llamadas no autorizadas y no confía en credenciales del LLM |
-| O4 | Idempotencia y reconciliación | Reutilización segura de solicitudes equivalentes; conflictos de fingerprint rechazados; outcome incierto no se reintenta ciegamente |
-| O5 | Pruebas de seguridad y trazabilidad | Tests para auth, scopes, allowlist, no exposición de secretos, audit trail y relación request→receipt→Actions run→Runner record |
-| O6 | Validación end-to-end controlada | Tras CI y pruebas de seguridad/idempotencia verdes, ejecutar automáticamente un dispatch de staging dentro del alcance delegado; comparar run IDs y demostrar repetición idempotente sin segundo workflow |
-| O7 | Cierre auxiliar | Evidencias y límites documentados; detener cambios en Observer/Bridge y retomar Lite/Plus |
-
-### Límites operativos
-
-- No se crea otra capa de servicios ni otro Runner.
-- No se duplica en Observer la persistencia transaccional/idempotencia que corresponde a Bridge; Observer coordina y Bridge registra/ejecuta.
-- Observer es el único interlocutor del LLM y el único servidor que puede invocar Bridge en este diseño.
-- Bridge no recibe tráfico desde la Action del LLM. La restricción debe verificarse en el contrato OpenAPI y en pruebas, no solo en documentación.
-- Observer no despacha por inferencia aislada: exige una solicitud explícita con parámetros exactos, plan live RUN, rama/SHA canónicos y scopes válidos. Dentro de ese contrato, la autorización general del usuario elimina aprobaciones humanas por evento.
-- Un `dry_run=true` que crea un workflow se considera ejecución real y puede ejecutarse autónomamente dentro de la política delegada y probada.
-- No hacer merge, corte de producción ni rotación de secretos como consecuencia automática de este cambio; son decisiones materiales separadas.
-- La fase O6 no requiere aprobación humana adicional por dispatch rutinario; requiere que las pruebas de seguridad, allowlist, idempotencia y trazabilidad hayan habilitado la operación.
-
-### Estado inicial de los bloques
-
-- O1: parcialmente implementado; GET de recibo Bridge está en Observer PR #4 y fue probado en staging sobre el commit desplegado histórico. Verificar la rama/HEAD actual y ampliar consultas necesarias.
-- O2: las rutas Observer GET de recibo UUID y consulta por idempotency key están implementadas; CI debe validar el HEAD actual y el despliegue staging aún no está actualizado.
-- O3: `POST /v1/bridge/dispatch` está implementado en la rama del PR #4. Revalida el plan live, rama y SHA; solo llama Bridge cuando la decisión es RUN. Observer usa `BRIDGE_DISPATCH_KEY`, separado de la clave read-only `llm`.
-- O4: migración `bridge_key_scopes` aplicada en Supabase; claves existentes quedan `read`; Bridge exige `dispatch` para POST y `read` para GET. Falta validar el rechazo de claves y el flujo desde el runtime staging actualizado.
-- O5: Bridge ya tiene pruebas de replay, fingerprint conflict, concurrencia, lease, outcome unknown y reconciliación; se añadieron regresiones para scopes. La trazabilidad completa request→receipt→Actions→Runner todavía requiere E2E.
-- O6: no ejecutado; pendiente CI del HEAD actual, despliegue staging y validación end-to-end.
-- O7: pendiente de O1–O6.
-
-### Actualización de la prioridad
-
-La fase F anterior (entrega de una Action LLM GET-only) deja de ser el criterio final. La Action debe ser única y apuntar a Observer, pero su contrato final incluirá consultas y una solicitud protegida de despacho. No se habilita una Action directa a Bridge. La certificación matemática de Lite/Plus no debe quedar subordinada a mejoras cosméticas o nuevas capacidades auxiliares.
-
+**Disposición histórica:** O1–O4 describían la integración y autorización Observer→Bridge; O5 la idempotencia/reconciliación; O6 el E2E de despacho; O7 el cierre auxiliar. La lista vigente de trabajo y sus criterios de salida es M0–M7. No borrar los runs, recibos o pruebas históricas ni declarar que certifican la nueva Command API.
 
 ## Política operativa de autonomía — aclaración del usuario, 2026-10-30
 
@@ -507,3 +582,7 @@ Sin merge, deploy, cambio de producción ni despacho real. La certificación glo
 - **Certification Runner:** Lite 41144150833 SUCCESS sobre SHA c791540390b2e5a3c27f11b7a9a444ad04012a20; Plus 41136660038 SUCCESS sobre SHA 218d682848a03a000930e2028f057563847381f3. Ambos PASS_SCOPED_PUSH_ONLY; dispatch, recibo y persistencia SKIPPED.
 - **Mecanismo paralelo:** A/B CLOSED; O5 IN_PROGRESS; O6 PENDING por no existir despacho real; O7 PENDING y dependiente de O6. No hay traza E2E ni replay idempotente real.
 - **Siguiente caso matemático Lite:** AS-EXP-08 `(x+2)(x-3)(x+1)=x^3-7x-6`, con oráculo aritmético independiente. Global OPEN; sin merge, deploy, producción ni dispatch real.
+
+## Registro de decisión v2 — 2026-10-30
+
+La decisión arquitectónica multientrada/multicanal, el catálogo de mecanismos, el Command API objetivo y las fases M0–M7 están definidos al inicio de este documento. Esta sección no declara que los adaptadores, el Command API o el worker de modificación ya estén implementados. M0 queda documentado; M1 es el siguiente bloque de implementación. Las fases A/B permanecen cerradas; los estados O1–O7 se conservan como historial v1 supersedido.

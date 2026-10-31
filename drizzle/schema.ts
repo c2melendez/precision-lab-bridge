@@ -13,11 +13,7 @@ export const bridgeKeys = pgTable("bridge_keys", {
   scopes: text("scopes").array().notNull().default(sql`ARRAY['read']::text[]`),
 }, (t) => ({
   keyHashUnique: unique("bridge_keys_key_hash_key").on(t.key_hash),
-  scopesValid: check("bridge_keys_scopes_valid", sql`cardinality(${t.scopes}) BETWEEN 1 AND 2
-    AND ${t.scopes} <@ ARRAY['read','dispatch']::text[]
-    AND array_position(${t.scopes},NULL) IS NULL
-    AND (cardinality(${t.scopes})=1 OR
-      (${t.scopes} @> ARRAY['read']::text[] AND ${t.scopes} @> ARRAY['dispatch']::text[]))`),
+  scopesValid: check("bridge_keys_scopes_valid", sql.raw("cardinality(scopes) BETWEEN 1 AND 5 AND scopes <@ ARRAY['read','dispatch','context:read','command:submit','command:read']::text[] AND array_position(scopes,NULL) IS NULL AND public.bridge_scope_array_unique(scopes)")),
 }));
 
 export const bridgeRuns = pgTable("bridge_runs", {
@@ -96,4 +92,42 @@ export const bridgeIdempotency = pgTable("bridge_idempotency", {
         OR (${t.state}='REPLAYED' AND ${t.outcome_state}='SUCCEEDED' AND ${t.finished_at} IS NOT NULL))
     )
   )`),
+}));
+
+export const bridgeCommands = pgTable("bridge_commands", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  key_id: uuid("key_id").notNull(),
+  idempotency_key: text("idempotency_key").notNull(),
+  command_type: text("command_type").notNull(),
+  target_repo: text("target_repo").notNull(),
+  expected_branch: text("expected_branch").notNull(),
+  expected_sha: text("expected_sha").notNull(),
+  request_fingerprint: text("request_fingerprint").notNull(),
+  request_payload: jsonb("request_payload").notNull(),
+  observer_context: jsonb("observer_context").notNull(),
+  correlation_id: text("correlation_id").notNull(),
+  validation_id: text("validation_id").notNull(),
+  status: text("status").notNull().default("accepted"),
+  response: jsonb("response"),
+  error_code: text("error_code"),
+  created_at: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  updated_at: timestamp("updated_at", { withTimezone: true, mode: "string" }).notNull().defaultNow(),
+  completed_at: timestamp("completed_at", { withTimezone: true, mode: "string" }),
+  replay_count: integer("replay_count").notNull().default(0),
+  attempt_count: integer("attempt_count").notNull().default(0),
+  lease_token: uuid("lease_token"),
+  lease_expires_at: timestamp("lease_expires_at", { withTimezone: true, mode: "string" }),
+  actions_run_id: text("actions_run_id"),
+  runner_record: jsonb("runner_record"),
+  commit_sha: text("commit_sha"),
+  pull_request_number: integer("pull_request_number"),
+  pull_request_url: text("pull_request_url"),
+}, (t) => ({
+  keyOwnerFk: foreignKey({ name: "bridge_commands_key_id_fkey", columns: [t.key_id], foreignColumns: [bridgeKeys.id] }),
+  scopedIdempotency: unique("bridge_commands_key_idempotency_unique").on(t.key_id, t.idempotency_key),
+  ownerCreatedIdx: index("bridge_commands_owner_created_idx").on(t.key_id, t.created_at.desc()),
+  statusCreatedIdx: index("bridge_commands_status_created_idx").on(t.status, t.created_at.desc()),
+  keyLength: check("bridge_commands_idempotency_key_length", sql.raw("length(idempotency_key) BETWEEN 1 AND 200")),
+  fingerprintValid: check("bridge_commands_fingerprint_check", sql.raw("request_fingerprint ~ '^[0-9a-f]{64}$'")),
+  statusValid: check("bridge_commands_status_check", sql.raw("status IN ('accepted','queued','validating','running','awaiting_review','completed','failed','blocked','reconcile_required')")),
 }));

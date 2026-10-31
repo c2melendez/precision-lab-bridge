@@ -21,6 +21,8 @@ export const Route = createFileRoute("/")({
 
 type Data = Awaited<ReturnType<typeof listAdmin>>;
 
+const AVAILABLE_SCOPES = ["read", "dispatch", "context:read", "command:submit", "command:read"] as const;
+
 function Admin() {
   const list = useServerFn(listAdmin);
   const create = useServerFn(createKey);
@@ -30,7 +32,7 @@ function Admin() {
   const [err, setErr] = useState("");
   const [label, setLabel] = useState("llm");
   const [days, setDays] = useState(30);
-  const [scopePreset, setScopePreset] = useState<"read" | "dispatch" | "read,dispatch">("read");
+  const [scopes, setScopes] = useState<Array<(typeof AVAILABLE_SCOPES)[number]>>(["read"]);
   const [fresh, setFresh] = useState("");
 
   const load = async () => {
@@ -64,19 +66,24 @@ function Admin() {
           <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Label" />
           <Input type="number" className="w-28" value={days} onChange={(e) => setDays(Number(e.target.value))} />
           <span className="self-center text-muted-foreground">days</span>
-          <select
-            aria-label="Key permissions"
-            className="rounded border border-border bg-background px-2"
-            value={scopePreset}
-            onChange={(e) => setScopePreset(e.target.value as "read" | "dispatch" | "read,dispatch")}
-          >
-            <option value="read">Read only</option>
-            <option value="dispatch">Dispatch only</option>
-            <option value="read,dispatch">Read + dispatch</option>
-          </select>
+          <fieldset aria-label="Key permissions" className="flex flex-wrap items-center gap-3">
+            <legend className="sr-only">Key permissions</legend>
+            {AVAILABLE_SCOPES.map((scope) => (
+              <label key={scope} className="flex items-center gap-1 whitespace-nowrap">
+                <input
+                  type="checkbox"
+                  checked={scopes.includes(scope)}
+                  disabled={scopes.length === 1 && scopes.includes(scope)}
+                  onChange={(e) => setScopes((current) =>
+                    e.target.checked ? [...current, scope] : current.filter((item) => item !== scope),
+                  )}
+                />
+                {scope}
+              </label>
+            ))}
+          </fieldset>
           <Button
             onClick={async () => {
-              const scopes = scopePreset.split(",");
               const r = await create({ data: { password, label, days, scopes } });
               setFresh(r.key);
               load();

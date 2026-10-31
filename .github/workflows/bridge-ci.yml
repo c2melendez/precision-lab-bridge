@@ -77,7 +77,8 @@ jobs:
               'bridge_prepare(uuid,uuid)',
               'bridge_begin_dispatch(uuid,uuid,text)',
               'bridge_record_dispatch(uuid,uuid,jsonb)',
-              'bridge_finish(uuid,uuid,text,integer,jsonb,text)'
+              'bridge_finish(uuid,uuid,text,integer,jsonb,text)',
+              'bridge_submit_command(uuid,text,text,text,text,text,text,jsonb,jsonb,text,text)'
             ];
             signature text;
             function_oid oid;
@@ -104,20 +105,28 @@ jobs:
               END IF;
             END LOOP;
 
+            function_oid := to_regprocedure('public.bridge_scope_array_unique(text[])');
+            IF function_oid IS NULL
+              OR has_function_privilege('anon', function_oid, 'EXECUTE')
+              OR has_function_privilege('authenticated', function_oid, 'EXECUTE')
+              OR NOT has_function_privilege('service_role', function_oid, 'EXECUTE') THEN
+              RAISE EXCEPTION 'Unexpected scope-array helper grants or missing helper';
+            END IF;
+
             SELECT count(*) INTO matched
             FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
             WHERE n.nspname='public'
-              AND c.relname = ANY(ARRAY['bridge_keys','bridge_runs','bridge_calls','bridge_idempotency'])
+              AND c.relname = ANY(ARRAY['bridge_keys','bridge_runs','bridge_calls','bridge_idempotency','bridge_commands'])
               AND c.relrowsecurity;
-            IF matched <> 4 THEN RAISE EXCEPTION 'RLS must be enabled on all four Bridge tables'; END IF;
+            IF matched <> 5 THEN RAISE EXCEPTION 'RLS must be enabled on all five Bridge tables'; END IF;
 
             SELECT count(*) INTO matched
             FROM pg_policies
             WHERE schemaname='public'
-              AND tablename = ANY(ARRAY['bridge_keys','bridge_runs','bridge_calls','bridge_idempotency']);
+              AND tablename = ANY(ARRAY['bridge_keys','bridge_runs','bridge_calls','bridge_idempotency','bridge_commands']);
             IF matched <> 0 THEN RAISE EXCEPTION 'Unexpected public policies found on private Bridge tables'; END IF;
 
-            FOREACH table_name IN ARRAY ARRAY['bridge_keys','bridge_runs','bridge_calls','bridge_idempotency'] LOOP
+            FOREACH table_name IN ARRAY ARRAY['bridge_keys','bridge_runs','bridge_calls','bridge_idempotency','bridge_commands'] LOOP
               IF has_table_privilege('anon', 'public.' || table_name, 'SELECT')
                 OR has_table_privilege('authenticated', 'public.' || table_name, 'SELECT')
                 OR NOT has_table_privilege('service_role', 'public.' || table_name, 'SELECT')
@@ -157,24 +166,43 @@ jobs:
 
             SELECT pg_get_constraintdef(oid) INTO constraint_definition
             FROM pg_constraint
+            WHERE conrelid='public.bridge_commands'::regclass
+              AND conname='bridge_commands_key_idempotency_unique' AND contype='u';
+            IF constraint_definition IS NULL
+              OR constraint_definition NOT LIKE '%(key_id, idempotency_key)%' THEN
+              RAISE EXCEPTION 'Missing bridge_commands composite idempotency uniqueness constraint';
+            END IF;
+
+            IF NOT EXISTS (
+              SELECT 1 FROM pg_constraint
+              WHERE conrelid='public.bridge_commands'::regclass
+                AND conname='bridge_commands_key_id_fkey' AND contype='f' AND convalidated
+            ) THEN RAISE EXCEPTION 'Missing bridge_commands owner foreign key'; END IF;
+
+            SELECT pg_get_constraintdef(oid) INTO constraint_definition
+            FROM pg_constraint
             WHERE conrelid='public.bridge_keys'::regclass
               AND conname='bridge_keys_scopes_valid' AND contype='c';
             IF constraint_definition IS NULL
               OR constraint_definition NOT LIKE '%cardinality%'
-              OR constraint_definition NOT LIKE '%dispatch%' THEN
+              OR constraint_definition NOT LIKE '%dispatch%'
+              OR constraint_definition NOT LIKE '%command:submit%'
+              OR constraint_definition NOT LIKE '%command:read%'
+              OR constraint_definition NOT LIKE '%context:read%' THEN
               RAISE EXCEPTION 'Missing strict Bridge key scopes constraint';
             END IF;
           END
           $verify$;
           SQL
 
-      - name: Exercise all five RPCs against disposable database
+      - name: Exercise legacy and M1 RPC contracts against disposable database
         shell: bash
         run: |
           set -euo pipefail
           db_container="$(docker ps --format '{{.Names}}' | grep '^supabase_db_' | head -n 1)"
           test -n "$db_container"
           docker exec -i "$db_container" psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/bridge_rpc_functional.sql
+          docker exec -i "$db_container" psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/bridge_commands_functional.sql
 
       - name: Set up Bun for database-backed idempotency tests
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
@@ -184,7 +212,7 @@ jobs:
       - name: Install app dependencies for database-backed tests
         run: bun install --frozen-lockfile
 
-      - name: Run durable idempotency integration tests with mocked GitHub dispatch
+      - name: Run durable idempotency and command API database integration tests
         shell: bash
         run: |
           set -euo pipefail
@@ -193,7 +221,7 @@ jobs:
           SUPABASE_SECRET_KEY="$SERVICE_ROLE_KEY" \
           SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" \
           SUPABASE_PUBLISHABLE_KEY="$ANON_KEY" \
-          bunx vitest run src/lib/bridge/idempotency.database.test.ts
+          bunx vitest run src/lib/bridge/idempotency.database.test.ts src/lib/bridge/commands.database.test.ts
 
       - name: Lint local database functions and schema
         run: supabase db lint --level warning --fail-on error

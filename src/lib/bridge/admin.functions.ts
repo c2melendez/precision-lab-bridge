@@ -28,7 +28,9 @@ export const createKey = createServerFn({ method: "POST" })
       password: pw,
       label: z.string().trim().min(1).max(80),
       days: z.number().int().min(1).max(365),
-      scopes: z.array(z.enum(["read", "dispatch"])).min(1).max(2).default(["read"]),
+      scopes: z.array(z.enum(["read", "dispatch", "context:read", "command:submit", "command:read"]))
+        .min(1).max(5).refine((scopes) => new Set(scopes).size === scopes.length, "scopes must be unique")
+        .default(["read"]),
     }).parse(d),
   )
   .handler(async ({ data }) => {

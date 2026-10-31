@@ -28,6 +28,10 @@ services:
         sync: false
       - key: VITE_SUPABASE_PUBLISHABLE_KEY
         sync: false
+      - key: OBSERVER_BASE_URL
+        value: https://precision-lab-readonly-api.onrender.com
+      - key: OBSERVER_SERVICE_KEY
+        sync: false
       - key: GH_TOKEN
         sync: false
       - key: BRIDGE_ADMIN_PASSWORD

@@ -5,9 +5,9 @@ Independent Node.js service for coordinating certification requests between auth
 ## Architecture
 
 - **Observador:** reports current status and evidence; it does not execute gates.
-- **Bridge:** authenticates callers, validates requests, applies durable idempotency, and coordinates workflow dispatch and status reconciliation.
+- **Bridge:** authenticates callers, validates typed commands, applies owner-scoped durable idempotency, and separately coordinates the existing certification workflow dispatch/status lifecycle.
 - **Runner:** GitHub Actions workflows execute the requested certification gates and publish evidence.
-- **Persistence:** Supabase PostgreSQL stores bridge keys, run receipts, call audit records, and idempotency lifecycle state.
+- **Persistence:** Supabase PostgreSQL stores bridge keys, generic command receipts, run receipts, call audit records, and the separate workflow idempotency lifecycle.
 
 The application uses TanStack Start, Vite, and Nitro's standard Node server preset. Platform-specific editor, preview-auth, build, and telemetry integrations have been removed. Supabase remains an external service dependency and must be configured independently.
 
@@ -48,6 +48,8 @@ Copy `.env.example` to `.env` for local development, then supply values through 
 | `VITE_SUPABASE_PUBLISHABLE_KEY` | Supabase publishable key available to the browser client | Public |
 | `GH_TOKEN` | GitHub token used by the Bridge to dispatch and inspect workflows | **Server secret only** |
 | `GH_OWNER` | GitHub account or organization containing target repositories | Server |
+| `OBSERVER_BASE_URL` | HTTPS origin of the read-only Precision Lab Observer | Server |
+| `OBSERVER_SERVICE_KEY` | Server-to-server API key used by Bridge when querying Observer | **Server secret only** |
 | `GH_REF` | Default ref for Runner workflow dispatches (defaults to `main`) | Server |
 | `BRIDGE_ADMIN_PASSWORD` | Protects Bridge administration functions | **Server secret only** |
 | `BRIDGE_CRON_SECRET` | Optional bearer secret for protected cron requests | **Server secret only** |
@@ -55,6 +57,33 @@ Copy `.env.example` to `.env` for local development, then supply values through 
 | `DATABASE_URL` | Direct PostgreSQL connection used by Drizzle CLI tools only | **Server secret only** |
 
 Never prefix privileged values with `VITE_`; Vite embeds `VITE_*` values in browser assets. Do not commit `.env` files.
+
+## M1 Command API — durable intake only
+
+The v1 command API is separate from the legacy workflow-dispatch API. It authenticates with `X-Bridge-Key` and requires explicit opt-in scopes:
+
+- `context:read` for capabilities and Observer context reads.
+- `command:submit` for durable command submission.
+- `command:read` for owner-scoped receipt lookup.
+
+Existing `read` and `dispatch` keys are not granted any of these scopes by the M1 migration. Administrators select scopes explicitly when issuing a new key.
+
+| Method | Route | Purpose | Scope |
+|---|---|---|---|
+| GET | `/api/v1/capabilities` | Supported typed commands and permission requirements | `context:read` |
+| GET | `/api/v1/context/status` | Current Observer repository status | `context:read` |
+| GET | `/api/v1/context/gates/:gate/plan` | Read-only gate plan from Observer | `context:read` |
+| POST | `/api/v1/commands` | Validate and durably accept an idempotent typed command | `command:submit` |
+| GET | `/api/v1/commands/:id` | Read a command receipt owned by the calling key | `command:read` |
+| GET | `/api/v1/commands/lookup` | Reconcile an uncertain submission by its original idempotency key | `command:read` |
+
+Importable contract: [OpenAPI 3.1](docs/parallel-tool-command-openapi.v1.yaml).
+
+A new submission requires the current canonical branch and current HEAD reported by Observer. A stale SHA or Observer state requiring reconciliation returns 409 before a new row is accepted. The durable key is unique per credential owner; exact retries replay the same receipt, while a changed request fingerprint conflicts. Command records start as `accepted` and return `execution_enabled: false`. M1 does not apply patches, run validation jobs, create commits or pull requests; those require the separately accepted M2 Runner worker.
+
+Initial types are `repo.inspect`, `repo.patch`, and `repo.validate`. Patch payloads use typed create/replace/delete file operations, bounded UTF-8 content, duplicate-path rejection and expected blob SHAs for replacement/deletion. Traversal, secret material, environment files and workflow definitions are rejected. No arbitrary shell or workflow dispatch is accepted by this API.
+
+Observer credentials are held only in the Bridge server environment. Direct Bridge command submission reads Observer state server-side; LLM clients never receive `OBSERVER_SERVICE_KEY` or GitHub credentials.
 
 ## API contract
 

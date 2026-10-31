@@ -225,6 +225,12 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      },
+      bridge_commands: {
+        Row: { id: string; key_id: string; idempotency_key: string; command_type: string; target_repo: string; expected_branch: string; expected_sha: string; request_fingerprint: string; request_payload: Json; observer_context: Json; correlation_id: string; validation_id: string; status: string; response: Json | null; error_code: string | null; created_at: string; updated_at: string; completed_at: string | null; replay_count: number; attempt_count: number; lease_token: string | null; lease_expires_at: string | null; actions_run_id: string | null; runner_record: Json | null; commit_sha: string | null; pull_request_number: number | null; pull_request_url: string | null }
+        Insert: { id?: string; key_id: string; idempotency_key: string; command_type: string; target_repo: string; expected_branch: string; expected_sha: string; request_fingerprint: string; request_payload: Json; observer_context: Json; correlation_id: string; validation_id: string; status?: string; response?: Json | null; error_code?: string | null; created_at?: string; updated_at?: string; completed_at?: string | null; replay_count?: number; attempt_count?: number; lease_token?: string | null; lease_expires_at?: string | null; actions_run_id?: string | null; runner_record?: Json | null; commit_sha?: string | null; pull_request_number?: number | null; pull_request_url?: string | null }
+        Update: { id?: string; key_id?: string; idempotency_key?: string; command_type?: string; target_repo?: string; expected_branch?: string; expected_sha?: string; request_fingerprint?: string; request_payload?: Json; observer_context?: Json; correlation_id?: string; validation_id?: string; status?: string; response?: Json | null; error_code?: string | null; created_at?: string; updated_at?: string; completed_at?: string | null; replay_count?: number; attempt_count?: number; lease_token?: string | null; lease_expires_at?: string | null; actions_run_id?: string | null; runner_record?: Json | null; commit_sha?: string | null; pull_request_number?: number | null; pull_request_url?: string | null }
+        Relationships: [{ foreignKeyName: "bridge_commands_key_id_fkey"; columns: ["key_id"]; isOneToOne: false; referencedRelation: "bridge_keys"; referencedColumns: ["id"] }]
       }
     }
     Views: {
@@ -267,6 +273,10 @@ export type Database = {
       bridge_record_dispatch: {
         Args: { p_id: string; p_run: Json; p_token: string }
         Returns: boolean
+      },
+      bridge_submit_command: {
+        Args: { p_key_id: string; p_idempotency_key: string; p_command_type: string; p_target_repo: string; p_expected_branch: string; p_expected_sha: string; p_fingerprint: string; p_payload: Json; p_observer_context: Json; p_correlation_id: string; p_validation_id: string }
+        Returns: Json
       }
     }
     Enums: {

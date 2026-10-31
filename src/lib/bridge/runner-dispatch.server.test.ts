@@ -32,6 +32,13 @@ afterEach(() => {
 
 describe("M2 Bridge command workflow dispatcher", () => {
   it("keeps execution disabled unless both the feature flag and server token are present", async () => {
+    process.env["BRIDGE_COMMAND_EXECUTION_ENABLED"] = "true";
+    delete process.env["GH_TOKEN"];
+    expect(commandExecutionEnabled()).toBe(false);
+    await expect(dispatchAcceptedCommand(id, "lite")).resolves.toBeNull();
+    expect(mocks.rpc).not.toHaveBeenCalled();
+
+    process.env["GH_TOKEN"] = "server-side-test-token";
     process.env["BRIDGE_COMMAND_EXECUTION_ENABLED"] = "false";
     expect(commandExecutionEnabled()).toBe(false);
     await expect(dispatchAcceptedCommand(id, "lite")).resolves.toBeNull();
@@ -82,6 +89,11 @@ describe("M2 Bridge command workflow dispatcher", () => {
       commandStatus: "queued",
     });
     expect(request).toHaveBeenCalledTimes(2);
+    const lookupCall = request.mock.calls[1];
+    expect(String(lookupCall[0])).toContain(
+      "/repos/c2melendez/precision-lab-lite/actions/workflows/bridge-command-runner.yml/runs",
+    );
+    expect(String(lookupCall[0])).not.toContain("/repos/c2melendez/c2melendez/");
     const dispatchCall = request.mock.calls[0];
     expect(String(dispatchCall[0])).toContain(
       "/repos/c2melendez/precision-lab-lite/actions/workflows/bridge-command-runner.yml/dispatches",

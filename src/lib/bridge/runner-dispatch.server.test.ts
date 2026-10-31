@@ -141,6 +141,11 @@ describe("M2 Bridge command workflow dispatcher", () => {
       if (init?.method === "POST") return new Response(null, { status: 204 });
       return Response.json(unrelatedRuns);
     });
+    // Keep the production polling loop intact but avoid real one-second sleeps in this unit test.
+    vi.stubGlobal("setTimeout", (handler: () => void) => {
+      handler();
+      return 0;
+    });
     vi.stubGlobal("fetch", request);
     const result = await dispatchAcceptedCommand(id, "plus");
     expect(result).toMatchObject({

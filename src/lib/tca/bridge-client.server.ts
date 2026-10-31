@@ -93,7 +93,7 @@ export function createTca1BridgeClient(
       if (repo !== "lite" && repo !== "plus") throw new Error("TCA1_INVALID_REPOSITORY");
       return request(`/api/v1/context/gates/${encodeURIComponent(gate)}/plan?repo=${repo}`);
     },
-    submitCommand: (raw) => {
+    submitCommand: async (raw) => {
       const parsed = parseCommandEnvelope(raw, raw.idempotency_key);
       if (!parsed.ok) throw new Error("TCA1_INVALID_COMMAND_ENVELOPE");
       return request("/api/v1/commands", {

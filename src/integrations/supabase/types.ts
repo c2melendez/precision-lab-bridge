@@ -143,6 +143,13 @@ export type Database = {
             referencedRelation: "bridge_runs"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "bridge_idempotency_key_id_fkey"
+            columns: ["key_id"]
+            isOneToOne: false
+            referencedRelation: "bridge_keys"
+            referencedColumns: ["id"]
+          },
         ]
       }
       bridge_keys: {
@@ -155,6 +162,7 @@ export type Database = {
           label: string
           last_used_at: string | null
           revoked_at: string | null
+          scopes: string[]
         }
         Insert: {
           created_at?: string
@@ -165,6 +173,7 @@ export type Database = {
           label: string
           last_used_at?: string | null
           revoked_at?: string | null
+          scopes?: string[]
         }
         Update: {
           created_at?: string
@@ -175,6 +184,7 @@ export type Database = {
           label?: string
           last_used_at?: string | null
           revoked_at?: string | null
+          scopes?: string[]
         }
         Relationships: []
       }
@@ -185,7 +195,7 @@ export type Database = {
           gate: string
           gh_runs: Json
           id: string
-          key_id: string | null
+          key_id: string
           target_repo: string
         }
         Insert: {
@@ -194,7 +204,7 @@ export type Database = {
           gate: string
           gh_runs?: Json
           id?: string
-          key_id?: string | null
+          key_id: string
           target_repo: string
         }
         Update: {
@@ -203,10 +213,24 @@ export type Database = {
           gate?: string
           gh_runs?: Json
           id?: string
-          key_id?: string | null
+          key_id?: string
           target_repo?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "bridge_runs_key_id_fkey"
+            columns: ["key_id"]
+            isOneToOne: false
+            referencedRelation: "bridge_keys"
+            referencedColumns: ["id"]
+          },
+        ]
+      },
+      bridge_commands: {
+        Row: { id: string; key_id: string; idempotency_key: string; command_type: string; target_repo: string; expected_branch: string; expected_sha: string; request_fingerprint: string; request_payload: Json; observer_context: Json; correlation_id: string; validation_id: string; status: string; response: Json | null; error_code: string | null; dispatch_intent_at: string | null; dispatch_attempt_count: number; created_at: string; updated_at: string; completed_at: string | null; replay_count: number; attempt_count: number; lease_token: string | null; lease_expires_at: string | null; actions_run_id: string | null; runner_record: Json | null; commit_sha: string | null; pull_request_number: number | null; pull_request_url: string | null }
+        Insert: { id?: string; key_id: string; idempotency_key: string; command_type: string; target_repo: string; expected_branch: string; expected_sha: string; request_fingerprint: string; request_payload: Json; observer_context: Json; correlation_id: string; validation_id: string; status?: string; response?: Json | null; error_code?: string | null; dispatch_intent_at?: string | null; dispatch_attempt_count?: number; created_at?: string; updated_at?: string; completed_at?: string | null; replay_count?: number; attempt_count?: number; lease_token?: string | null; lease_expires_at?: string | null; actions_run_id?: string | null; runner_record?: Json | null; commit_sha?: string | null; pull_request_number?: number | null; pull_request_url?: string | null }
+        Update: { id?: string; key_id?: string; idempotency_key?: string; command_type?: string; target_repo?: string; expected_branch?: string; expected_sha?: string; request_fingerprint?: string; request_payload?: Json; observer_context?: Json; correlation_id?: string; validation_id?: string; status?: string; response?: Json | null; error_code?: string | null; dispatch_intent_at?: string | null; dispatch_attempt_count?: number; created_at?: string; updated_at?: string; completed_at?: string | null; replay_count?: number; attempt_count?: number; lease_token?: string | null; lease_expires_at?: string | null; actions_run_id?: string | null; runner_record?: Json | null; commit_sha?: string | null; pull_request_number?: number | null; pull_request_url?: string | null }
+        Relationships: [{ foreignKeyName: "bridge_commands_key_id_fkey"; columns: ["key_id"]; isOneToOne: false; referencedRelation: "bridge_keys"; referencedColumns: ["id"] }]
       }
     }
     Views: {
@@ -249,6 +273,23 @@ export type Database = {
       bridge_record_dispatch: {
         Args: { p_id: string; p_run: Json; p_token: string }
         Returns: boolean
+      },
+      bridge_submit_command: {
+        Args: { p_key_id: string; p_idempotency_key: string; p_command_type: string; p_target_repo: string; p_expected_branch: string; p_expected_sha: string; p_fingerprint: string; p_payload: Json; p_observer_context: Json; p_correlation_id: string; p_validation_id: string }
+        Returns: Json
+      },
+      bridge_command_begin_dispatch: { Args: { p_command_id: string }; Returns: Json },
+      bridge_command_record_dispatch: {
+        Args: { p_command_id: string; p_outcome: string; p_actions_run_id: string | null; p_actions_run_url: string | null; p_error_code: string | null }
+        Returns: Json
+      },
+      bridge_command_claim_runner: {
+        Args: { p_command_id: string; p_runner_repository: string; p_run_id: string; p_run_attempt: number }
+        Returns: Json
+      },
+      bridge_command_finish_runner: {
+        Args: { p_command_id: string; p_runner_repository: string; p_run_id: string; p_lease_token: string; p_lease_token_hash: string; p_final_status: string; p_error_code: string | null; p_result: Json }
+        Returns: Json
       }
     }
     Enums: {

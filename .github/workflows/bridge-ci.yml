@@ -1,0 +1,236 @@
+name: Bridge CI
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bridge-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Tests, lint and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - name: Set up Node.js
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
+        with:
+          node-version: "22.12.0"
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
+        with:
+          bun-version-file: .bun-version
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Run unit and regression tests
+        run: bun run test
+
+      - name: Run ESLint
+        run: bun run lint
+
+      - name: Build Node.js production bundle
+        run: bun run build
+
+  migration-validation:
+    name: Supabase migration chain (disposable local DB)
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - name: Set up Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.122.0
+
+      - name: Start disposable local Supabase stack
+        run: supabase start
+
+      - name: Replay complete versioned migration history on clean local database
+        run: supabase db reset
+
+      - name: Assert reconstructed RPC security and schema constraints
+        shell: bash
+        run: |
+          set -euo pipefail
+          db_container="$(docker ps --format '{{.Names}}' | grep '^supabase_db_' | head -n 1)"
+          test -n "$db_container"
+          docker exec -i "$db_container" psql -U postgres -d postgres -v ON_ERROR_STOP=1 <<'SQL'
+          DO $verify$
+          DECLARE
+            signatures text[] := ARRAY[
+              'bridge_claim(text,uuid,text,jsonb,text,text,text,text,text)',
+              'bridge_prepare(uuid,uuid)',
+              'bridge_begin_dispatch(uuid,uuid,text)',
+              'bridge_record_dispatch(uuid,uuid,jsonb)',
+              'bridge_finish(uuid,uuid,text,integer,jsonb,text)',
+              'bridge_submit_command(uuid,text,text,text,text,text,text,jsonb,jsonb,text,text)',
+              'bridge_command_begin_dispatch(uuid)',
+              'bridge_command_record_dispatch(uuid,text,text,text,text)',
+              'bridge_command_claim_runner(uuid,text,text,integer)',
+              'bridge_command_finish_runner(uuid,text,text,uuid,text,text,text,jsonb)'
+            ];
+            signature text;
+            function_oid oid;
+            table_name text;
+            matched integer;
+            constraint_definition text;
+          BEGIN
+            FOREACH signature IN ARRAY signatures LOOP
+              function_oid := to_regprocedure('public.' || signature);
+              IF function_oid IS NULL THEN
+                RAISE EXCEPTION 'Missing RPC: %', signature;
+              END IF;
+              IF EXISTS (
+                SELECT 1 FROM pg_proc p
+                WHERE p.oid = function_oid
+                  AND (p.prosecdef OR NOT (coalesce(p.proconfig, ARRAY[]::text[]) @> ARRAY['search_path=public']))
+              ) THEN
+                RAISE EXCEPTION 'RPC must be SECURITY INVOKER with search_path=public: %', signature;
+              END IF;
+              IF has_function_privilege('anon', function_oid, 'EXECUTE')
+                OR has_function_privilege('authenticated', function_oid, 'EXECUTE')
+                OR NOT has_function_privilege('service_role', function_oid, 'EXECUTE') THEN
+                RAISE EXCEPTION 'Unexpected RPC grants: %', signature;
+              END IF;
+            END LOOP;
+
+            function_oid := to_regprocedure('public.bridge_scope_array_unique(text[])');
+            IF function_oid IS NULL
+              OR has_function_privilege('anon', function_oid, 'EXECUTE')
+              OR has_function_privilege('authenticated', function_oid, 'EXECUTE')
+              OR NOT has_function_privilege('service_role', function_oid, 'EXECUTE') THEN
+              RAISE EXCEPTION 'Unexpected scope-array helper grants or missing helper';
+            END IF;
+
+            SELECT count(*) INTO matched
+            FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+            WHERE n.nspname='public'
+              AND c.relname = ANY(ARRAY['bridge_keys','bridge_runs','bridge_calls','bridge_idempotency','bridge_commands'])
+              AND c.relrowsecurity;
+            IF matched <> 5 THEN RAISE EXCEPTION 'RLS must be enabled on all five Bridge tables'; END IF;
+
+            SELECT count(*) INTO matched
+            FROM pg_policies
+            WHERE schemaname='public'
+              AND tablename = ANY(ARRAY['bridge_keys','bridge_runs','bridge_calls','bridge_idempotency','bridge_commands']);
+            IF matched <> 0 THEN RAISE EXCEPTION 'Unexpected public policies found on private Bridge tables'; END IF;
+
+            FOREACH table_name IN ARRAY ARRAY['bridge_keys','bridge_runs','bridge_calls','bridge_idempotency','bridge_commands'] LOOP
+              IF has_table_privilege('anon', 'public.' || table_name, 'SELECT')
+                OR has_table_privilege('authenticated', 'public.' || table_name, 'SELECT')
+                OR NOT has_table_privilege('service_role', 'public.' || table_name, 'SELECT')
+                OR NOT has_table_privilege('service_role', 'public.' || table_name, 'INSERT')
+                OR NOT has_table_privilege('service_role', 'public.' || table_name, 'UPDATE')
+                OR NOT has_table_privilege('service_role', 'public.' || table_name, 'DELETE') THEN
+                RAISE EXCEPTION 'Unexpected table grants on public.%', table_name;
+              END IF;
+            END LOOP;
+
+            IF NOT EXISTS (
+              SELECT 1 FROM pg_attribute
+              WHERE attrelid='public.bridge_runs'::regclass AND attname='key_id'
+                AND attnotnull AND NOT attisdropped
+            ) THEN RAISE EXCEPTION 'bridge_runs.key_id must be NOT NULL'; END IF;
+
+            IF NOT EXISTS (
+              SELECT 1 FROM pg_constraint
+              WHERE conrelid='public.bridge_runs'::regclass
+                AND conname='bridge_runs_key_id_fkey' AND contype='f' AND convalidated
+            ) THEN RAISE EXCEPTION 'Missing validated bridge_runs ownership FK'; END IF;
+
+            IF NOT EXISTS (
+              SELECT 1 FROM pg_constraint
+              WHERE conrelid='public.bridge_idempotency'::regclass
+                AND conname='bridge_idempotency_key_id_fkey' AND contype='f' AND convalidated
+            ) THEN RAISE EXCEPTION 'Missing validated bridge_idempotency ownership FK'; END IF;
+
+            SELECT pg_get_constraintdef(oid) INTO constraint_definition
+            FROM pg_constraint
+            WHERE conrelid='public.bridge_idempotency'::regclass
+              AND conname='bridge_idempotency_key_scope_unique' AND contype='u';
+            IF constraint_definition IS NULL
+              OR constraint_definition NOT LIKE '%(key_id, idempotency_key)%' THEN
+              RAISE EXCEPTION 'Missing composite idempotency uniqueness constraint';
+            END IF;
+
+            SELECT pg_get_constraintdef(oid) INTO constraint_definition
+            FROM pg_constraint
+            WHERE conrelid='public.bridge_commands'::regclass
+              AND conname='bridge_commands_key_idempotency_unique' AND contype='u';
+            IF constraint_definition IS NULL
+              OR constraint_definition NOT LIKE '%(key_id, idempotency_key)%' THEN
+              RAISE EXCEPTION 'Missing bridge_commands composite idempotency uniqueness constraint';
+            END IF;
+
+            IF NOT EXISTS (
+              SELECT 1 FROM pg_constraint
+              WHERE conrelid='public.bridge_commands'::regclass
+                AND conname='bridge_commands_key_id_fkey' AND contype='f' AND convalidated
+            ) THEN RAISE EXCEPTION 'Missing bridge_commands owner foreign key'; END IF;
+
+            SELECT pg_get_constraintdef(oid) INTO constraint_definition
+            FROM pg_constraint
+            WHERE conrelid='public.bridge_keys'::regclass
+              AND conname='bridge_keys_scopes_valid' AND contype='c';
+            IF constraint_definition IS NULL
+              OR constraint_definition NOT LIKE '%cardinality%'
+              OR constraint_definition NOT LIKE '%dispatch%'
+              OR constraint_definition NOT LIKE '%command:submit%'
+              OR constraint_definition NOT LIKE '%command:read%'
+              OR constraint_definition NOT LIKE '%context:read%' THEN
+              RAISE EXCEPTION 'Missing strict Bridge key scopes constraint';
+            END IF;
+          END
+          $verify$;
+          SQL
+
+      - name: Exercise legacy and M1 RPC contracts against disposable database
+        shell: bash
+        run: |
+          set -euo pipefail
+          db_container="$(docker ps --format '{{.Names}}' | grep '^supabase_db_' | head -n 1)"
+          test -n "$db_container"
+          docker exec -i "$db_container" psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/bridge_rpc_functional.sql
+          docker exec -i "$db_container" psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/bridge_commands_functional.sql
+          docker exec -i "$db_container" psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/bridge_command_runner_functional.sql
+
+      - name: Set up Bun for database-backed idempotency tests
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
+        with:
+          bun-version-file: .bun-version
+
+      - name: Install app dependencies for database-backed tests
+        run: bun install --frozen-lockfile
+
+      - name: Run durable idempotency and command API database integration tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          SUPABASE_URL="$API_URL" \
+          SUPABASE_SECRET_KEY="$SERVICE_ROLE_KEY" \
+          SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY" \
+          SUPABASE_PUBLISHABLE_KEY="$ANON_KEY" \
+          bunx vitest run src/lib/bridge/idempotency.database.test.ts src/lib/bridge/commands.database.test.ts
+
+      - name: Lint local database functions and schema
+        run: supabase db lint --level warning --fail-on error
+
+      - name: Stop disposable local stack
+        if: always()
+        run: supabase stop --no-backup

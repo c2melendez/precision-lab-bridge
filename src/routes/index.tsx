@@ -21,6 +21,8 @@ export const Route = createFileRoute("/")({
 
 type Data = Awaited<ReturnType<typeof listAdmin>>;
 
+const AVAILABLE_SCOPES = ["read", "dispatch", "context:read", "command:submit", "command:read"] as const;
+
 function Admin() {
   const list = useServerFn(listAdmin);
   const create = useServerFn(createKey);
@@ -30,6 +32,7 @@ function Admin() {
   const [err, setErr] = useState("");
   const [label, setLabel] = useState("llm");
   const [days, setDays] = useState(30);
+  const [scopes, setScopes] = useState<Array<(typeof AVAILABLE_SCOPES)[number]>>(["read"]);
   const [fresh, setFresh] = useState("");
 
   const load = async () => {
@@ -63,9 +66,25 @@ function Admin() {
           <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Label" />
           <Input type="number" className="w-28" value={days} onChange={(e) => setDays(Number(e.target.value))} />
           <span className="self-center text-muted-foreground">days</span>
+          <fieldset aria-label="Key permissions" className="flex flex-wrap items-center gap-3">
+            <legend className="sr-only">Key permissions</legend>
+            {AVAILABLE_SCOPES.map((scope) => (
+              <label key={scope} className="flex items-center gap-1 whitespace-nowrap">
+                <input
+                  type="checkbox"
+                  checked={scopes.includes(scope)}
+                  disabled={scopes.length === 1 && scopes.includes(scope)}
+                  onChange={(e) => setScopes((current) =>
+                    e.target.checked ? [...current, scope] : current.filter((item) => item !== scope),
+                  )}
+                />
+                {scope}
+              </label>
+            ))}
+          </fieldset>
           <Button
             onClick={async () => {
-              const r = await create({ data: { password, label, days } });
+              const r = await create({ data: { password, label, days, scopes } });
               setFresh(r.key);
               load();
             }}
@@ -84,12 +103,13 @@ function Admin() {
       <section>
         <h2 className="mb-2 font-semibold">Keys</h2>
         <table className="w-full text-left">
-          <thead className="text-muted-foreground"><tr><th>Label</th><th>Prefix</th><th>Expires</th><th>Last used</th><th></th></tr></thead>
+          <thead className="text-muted-foreground"><tr><th>Label</th><th>Prefix</th><th>Scopes</th><th>Expires</th><th>Last used</th><th></th></tr></thead>
           <tbody>
             {data.keys.map((k) => (
               <tr key={k.id} className="border-t border-border">
                 <td>{k.label}</td>
                 <td>{k.key_prefix}…</td>
+                <td>{Array.isArray(k.scopes) ? k.scopes.join(", ") : "read (legacy default)"}</td>
                 <td>{new Date(k.expires_at).toLocaleDateString()}</td>
                 <td>{k.last_used_at ? new Date(k.last_used_at).toLocaleString() : "—"}</td>
                 <td>

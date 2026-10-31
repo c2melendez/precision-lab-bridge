@@ -1,0 +1,1839 @@
+{
+  "schema_version": 1,
+  "id": "precision-lab-parallel-tool-roadmap",
+  "title": "Hoja de ruta — Precision Lab Multi-Agent Command Plane",
+  "as_of": "2026-10-31",
+  "language": "es",
+  "status": "m1_pass_scoped_m2_in_progress",
+  "summary": "M1 PASS_SCOPED. M2 IN_PROGRESS. Bridge current HEAD 50978189950cd36cdae6ea4e19f87006ce1aa1d5 passed full CI+DB validation. Lite current-head Runner safety-contract, Playwright E2E and cross-browser passed; normal CI is blocked solely by npm audit (11 findings: 3 low, 8 moderate, 0 high/critical), including upstream deepmerge@4.3.1 with no patched npm release. Plus current-head normal CI passed; Playwright E2E is still in progress. All PRs remain Draft; no deploy, merge, live dispatch or mathematical certification. User-authored mechanism review is preserved. M6 acceptance is extended to include the A–F consumer connectivity/security battery and CB1–CB10 LLM capability benchmark; credentials must be runtime-injected and never exposed to models. TCA v1.0.0 is documented only: TCA-1 host injection, TCA-2 isolated canary lab, and future OAuth/OIDC Credential Broker. None is deployed or enabled; no credential was created.",
+  "canonical_markdown": {
+    "repo": "c2melendez/precision-lab-bridge",
+    "branch": "hardening/secure-status-independent-runtime",
+    "path": "docs/parallel-tool-roadmap.md",
+    "introduced_in": "b8b7a7cdae8991907f3af5bde9ad23ac7926c028"
+  },
+  "supersedes": "docs/observer-bridge-integration.md#Trabajo de integración pendiente",
+  "evidence_rule": "Si un comentario de PR cita un SHA o una prueba más nueva, esa evidencia manda y este archivo debe actualizarse en el mismo cambio.",
+  "active_phase_id": "M2",
+  "resume_protocol": {
+    "audience": {
+      "executes_this_roadmap": "Un LLM/agente consumidor puede completar tareas autorizadas sin acceso GitHub mediante Observer y/o Bridge. La implementación/mantenimiento del plano auxiliar puede requerir un agente mantenedor con permisos GitHub separados.",
+      "does_not_execute_this_roadmap": "No se limita el agente consumidor a Observer: puede entrar por Bridge directamente o combinar Observer y Bridge."
+    },
+    "steps": [
+      "No solicitar, copiar, registrar ni hacer commit de secretos: llm, SERVICE_API_KEY, GITHUB_READ_TOKEN, GH_TOKEN, SUPABASE_SECRET_KEY o BRIDGE_ADMIN_PASSWORD.",
+      "Usar GitHub como fuente de verdad; verificar refs, PR heads, despliegues y evidencia de workflows actuales antes de depender de SHAs históricos.",
+      "El LLM autorizado puede entrar por Observer, Bridge o una ruta híbrida; en el acceso directo Bridge consulta Observer internamente para contexto/política.",
+      "Observer entrega contexto/política; Bridge autentica y persiste comandos tipados/idempotentes; el Runner dentro de Actions será el ejecutor de M2 (aún no implementado).",
+      "El usuario ya concedió autonomía general para completar el trabajo ordinario dentro del alcance, repositorios, gates, workflows, ramas y límites establecidos. No pedir aprobación por cada despacho, prueba, reconciliación o bloque rutinario.",
+      "Ejecutar automáticamente consultas, correcciones, pruebas, despachos y reconciliaciones ordinarias cuando contratos, allowlists, scopes y pruebas demuestren que están dentro de política.",
+      "Escalar únicamente decisiones materiales no resueltas por documentación/pruebas: cambios de alcance, criterios ambiguos, licencia, exposición de datos, aceptación de riesgo nuevo o desactivación de protecciones.",
+      "Un fallo técnico ordinario se investiga, corrige y vuelve a probar sin pedir permiso. Si no existe camino seguro definido, detener solo la operación afectada y explicar el bloqueo concreto.",
+      "No crear un mecanismo externo de aprobación por evento. Fortalecer las pruebas automatizadas como fuente de verdad operativa.",
+      "Registrar request/correlation/validation IDs, fingerprint idempotente, receipt UUID, Actions run ID, Runner record, SHA y conclusión observada. Nunca registrar credenciales."
+    ]
+  },
+  "design_decision": {
+    "version": 2,
+    "name": "multi-entry multi-transport command plane",
+    "llm_surface": [
+      "observer",
+      "bridge",
+      "hybrid_observer_plus_bridge"
+    ],
+    "objective": "Permitir que distintos LLM/agentes completen las operaciones del prompt Precision Lab —lectura, diagnóstico, patch, pruebas, commits/PR, certificación, reconciliación y continuidad— sin que el LLM necesite credenciales ni acceso directo a GitHub.",
+    "architecture": "LLM/Agent → (Observer OR Bridge OR Observer+Bridge) → Bridge Command API → existing Runner execution plane → Lite/Plus. En la ruta Bridge directa, Bridge consulta Observer internamente para contexto, estado canónico y política. Evidencia retorna por Runner → Bridge receipt → requester; Observer puede ofrecer la misma lectura.",
+    "component_roles": {
+      "observer": "Plano de información y política: estado bilateral, branches/HEAD, lectura de archivos/repositorio, continuidad, planes, evidencia y evaluación de bloqueos. No ejecuta commits ni mantiene la idempotencia transaccional de comandos.",
+      "bridge": "Puerta multiagente y plano de comandos: identidades/scopes por agente, contrato tipado, validación final, durable idempotency, queue/lease, receipts, coordinación/reconciliación. Las entradas directas deben consultar Observer internamente para contexto/política live.",
+      "runner": "Plano de ejecución dentro de GitHub Actions en Lite/Plus. Conserva certification-runner.yml para gates y añade capacidad controlada de repo changes, tests, commits/PR y callback. No es una API pública LLM ni un segundo servicio Runner."
+    },
+    "routes": [
+      {
+        "id": "observer-mediated",
+        "route": "LLM → Observer → Bridge → Runner → Lite/Plus",
+        "use": "Agentes que prefieren API/OpenAPI de Observer para lectura, contexto, planificación y delegación."
+      },
+      {
+        "id": "bridge-direct",
+        "route": "LLM → Bridge → (Observer internal context/policy) → Runner → Lite/Plus",
+        "use": "Agentes que pueden hacer REST/MCP/SDK/CLI directamente a Bridge; no requieren llamar Observer por separado."
+      },
+      {
+        "id": "hybrid",
+        "route": "LLM → Observer (GET context/plan) + LLM → Bridge (POST command)",
+        "use": "Agentes que prefieren separar lectura y escritura."
+      },
+      {
+        "id": "github-native-exception",
+        "route": "LLM with delegated GitHub access → GitHub Actions/Runner",
+        "use": "Excepción opcional para agentes con GitHub autorizado; no es requisito para el sistema sin GitHub."
+      }
+    ],
+    "credential_boundaries": [
+      "LLM → Observer: per-agent read/API identity; no GitHub credential.",
+      "LLM → Bridge: per-agent key with context:read, command:submit and/or command:read scopes; no dispatch/admin secrets.",
+      "Bridge → Observer: dedicated internal service identity, proposed OBSERVER_BASE_URL + OBSERVER_SERVICE_KEY, server-only.",
+      "Observer → GitHub: read-only token, server-only.",
+      "Bridge → GitHub Actions: dispatch-only token, server-only.",
+      "Runner → Bridge: GitHub OIDC workload identity or short-lived one-time lease token for task claim/result callback.",
+      "Runner → GitHub repository: repo-scoped workflow permissions/secrets; never exposed to LLM.",
+      "Bridge → Supabase: server-only database credentials."
+    ],
+    "not_in_scope": [
+      "Giving LLMs GitHub PATs, Supabase credentials, Bridge admin credentials or server-to-server secrets.",
+      "Arbitrary remote shell execution or arbitrary workflow names/refs/targets supplied by LLM.",
+      "A new public Runner service or duplicated planning/idempotency engines.",
+      "A route that trusts LLM-supplied RUN decision, branch/SHA or certification PASS."
+    ],
+    "autonomy": {
+      "authorization": "General autonomous execution within existing delegated Precision Lab scope, repositories, canonical branches, gates and policies.",
+      "routine_operations": "No human approval per routine command, test, dispatch or reconciliation when schema, allowlists, scopes and tests establish the operation is permitted.",
+      "escalation": [
+        "Unresolved acceptance ambiguity",
+        "Scope/repository/branch/workflow/security policy changes",
+        "License, publication, data exposure or new risk decisions",
+        "Disabling an established protection or undefined product behavior"
+      ],
+      "outcome_unknown": "Reconcile by the same idempotency key; never blind retry."
+    },
+    "transition": {
+      "preserve_completed": [
+        "Phase A: Observer staging authenticated GET 200 and anonymous GET 401 for existing Bridge receipt; no new workflows.",
+        "Phase B: Observer contract/OpenAPI and associated CI proof."
+      ],
+      "do_not_repeat": [
+        "Phases A/B and already passing CI proofs unless code/contract changes invalidate them."
+      ],
+      "prior_O_phases": "Moved to legacy_observer_only_phases; retained as historical evidence, not the current multi-agent acceptance plan."
+    }
+  },
+  "completed_do_not_redo": [
+    {
+      "id": "repos-public",
+      "fact": "Los cuatro repositorios son públicos.",
+      "repos": [
+        "c2melendez/precision-lab-lite",
+        "c2melendez/precision-lab-plus",
+        "c2melendez/precision-lab-bridge",
+        "c2melendez/precision-lab-readonly-api"
+      ]
+    },
+    {
+      "id": "bridge-runtime",
+      "fact": "Bridge independiente arranca.",
+      "url": "https://precision-lab-bridge.onrender.com",
+      "service_id": "srv-dbi5b8ss728c73ccvjbg",
+      "region": "virginia",
+      "plan": "free",
+      "auto_deploy": false
+    },
+    {
+      "id": "new-database",
+      "fact": "Base nueva, vacía al crearla.",
+      "name": "precision-lab-bridge-db",
+      "ref": "umxtvefdcjwkiqsubfpb"
+    },
+    {
+      "id": "compass-untouched",
+      "fact": "Compass original sigue en pie. Su clave llm no se revoca en esta hoja."
+    },
+    {
+      "id": "observer-pr-current",
+      "fact": "Observer PR #4 permanece abierto y Ready for review; HEAD actual 6e712094a7e4b06a13224f66d6f3a6c26f991152.",
+      "pr": "https://github.com/c2melendez/precision-lab-readonly-api/pull/4",
+      "head_sha": "6e712094a7e4b06a13224f66d6f3a6c26f991152",
+      "draft": false
+    },
+    {
+      "id": "observer-ci-current",
+      "fact": "Observer CI PASS en el HEAD actual de PR #4.",
+      "run_url": "https://github.com/c2melendez/precision-lab-readonly-api/actions/runs/41064924977",
+      "head_sha": "6e712094a7e4b06a13224f66d6f3a6c26f991152"
+    },
+    {
+      "id": "bridge-pr-current",
+      "fact": "Bridge PR #1 permanece abierto y Draft; HEAD documental actual 4427b5871bd8a46f9cc5fd03032eb053bf448d1e.",
+      "pr": "https://github.com/c2melendez/precision-lab-bridge/pull/1",
+      "head_sha": "4427b5871bd8a46f9cc5fd03032eb053bf448d1e",
+      "draft": true
+    },
+    {
+      "id": "bridge-ci-current",
+      "fact": "Bridge CI PASS en el HEAD documental actual del PR #1; la evidencia de código y pruebas DB corresponde al commit padre b244d8c1bd768fd9368aedfaf1be394c2828b145.",
+      "run_url": "https://github.com/c2melendez/precision-lab-bridge/actions/runs/41131674843",
+      "head_sha": "4427b5871bd8a46f9cc5fd03032eb053bf448d1e"
+    },
+    {
+      "id": "observer-bridge-staging-proof",
+      "fact": "Observador staging leyó un recibo existente del Bridge independiente; autenticación correcta y rechazo anónimo.",
+      "bridge_run_uuid": "94c102a5-5242-48ba-bdb7-4754a57513db",
+      "actions_run_id": "41005884405",
+      "repo": "lite",
+      "gate": "cumulative",
+      "authenticated_http_status": 200,
+      "anonymous_http_status": 401,
+      "new_workflows_dispatched": false,
+      "observed_at": "2026-10-30"
+    },
+    {
+      "id": "observer-staging-configured",
+      "fact": "Staging Observador fue configurado por el operador con BRIDGE_BASE_URL y BRIDGE_TIMEOUT_SECONDS, más llm (saliente) y SERVICE_API_KEY (entrante). Valores secretos no registrados.",
+      "url": "https://precision-lab-readonly-api-staging.onrender.com",
+      "service_id": "srv-dbi7avgae00c73be7ns0",
+      "auto_deploy": false
+    },
+    {
+      "id": "observer-production-unchanged",
+      "fact": "No se realizó corte de producción; Compass original y producción permanecen intactos."
+    },
+    {
+      "id": "observer-bridge-phase-a",
+      "fact": "Fase A cerrada: lectura staging autenticada 200 y anónima 401 del recibo Bridge existente; no se despacharon workflows nuevos.",
+      "bridge_run_uuid": "94c102a5-5242-48ba-bdb7-4754a57513db",
+      "lite_actions_run_id": "41005884405",
+      "plus_baseline_actions_run_id": "40970642558",
+      "status": "PASS"
+    },
+    {
+      "id": "observer-bridge-phase-b",
+      "fact": "Fase B cerrada: README_CONTRACT.md y openapi.yaml documentan GET /v1/bridge/runs/{run_id}, autenticación y semántica de identificadores.",
+      "observer_ci_run_id": "41051691930",
+      "observer_ci_head_sha": "ed6a5726c3564054897f4a3d34f73194dfcc6954",
+      "bridge_ci_run_id": "41050127027",
+      "status": "PASS"
+    },
+    {
+      "id": "bridge-sixth-migration-reconciled",
+      "fact": "Sexta migración aplicada y registrada en Supabase; archivo versionado coincide con 20261030200900.",
+      "project_id": "umxtvefdcjwkiqsubfpb",
+      "migration_version": "20261030200900",
+      "migration_path": "supabase/migrations/20261030200900_bridge_security_ownership_and_rpc_integrity.sql",
+      "migration_blob_sha": "488779521e6df48964234e171ec15db07d82c8fb",
+      "alignment_commit": "e0bc3e35c89fa152cd59177c18863ac140e28bcb",
+      "ci_run_58": "41121256457",
+      "ci_run_59": "41121381925",
+      "ci_head_sha": "f8ea3afa74c0f6d5546c1a5bc3e3f2e26f768239",
+      "remote_verified": true
+    },
+    {
+      "id": "runner-bridge-contract-parity-20261030",
+      "fact": "Contrato de Runner comprobado en Lite y Plus: las ramas canónicas aceptan el target local y both, protegen dry_run, no despachan gates por push y aplican la política security de Plus. El workflow Runner v3 de main es idéntico en ambos repositorios.",
+      "status": "PASS_SCOPED",
+      "lite_canonical_branch": "qa/syntax-audit-in625-a1",
+      "lite_head_sha": "e59e2078217e3ce5704ffafa9557202b8182a2a0",
+      "plus_canonical_branch": "qa/syntax-audit-in625-a1",
+      "plus_head_sha": "2cd2058e7ece9b26bc42d52b64b9ad9b9c731d78",
+      "canonical_runner_version": "v2",
+      "main_runner_version": "v3",
+      "main_workflow_blob_sha": "bcaef28a5408c0a857ed514232f5ec9bd769a1bb",
+      "lite_canonical_workflow_blob_sha": "9c39cacb59aee788c713fc7aea89b13f84547eb7",
+      "plus_canonical_workflow_blob_sha": "171703c2d0da28e2a9b72ba84d580b2472730922",
+      "shared_contract_test_blob_sha": "ff5c499cb6eae8277279265a26a897ff982288a0",
+      "lite_contract_test_run_id": 41130209650,
+      "lite_contract_tests_passed": 44,
+      "plus_contract_test_run_id": 41129595199,
+      "plus_contract_tests_passed": 63,
+      "plus_contract_test_step_conclusion": "success",
+      "plus_cumulative_workflow_conclusion": "failure due separate EDCX-B6 mathematical tests",
+      "lite_runner_push_run_id": 41130209548,
+      "plus_runner_push_run_id": 41129595065,
+      "push_dispatch_steps": "SKIPPED",
+      "actual_gate_dispatch_performed": false
+    },
+    {
+      "id": "bridge-durable-idempotency-20261030",
+      "fact": "Bridge CI verifies migrations and RPC security on a disposable Supabase database, runs the five RPC functional checks, and executes all 13 database-backed idempotency tests with GitHub API calls mocked.",
+      "status": "PASS_SCOPED",
+      "run_id": 41130887814,
+      "run_url": "https://github.com/c2melendez/precision-lab-bridge/actions/runs/41130887814",
+      "head_sha": "b244d8c1bd768fd9368aedfaf1be394c2828b145",
+      "unit_tests_passed": 80,
+      "unit_tests_skipped_in_general_job": 13,
+      "database_idempotency_tests_passed": 13,
+      "database_migrations_replayed": true,
+      "rpc_security_assertions_passed": true,
+      "five_rpc_functional_checks_passed": true,
+      "database_lint_passed": true,
+      "github_dispatch_mocked": true,
+      "actual_workflows_created": false,
+      "security_gate_policy": "security is rejected for target_repo plus or both before claim/dispatch"
+    },
+    {
+      "id": "observer-dispatch-contract-tests-20261030",
+      "fact": "Observer PR #4 contiene el POST /v1/bridge/dispatch y la lectura/reconciliación de recibos; CI valida autenticación, plan RUN, no llamada a Bridge ante WAIT o SHA obsoleto y separación de credenciales read/dispatch. Son pruebas unitarias con Bridge simulado; no equivalen a E2E live.",
+      "status": "PASS_SCOPED",
+      "pr_url": "https://github.com/c2melendez/precision-lab-readonly-api/pull/4",
+      "head_sha": "6e712094a7e4b06a13224f66d6f3a6c26f991152",
+      "ci_run_id": 41064924977,
+      "ci_conclusion": "success",
+      "live_post_performed": false,
+      "real_workflow_dispatch_performed": false
+    }
+  ],
+  "invariants": [
+    "LLMs may connect to Observer, Bridge directly, or both; Observer is not a mandatory hop for every agent.",
+    "Bridge direct requests must internally obtain live context/policy from Observer before any repository mutation or certification dispatch.",
+    "Observer remains the source of truth for state, repository context, canonical branch/SHA, planning and evidence.",
+    "Bridge owns command validation, agent scopes, durable idempotency, queue/lease, receipts and dispatch coordination.",
+    "Runner is the only execution plane for repository changes and certification workflows; no public Runner API or second Runner service.",
+    "LLMs never receive GitHub write credentials, Supabase credentials, Bridge admin credentials or server-to-server secrets.",
+    "Only allowlisted typed repository operations and named test profiles may execute; no arbitrary remote shell.",
+    "Every mutation verifies target repository, canonical/policy-approved branch and expected SHA; stale SHA causes conflict and reconciliation.",
+    "Same idempotency key and fingerprint return the same command/receipt; payload conflict is rejected; uncertain outcomes are reconciled, never blindly retried.",
+    "Correlation/validation IDs, actor identity, command ID, receipt UUID, Actions run ID, Runner record, SHA and output are traceable.",
+    "GitHub Actions SUCCESS, command completed, test PASS and mathematical certification PASS remain distinct states.",
+    "Existing A/B Observer→Bridge read tests remain closed and are not repeated absent invalidating changes.",
+    "Routine operations inside delegated scope need no human approval per event; escalate material unresolved decisions.",
+    "Keep existing certification-runner.yml as gate executor; any repository worker workflow is an entrypoint in the same Runner execution plane, not a second Runner service.",
+    "Command completion is observed by pull only: an agent without an inbound endpoint reads GET /api/v1/commands/{command_id} or lookup by Idempotency-Key. Bridge never pushes results to LLMs.",
+    "Self-declared LLM capabilities and results from a consumer's own sandbox are hypotheses or local checks. Only a per-consumer probe against Bridge or Observer using that consumer's own key, and allowlisted Runner profiles, count as evidence.",
+    "A consumer holding any write-capable connector (GitHub, Render or other) must not write to canonical branches or to infrastructure outside Bridge. Agents that use Bridge may hold such connectors only for read-only use, or for non-canonical work authorized under the same branch, expected_sha and evidence rules. Such consumers are not credentialless for M6."
+  ],
+  "phases": [
+    {
+      "id": "M0",
+      "title": "Record architecture v2 and common command contract",
+      "status": "completed",
+      "active": false,
+      "blocked_by": [],
+      "steps": [
+        "Version multi-entry/multi-transport decision in Markdown and JSON.",
+        "Preserve phases A/B and move O1–O7 to legacy single-entry history."
+      ],
+      "exit_criteria": "Markdown and JSON express the same authoritative architecture, transport catalog, routes, Command API and Runner responsibilities."
+    },
+    {
+      "id": "M1",
+      "title": "Specify and implement Bridge Command API",
+      "status": "pass_scoped",
+      "active": false,
+      "blocked_by": [],
+      "steps": [
+        "OpenAPI 3.1 y rutas GET capabilities/context status/gate plan, POST commands y GET command receipt/lookup.",
+        "Scopes opt-in context:read, command:submit y command:read; legacy read/dispatch no se amplían automáticamente.",
+        "bridge_commands privada con fingerprint, owner, expected branch/SHA, Observer snapshot, lifecycle y receipt; RPC transaccional atomic insert/replay/conflict.",
+        "Bridge→Observer client server-only con HTTPS, X-API-Key, timeout, no-store, redirect refusal y validación de estado/plan.",
+        "Rutas HTTP autenticadas, lectura de body limitada en streaming, patch operations typed y owner-scoped receipt lookup.",
+        "Pruebas unitarias, SQL/RLS/grants, concurrencia/idempotencia y DB integration; CI exacto SHA b622a26605b1402c73fe1aff327fc2f1941bc1e2 SUCCESS."
+      ],
+      "exit_criteria": "PASS_SCOPED: CI 41172743808 sobre SHA b622a26605b1402c73fe1aff327fc2f1941bc1e2; tests app, lint, build, migración local, SQL security/RPC, 19/19 DB integration y DB lint SUCCESS. No incluye deploy/OBSERVER_SERVICE_KEY ni prueba live Bridge→Observer; no activa Runner.",
+      "evidence": {
+        "code_sha": "b622a26605b1402c73fe1aff327fc2f1941bc1e2",
+        "commit_url": "https://github.com/c2melendez/precision-lab-bridge/commit/b622a26605b1402c73fe1aff327fc2f1941bc1e2",
+        "ci_run_id": 41172743808,
+        "ci_url": "https://github.com/c2melendez/precision-lab-bridge/actions/runs/41172743808",
+        "conclusion": "success",
+        "jobs": {
+          "Tests, lint and build": "success",
+          "Supabase migration chain (disposable local DB)": "success"
+        },
+        "app_tests": {
+          "passed": 111,
+          "skipped": 19,
+          "skip_reason": "DB-only suites run in the dedicated migration/DB job"
+        },
+        "database_tests": {
+          "passed": 19,
+          "skipped": 0
+        },
+        "database": {
+          "migration_replay": "success",
+          "security_rls_grants_constraints": "success",
+          "sql_rpc_contracts": "success",
+          "lint": "No schema errors found"
+        },
+        "lint": {
+          "errors": 0,
+          "warnings": 6
+        },
+        "deployment": "not_deployed",
+        "live_observer_auth": "not_verified",
+        "runner_execution": "disabled"
+      }
+    },
+    {
+      "id": "M2",
+      "title": "Extend existing Runner execution plane for repository changes",
+      "status": "in_progress",
+      "active": true,
+      "blocked_by": [],
+      "steps": [
+        "Worker entrypoints workflow_dispatch-only añadidos a Lite y Plus; conservan certification-runner.yml y reciben únicamente command_id opaco.",
+        "Bridge valida GitHub OIDC (issuer, firma, audience, repositorio/ID, workflow, evento, rama y run) y vincula el run a un lease durable de 60 minutos con límite de intentos.",
+        "Worker recupera un manifiesto tipado, valida propietario/fingerprint/target/branch/expected_sha y aplica create/replace/delete seguros sobre agent/{command_id} con CAS y blob-SHA.",
+        "Perfiles allowlisted ejecutan validaciones fijas. Plus unit instala frontend con npm ci y ejecuta backend pytest más frontend npm test; frontend lockfile sincronizado.",
+        "Cambios validados generan commit y draft PR sin auto-merge; callback OIDC + lease persiste status, Actions run, commit y PR; replay/reconciliación no redispatcha ciegamente.",
+        "Completar checks normales sobre SHA exactos de Lite/Plus y resolver el hard gate npm audit de Lite sin reducir la política.",
+        "La aceptación M2 requiere una traza end-to-end autorizada Bridge → Actions → Runner → receipt → Observer y replay idempotente; no se ha ejecutado."
+      ],
+      "exit_criteria": "A typed repo patch sent by a no-GitHub agent produces a validated commit/PR and evidence without direct GitHub credentials in the agent."
+    },
+    {
+      "id": "M3",
+      "title": "Unify Observer, Bridge and hybrid routes",
+      "status": "pending",
+      "active": false,
+      "blocked_by": [
+        "M1"
+      ],
+      "steps": [
+        "Expose required Observer file/context endpoints where missing.",
+        "Bridge direct GET context proxies to Observer using a server-only identity.",
+        "Observer-mediated mutations delegate to the same Bridge Command API, not a duplicate path.",
+        "Verify canonical branch/SHA, policy and security decisions are identical across routes."
+      ],
+      "exit_criteria": "Observer-only, Bridge-direct and hybrid agents receive equivalent context, decisions, command states and receipts."
+    },
+    {
+      "id": "M4",
+      "title": "Deliver P0/P1 agent adapters",
+      "status": "pending",
+      "active": false,
+      "blocked_by": [
+        "M1",
+        "M3"
+      ],
+      "steps": [
+        "REST/HTTPS and OpenAPI contract for Observer/Bridge.",
+        "Function Calling tool schemas with host-side HTTP execution.",
+        "GPT Actions for clients that support OpenAPI Actions.",
+        "MCP remote Streamable HTTP and local stdio adapter; both call the same API core."
+      ],
+      "exit_criteria": "At least the P0/P1 adapters invoke the same capabilities and enforce the same scopes/idempotency."
+    },
+    {
+      "id": "M5",
+      "title": "Deliver P2/P3 adapters",
+      "status": "pending",
+      "active": false,
+      "blocked_by": [
+        "M1",
+        "M3"
+      ],
+      "steps": [
+        "Python and TypeScript SDKs and CLI wrappers.",
+        "Signed webhooks with replay protection and callback receipts.",
+        "A2A Agent Card/task adapter.",
+        "Framework and provider-native adapters based on verified real client support."
+      ],
+      "exit_criteria": "Selected P2/P3 adapters pass contract tests and reuse the same Bridge/Observer operations."
+    },
+    {
+      "id": "M6",
+      "title": "Certify multi-agent, multi-transport end-to-end operation",
+      "status": "pending",
+      "active": false,
+      "blocked_by": [
+        "M1",
+        "M2",
+        "M3",
+        "M4"
+      ],
+      "steps": [
+        "Ejecutar batería A–F v2.1.0: conectividad, contrato, scopes, idempotencia, seguridad y frontera de secretos por consumidor con TCA-1 o Broker equivalente.",
+        "Provisionar identidad individual en host/secret manager; el runtime adjunta la cabecera y el LLM nunca recibe el valor. Si no existe frontera segura: BLOCKED/credential_not_provisioned.",
+        "Ejecutar CB1–CB10 con fixtures versionados. G1–G5/TCA-2 son una investigación opcional e independiente, no requisito de M6/producción.",
+        "Comparar modelos con mismo prompt, fixture/SHA, transporte, permisos y presupuesto; procurar al menos tres repeticiones por modelo/tarea y registrar host/transporte como factores separados.",
+        "Use two distinct LLM models (different model IDs/versions), separate consumer identities/API keys and at least two real transport mechanisms; do not provide GitHub credentials to either agent.",
+        "Leer estado/archivos, diagnosticar una corrección autorizada, enviar patch, ejecutar validaciones, obtener commit/PR y reconciliar recibos.",
+        "Ejercitar 401/403, SHA obsoleto, WAIT/REUSE, conflicto de payload, replay exacto, concurrencia, timeout, callback fallido y prompt injection.",
+        "Demostrar que no hay workflow duplicado y conservar traza request→command→receipt→Actions→Runner→commit/PR→test evidence."
+      ],
+      "exit_criteria": "Dos modelos LLM distintos (model_id/version diferenciados), con identidades independientes y dos transportes, completan flujo autorizado mediante TCA-1 o Credential Broker sin credenciales GitHub entregadas a agentes; traza completa, replay sin duplicado y benchmark CB1–CB10 reproducible. TCA-2/G1–G5 no forma parte de la aceptación productiva. BLOCKED no se declara PASS."
+    },
+    {
+      "id": "M7",
+      "title": "Freeze auxiliary infrastructure and resume mathematical certification",
+      "status": "pending",
+      "active": false,
+      "blocked_by": [
+        "M6"
+      ],
+      "steps": [
+        "Publish evidence and capability/transport limitations.",
+        "Freeze auxiliary Observer/Bridge/adapter scope; do not add cosmetic features.",
+        "Resume Lite/Plus certification from canonical current_state/continuity without repeating valid mathematical evidence."
+      ],
+      "exit_criteria": "Multi-agent access and repository change capability are proven; remaining work returns to the mathematical certification objectives."
+    }
+  ],
+  "do_not": [
+    "Do not give LLMs GitHub write tokens, Supabase credentials, Bridge admin secrets or internal service keys.",
+    "Do not make Observer the mandatory network hop for every agent; support direct Bridge and hybrid routes under the same policy.",
+    "Do not let Bridge direct requests bypass live Observer context/policy validation.",
+    "Do not create a second Runner service or duplicate policy/planning/idempotency logic; a worker workflow may be an entrypoint in the same Runner execution plane.",
+    "Do not expose a public unauthenticated Runner API.",
+    "Do not execute arbitrary shell commands, arbitrary workflow names/refs, unbounded patches or unrestricted repository paths supplied by the LLM.",
+    "Do not force-push or overwrite canonical/protected branches; require expected_sha and isolated work branches.",
+    "Do not retry an uncertain POST blindly; reconcile by the original idempotency key.",
+    "Do not confuse command acceptance, workflow SUCCESS, test PASS and mathematical certification PASS.",
+    "Do not reopen phases A/B or repeat their read-only tests unless a code/contract change invalidates the evidence.",
+    "Do not require human approval per routine operation already within delegated policy; escalate material unresolved decisions only.",
+    "Do not merge PR, deploy production, rotate/revoke production credentials or change production routing as a side effect of this documentation decision.",
+    "Do not add GraphQL, gRPC, raw TCP/SSH, Git transports, WebSocket command channels, voice/realtime, or browser/computer-use paths to the command plane.",
+    "Do not count a consumer's sandbox tests, generated specs or curl results as Lite/Plus validation or as proof of access to Observer or Bridge.",
+    "Do not assign a consumer a route from its self-description; assign it only after its consumer probe.",
+    "Do not let sub-agents of a single platform stand in for two independent agents in M6 acceptance.",
+    "Do not count a consumer with write-capable connectors (GitHub, Render or others) as credentialless for M6 while those connectors are connected."
+  ],
+  "definition_of_done": {
+    "required_phases": [
+      "M0",
+      "M1",
+      "M2",
+      "M3",
+      "M4",
+      "M6",
+      "M7"
+    ],
+    "conditional_phases": [
+      "M5"
+    ],
+    "adapter_scope": "M5 adapter selection may be phased by concrete LLM/provider demand; P0/P1 and two distinct transport paths are required for multi-agent acceptance.",
+    "merge_gate_not_a_substitute": "CI/PR review is code evidence, not live interoperability proof. No GitHub credential is supplied to the test LLMs.",
+    "acceptance": "At least two different LLM agents and two different connection mechanisms complete read→diagnose→patch→validate→commit/PR→reconcile with a full evidence chain and exact idempotent replay.",
+    "preserve": "A/B are already completed and are not repeated. Historical O1–O7 evidence remains stored under legacy_observer_only_phases.",
+    "after_done": "Freeze auxiliary multi-agent infrastructure and resume mathematical certification Lite/Plus; agents continue routine work within the proven policy."
+  },
+  "pull_requests": {
+    "observer": {
+      "url": "https://github.com/c2melendez/precision-lab-readonly-api/pull/4",
+      "number": 4,
+      "state": "open",
+      "draft": false,
+      "mergeable": true,
+      "head_sha": "6e712094a7e4b06a13224f66d6f3a6c26f991152",
+      "ci_run_id": 41064924977,
+      "ci_status": "success"
+    },
+    "bridge": {
+      "url": "https://github.com/c2melendez/precision-lab-bridge/pull/1",
+      "number": 1,
+      "state": "open",
+      "draft": true,
+      "mergeable": true,
+      "last_verified_code_ci_run_id": 41131674843,
+      "last_verified_code_ci_sha": "4427b5871bd8a46f9cc5fd03032eb053bf448d1e",
+      "last_verified_code_ci_status": "success",
+      "last_docs_ci_run_id": 41142813306,
+      "last_docs_ci_sha": "ce634c5a5078d57de1f54a8f77a352077487373b",
+      "last_docs_ci_status": "success",
+      "last_observed_head_sha": "f5be8c798f735a117c6eabc40054504e81d0dafb",
+      "last_observed_ci_run_id": 41143814074,
+      "last_observed_ci_status": "pending",
+      "last_observed_at": "2026-10-30T22:15:20-06:00",
+      "head_sha": null,
+      "head_sha_policy": "Consultar el HEAD live de la PR/rama en GitHub. El JSON de roadmap no autocita el SHA de su propio commit.",
+      "latest_documentation_commit_before_snapshot_update": "f5be8c798f735a117c6eabc40054504e81d0dafb"
+    }
+  },
+  "deferred_items": [
+    {
+      "repo": "c2melendez/precision-lab-readonly-api",
+      "pr": 1,
+      "title": "Docs: reconcile live API verification with Render status",
+      "status": "open",
+      "disposition": "deferred_non_blocking",
+      "note": "PR histórico documental, sigue abierto; diferido, no bloquea A/B ni certificación matemática."
+    },
+    {
+      "repo": "c2melendez/precision-lab-readonly-api",
+      "pr": 2,
+      "title": "test(planner): cover fingerprint technical input categories",
+      "status": "open",
+      "disposition": "deferred_non_blocking",
+      "note": "PR histórico de tests; los intentos registrados no asignaron runner ni ejecutaron pytest. No declarar PASS; diferido, no bloqueante."
+    },
+    {
+      "repo": "c2melendez/precision-lab-readonly-api",
+      "pr": 3,
+      "title": "[WIP] feat(ops): isolated runner dispatch API",
+      "status": "open_draft",
+      "disposition": "deferred_blocked",
+      "note": "PR histórico Draft de despacho directo; no reactivar bajo arquitectura Observer→Bridge. No fusionar/desplegar ni habilitar OPS_DISPATCH_ENABLED."
+    }
+  ],
+  "deployment_reconciliation": {
+    "observed_at": "2026-10-30T13:52:00Z",
+    "observer_staging": {
+      "service_id": "srv-dbi7avgae00c73be7ns0",
+      "deploy_id": "dep-dbia1b9srm7s73dltcpg",
+      "deploy_status": "live",
+      "deployed_commit": "6e712094a7e4b06a13224f66d6f3a6c26f991152",
+      "current_pr_head": "6e712094a7e4b06a13224f66d6f3a6c26f991152",
+      "auto_deploy": false,
+      "bridge_route_proven_on_deployed_commit": false,
+      "github_read_token_presence": "not_verified",
+      "bridge_dispatch_key_configured": true,
+      "ci_run_id": "41064924977",
+      "ci_status": "success"
+    },
+    "bridge": {
+      "service_id": "srv-dbi5b8ss728c73ccvjbg",
+      "deploy_id": "dep-dbia0bm7bikc73aijvn0",
+      "deploy_status": "live",
+      "deployed_commit": "99a439c11726e8d4424b48f43d74a11508848366",
+      "current_pr_head": "99a439c11726e8d4424b48f43d74a11508848366",
+      "auto_deploy": false,
+      "receipt_status_get_proven": true,
+      "ci_run_id": "41065225032",
+      "ci_status": "success"
+    },
+    "implication": "Los HEAD actuales de Bridge y Observer están desplegados y LIVE en staging. CI de ambos HEADs pasó. La clave dispatch-only está activa/configurada, pero no hay uso ni request POST, no existe fila de idempotencia nueva y no se ha creado workflow. O6 sigue pendiente; no se confunde LIVE/CI SUCCESS con E2E ni PASS matemático."
+  },
+  "supabase_runtime_snapshot": {
+    "project_id": "umxtvefdcjwkiqsubfpb",
+    "project_status": "ACTIVE_HEALTHY",
+    "migrations_applied": [
+      "20261030075859",
+      "20261030075922",
+      "20261030075926",
+      "20261030075930",
+      "20261030133052"
+    ],
+    "table_counts": {
+      "bridge_keys": 2,
+      "bridge_runs": 1,
+      "bridge_calls": 2,
+      "bridge_idempotency": 0
+    },
+    "verified_receipt_uuid": "94c102a5-5242-48ba-bdb7-4754a57513db",
+    "receipt_actions_run_id": 41005884405,
+    "receipt_is_historical": true,
+    "key_metadata": {
+      "label": "staging-read-only-verification",
+      "revoked": false,
+      "expires_at_utc": "2026-10-31T09:05:53Z",
+      "expires_at_honduras": "2026-10-31T03:05:53-06:00",
+      "scopes": [
+        "read"
+      ]
+    },
+    "key_value_or_hash_read": false,
+    "interpretation": "Existing read key remains read-only. A separate dispatch-only staging key is active and configured on Observer. No calls have been made with it; bridge_idempotency remains empty and bridge_runs contains only the historical receipt. No E2E dispatch has been executed.",
+    "scopes_migration": "20261030133052_bridge_key_scopes",
+    "dispatch_key_status": "active_configured_staging",
+    "dispatch_key_metadata": {
+      "id": "9f7affec-b6a7-4d8f-b0bd-629a778adfd9",
+      "label": "observer-staging-dispatch",
+      "scopes": [
+        "dispatch"
+      ],
+      "key_prefix": "plb_o-1qQS",
+      "expires_at_utc": "2026-11-06T13:50:27Z",
+      "configured_on_observer_as": "BRIDGE_DISPATCH_KEY",
+      "value_or_hash_read": false
+    }
+  },
+  "latest_reconciliation": {
+    "observed_at": "2026-10-30",
+    "bridge_migration": {
+      "version": "20261030200900",
+      "remote_status": "applied",
+      "file_blob_sha": "488779521e6df48964234e171ec15db07d82c8fb",
+      "ci_58": {
+        "run_id": "41121256457",
+        "conclusion": "success",
+        "jobs": 2
+      },
+      "ci_59": {
+        "run_id": "41121381925",
+        "head_sha": "f8ea3afa74c0f6d5546c1a5bc3e3f2e26f768239",
+        "conclusion": "success",
+        "jobs": 2
+      }
+    },
+    "remote_database": {
+      "project_id": "umxtvefdcjwkiqsubfpb",
+      "status": "ACTIVE_HEALTHY",
+      "table_counts": {
+        "bridge_keys": 2,
+        "bridge_runs": 1,
+        "bridge_calls": 2,
+        "bridge_idempotency": 0
+      },
+      "invalid_ownership": 0,
+      "orphan_idempotency": 0,
+      "security_definer_rpc": 0,
+      "anon_execute_rpc": 0,
+      "authenticated_execute_rpc": 0,
+      "service_role_execute_rpc": 5,
+      "rls_enabled_tables": 4,
+      "advisor_info": {
+        "rls_enabled_no_policy": 4,
+        "unused_index": 2
+      }
+    },
+    "scope": {
+      "bridge_pr_1": "open_draft_unmerged",
+      "observer_historical_prs_1_to_3": "deferred",
+      "production_cutover": "out_of_scope",
+      "bridge_deployment": "out_of_scope",
+      "real_dispatch": "out_of_scope",
+      "lite_plus_workflows": "not_dispatched"
+    }
+  },
+  "runner_certification_r360": {
+    "status": "PASS_SCOPED_PUSH_ONLY",
+    "lite": {
+      "run_id": 41138509571,
+      "run_url": "https://github.com/c2melendez/precision-lab-lite/actions/runs/41138509571",
+      "sha": "c8c29d820e5bd16ab4df8a528bcea9b4a72f8acc",
+      "event": "push",
+      "conclusion": "success",
+      "latest_run_id": 41142010410,
+      "latest_run_url": "https://github.com/c2melendez/precision-lab-lite/actions/runs/41142010410",
+      "latest_sha": "4341955335d6898c4979063520432f82a6d129ba",
+      "runs": [
+        {
+          "run_id": 41141571479,
+          "sha": "933fad5c3e55db06db9de6ff21e02cd96070da0f",
+          "conclusion": "success",
+          "event": "push"
+        },
+        {
+          "run_id": 41141037836,
+          "sha": "0a85b448298df0691b043269648d327d0a7aec0b",
+          "conclusion": "success",
+          "event": "push"
+        },
+        {
+          "run_id": 41140700509,
+          "sha": "4e8e57ef8bc731c41a270facef42cac6a4fe708c",
+          "conclusion": "success",
+          "event": "push"
+        },
+        {
+          "run_id": 41138509571,
+          "sha": "c8c29d820e5bd16ab4df8a528bcea9b4a72f8acc",
+          "conclusion": "success",
+          "event": "push"
+        }
+      ],
+      "latest_observed_run_id": 41142684118,
+      "latest_observed_run_url": "https://github.com/c2melendez/precision-lab-lite/actions/runs/41142684118",
+      "latest_observed_sha": "5901316519ca98d0810ac0f228c91abe6380ee7f",
+      "latest_observed_status": "in_progress",
+      "latest_run_status": "success_push_only"
+    },
+    "plus": {
+      "run_id": 41136660038,
+      "run_url": "https://github.com/c2melendez/precision-lab-plus/actions/runs/41136660038",
+      "sha": "218d682848a03a000930e2028f057563847381f3",
+      "event": "push",
+      "conclusion": "success"
+    },
+    "verified": [
+      "canonical branch resolved from default README",
+      "canonical checkout",
+      "base SHA recorded",
+      "read-only gate fingerprint calculated",
+      "push summary"
+    ],
+    "skipped": [
+      "gate policy/workflow resolution",
+      "dry-run summary",
+      "active equivalent run detection/wait",
+      "workflow dispatch",
+      "QA receipt recording",
+      "continuity persistence",
+      "documentary commit"
+    ],
+    "not_proven": [
+      "workflow_dispatch path",
+      "gate dispatch and result wait",
+      "Observer→Bridge→Actions→Runner trace",
+      "durable receipt correlation",
+      "idempotent replay without duplicate workflow"
+    ],
+    "global_status": "OPEN",
+    "contract_test": {
+      "path": "scripts/certification/test_runner_contract.py",
+      "blob_sha_lite": "ff5c499cb6eae8277279265a26a897ff982288a0",
+      "blob_sha_plus": "ff5c499cb6eae8277279265a26a897ff982288a0",
+      "identical": true,
+      "historical_suite_evidence": {
+        "lite": {
+          "run_id": 41130209548,
+          "tests": "44/44"
+        },
+        "plus": {
+          "run_id": 41129595065,
+          "tests": "63/63"
+        }
+      },
+      "workflow_blobs_differ_intentionally": true,
+      "differences": [
+        "Lite default target_repo is lite; Plus default target_repo is plus",
+        "The two comment lines differ to describe local behavior"
+      ],
+      "shared_contract": "target_repo=both; workflow_dispatch gate and dry_run inputs; canonical README branch resolution; push and dry-run cannot dispatch; security gate remains blocked in Plus."
+    }
+  },
+  "next_step": "Finish Plus Playwright E2E on exact SHA. Remediate Lite npm audit findings without lowering the hard gate, using a reviewed upstream fix or approved/tested dependency replacement for deepmerge. Keep BRIDGE_COMMAND_EXECUTION_ENABLED=false. M2 cannot be accepted until Lite hard gate passes and an authorized Bridge→Actions→Runner→durable receipt→Observer trace and same-idempotency replay are verified. Then proceed M3; mathematical certification remains separate.",
+  "mathematical_progress_r360": {
+    "repository": "c2melendez/precision-lab-lite",
+    "status": "PASS_SCOPED",
+    "case": "ALGEBRA114-AS-EXP-04",
+    "sha": "933fad5c3e55db06db9de6ff21e02cd96070da0f",
+    "acceptance": "qa/certification/ALGEBRA114_AS_EXP_04_ACCEPTANCE_R362.md",
+    "runs": {
+      "ci": 41141571381,
+      "cumulative": 41141571350,
+      "h1d": 41141571338,
+      "runner": 41141571479,
+      "scientific_ui": {
+        "id": 41141571351,
+        "status": "in_progress",
+        "role": "complementary, not required for algebraic acceptance"
+      }
+    },
+    "next_case": "ALGEBRA114-AS-EXP-06",
+    "last_accepted_case": "ALGEBRA114-AS-EXP-05",
+    "active_case": {
+      "case": "ALGEBRA114-AS-EXP-06",
+      "status": "GATES_QUEUED_OR_IN_PROGRESS",
+      "sha": "5901316519ca98d0810ac0f228c91abe6380ee7f",
+      "test_blob": "75f74428c431f5a04b60a4580e7ade8ac70cff86",
+      "runs": {
+        "ci": 41142684332,
+        "cumulative": 41142684039,
+        "h1d": 41142684020,
+        "scientific_ui": 41142683997,
+        "runner": 41142684118
+      },
+      "supersedes_sha": "fe9806f3503d70aaef4d89673f85ad13092f3211",
+      "acceptance": null,
+      "note": "Previous candidate failed only because symbolic monomial ordering was compared as a fixed string; corrected to compare sorted exact terms."
+    },
+    "last_acceptance_sha": "4341955335d6898c4979063520432f82a6d129ba",
+    "last_acceptance": "qa/certification/ALGEBRA114_AS_EXP_05_ACCEPTANCE_R364.md"
+  },
+  "runner_certification_r365": {
+    "status": "PASS_SCOPED_PUSH_ONLY",
+    "canonical_branch": "qa/syntax-audit-in625-a1",
+    "lite": {
+      "run_id": 41142684118,
+      "run_url": "https://github.com/c2melendez/precision-lab-lite/actions/runs/41142684118",
+      "sha": "5901316519ca98d0810ac0f228c91abe6380ee7f",
+      "event": "push",
+      "conclusion": "success"
+    },
+    "plus": {
+      "run_id": 41136660038,
+      "run_url": "https://github.com/c2melendez/precision-lab-plus/actions/runs/41136660038",
+      "sha": "218d682848a03a000930e2028f057563847381f3",
+      "event": "push",
+      "conclusion": "success"
+    },
+    "verified_steps": [
+      "Resolve canonical branch from default-branch README",
+      "Checkout canonical branch",
+      "Record base commit",
+      "Read-only planner fingerprint",
+      "Push summary"
+    ],
+    "skipped_steps": [
+      "Gate policy/workflow resolution",
+      "Dry-run summary",
+      "Equivalent active-run detection/wait",
+      "Workflow dispatch",
+      "QA receipt recording",
+      "Continuity persistence",
+      "Documentary commit"
+    ],
+    "contract_test": {
+      "path": "scripts/certification/test_runner_contract.py",
+      "blob_sha": "ff5c499cb6eae8277279265a26a897ff982288a0",
+      "identical_lite_plus": true
+    },
+    "not_proven": [
+      "workflow_dispatch dispatch path",
+      "Gate dispatch and result wait",
+      "Observer→Bridge→Actions→Runner end-to-end trace",
+      "durable receipt correlation",
+      "idempotent replay without duplicate workflow"
+    ],
+    "global_status": "OPEN",
+    "updated_utc": "2026-10-30T23:09:14Z"
+  },
+  "mathematical_progress_r365": {
+    "repository": "c2melendez/precision-lab-lite",
+    "status": "PASS_SCOPED",
+    "case": "ALGEBRA114-AS-EXP-06",
+    "sha": "5901316519ca98d0810ac0f228c91abe6380ee7f",
+    "test_blob": "75f74428c431f5a04b60a4580e7ade8ac70cff86",
+    "acceptance": "qa/certification/ALGEBRA114_AS_EXP_06_ACCEPTANCE_R365.md",
+    "runs": {
+      "ci": 41142684332,
+      "cumulative": 41142684039,
+      "h1d": 41142684020,
+      "runner": 41142684118,
+      "scientific_ui": {
+        "id": 41142683997,
+        "status": "in_progress",
+        "role": "complementary; not required for scoped algebra acceptance"
+      }
+    },
+    "next_case": "ALGEBRA114-AS-EXP-07",
+    "global_status": "OPEN"
+  },
+  "phase_status_as_of_r365": {
+    "A": "CLOSED",
+    "B": "CLOSED",
+    "O5": "IN_PROGRESS",
+    "O6": "PENDING",
+    "O7": "PENDING",
+    "note": "O1–O4 retain their documented partial/in-progress states; A/B refer to the Observer read-only staging integration and contract."
+  },
+  "runner_certification_r366": {
+    "status": "PASS_SCOPED_PUSH_ONLY",
+    "canonical_branch": "qa/syntax-audit-in625-a1",
+    "lite": {
+      "run_id": 41144150833,
+      "run_url": "https://github.com/c2melendez/precision-lab-lite/actions/runs/41144150833",
+      "sha": "c791540390b2e5a3c27f11b7a9a444ad04012a20",
+      "event": "push",
+      "conclusion": "success"
+    },
+    "plus": {
+      "run_id": 41136660038,
+      "run_url": "https://github.com/c2melendez/precision-lab-plus/actions/runs/41136660038",
+      "sha": "218d682848a03a000930e2028f057563847381f3",
+      "event": "push",
+      "conclusion": "success"
+    },
+    "verified_steps": [
+      "Resolve canonical branch from default-branch README",
+      "Checkout canonical branch",
+      "Record base commit",
+      "Read-only planner fingerprint",
+      "Push summary"
+    ],
+    "skipped_steps": [
+      "Gate policy/workflow resolution",
+      "Dry-run summary",
+      "Equivalent active-run detection/wait",
+      "Workflow dispatch",
+      "QA receipt recording",
+      "Continuity persistence",
+      "Documentary commit"
+    ],
+    "not_proven": [
+      "workflow_dispatch",
+      "Gate dispatch/result wait",
+      "durable receipt",
+      "Observer→Bridge→Actions→Runner E2E",
+      "idempotent replay without duplicate workflow"
+    ],
+    "global_status": "OPEN",
+    "updated_utc": "2026-10-30T23:23:15Z"
+  },
+  "mathematical_progress_r366": {
+    "repository": "c2melendez/precision-lab-lite",
+    "case": "ALGEBRA114-AS-EXP-07",
+    "status": "GATES_IN_PROGRESS",
+    "sha": "c791540390b2e5a3c27f11b7a9a444ad04012a20",
+    "test_blob": "06f362c0aeced0100b266c7dcf6465c06324f8b1",
+    "runs": {
+      "ci": 41144150978,
+      "cumulative": 41144150867,
+      "h1d": 41144150866,
+      "scientific_ui": 41144150819,
+      "runner": 41144150833
+    },
+    "previous_case": "ALGEBRA114-AS-EXP-06",
+    "previous_status": "PASS_SCOPED",
+    "global_status": "OPEN"
+  },
+  "runner_certification_r367": {
+    "status": "PASS_SCOPED_PUSH_ONLY",
+    "canonical_branch": "qa/syntax-audit-in625-a1",
+    "lite": {
+      "run_id": 41144150833,
+      "run_url": "https://github.com/c2melendez/precision-lab-lite/actions/runs/41144150833",
+      "sha": "c791540390b2e5a3c27f11b7a9a444ad04012a20",
+      "event": "push",
+      "conclusion": "success"
+    },
+    "plus": {
+      "run_id": 41136660038,
+      "run_url": "https://github.com/c2melendez/precision-lab-plus/actions/runs/41136660038",
+      "sha": "218d682848a03a000930e2028f057563847381f3",
+      "event": "push",
+      "conclusion": "success"
+    },
+    "verified_steps": [
+      "Canonical branch resolution",
+      "Canonical checkout",
+      "BASE_SHA capture",
+      "Read-only fingerprint",
+      "Push summary"
+    ],
+    "skipped_steps": [
+      "Gate policy",
+      "Dry-run",
+      "Equivalent run wait",
+      "Workflow dispatch",
+      "QA receipt",
+      "Continuity persistence",
+      "Documentary commit"
+    ],
+    "not_proven": [
+      "workflow_dispatch",
+      "gate dispatch",
+      "durable receipt",
+      "E2E request-to-runner evidence",
+      "idempotent replay"
+    ],
+    "global_status": "OPEN",
+    "updated_utc": "2026-10-30T23:25:12Z"
+  },
+  "mathematical_progress_r367": {
+    "repository": "c2melendez/precision-lab-lite",
+    "case": "ALGEBRA114-AS-EXP-07",
+    "status": "PASS_SCOPED",
+    "sha": "c791540390b2e5a3c27f11b7a9a444ad04012a20",
+    "test_blob": "06f362c0aeced0100b266c7dcf6465c06324f8b1",
+    "acceptance": "qa/certification/ALGEBRA114_AS_EXP_07_ACCEPTANCE_R366.md",
+    "runs": {
+      "ci": 41144150978,
+      "cumulative": 41144150867,
+      "h1d": 41144150866,
+      "runner": 41144150833,
+      "scientific_ui": {
+        "id": 41144150819,
+        "status": "in_progress",
+        "role": "complementary; not required for scoped algebra acceptance"
+      }
+    },
+    "next_case": "ALGEBRA114-AS-EXP-08",
+    "global_status": "OPEN"
+  },
+  "legacy_observer_only_design": {
+    "status": "superseded_by_architecture_v2",
+    "superseded_on": "2026-10-30",
+    "prior_llm_surface": "observer_only",
+    "prior_invariants": [
+      "LLM/Action se conecta únicamente a Observer.",
+      "Bridge no recibe tráfico directo desde la Action.",
+      "Observer es el único componente que coordina solicitudes LLM y llama Bridge server-to-server."
+    ],
+    "disposition": "Preservar las fases O1–O7 y su evidencia histórica, pero no usarlas como requisitos de entrada única ni como criterios finales de aceptación multiagente."
+  },
+  "legacy_observer_only_phases": [
+    {
+      "id": "O1",
+      "title": "Consolidar Observer como interfaz central de lectura y coordinación",
+      "status": "in_progress",
+      "active": true,
+      "blocked_by": [],
+      "steps": [
+        "Revisar el contrato de estado bilateral, plan de gate, evidencia GitHub y recibos Bridge.",
+        "Mantener las consultas Bridge detrás de endpoints Observer.",
+        "Unificar interpretación de RUN, WAIT, REUSE y RECONCILE sin duplicar la lógica del Runner."
+      ],
+      "exit_criteria": "Una única superficie LLM→Observer ofrece el estado y evidencia necesaria de Lite/Plus y Bridge sin revelar Bridge URL, credenciales ni endpoints internos."
+    },
+    {
+      "id": "O2",
+      "title": "Integrar las consultas de Bridge dentro de Observer",
+      "status": "partially_completed",
+      "active": false,
+      "blocked_by": [],
+      "steps": [
+        "Conservar GET /v1/bridge/runs/{run_id} con auth entrante de Observer.",
+        "Exponer GET /v1/bridge/requests/{idempotency_key} mediante la clave Bridge read-only para reconciliar recibos.",
+        "Validar los endpoints contra el HEAD actual y staging; no añadir proxy SQL ni acceso arbitrario."
+      ],
+      "exit_criteria": "Todas las lecturas Bridge requeridas por el LLM pasan por Observer; la Action no contiene host ni rutas Bridge."
+    },
+    {
+      "id": "O3",
+      "title": "Incorporar operación protegida de solicitud de despacho en Observer",
+      "status": "partially_completed",
+      "active": true,
+      "blocked_by": [],
+      "steps": [
+        "Implementar schema estricto para target_repo, gate, dry_run, idempotency_key, validation_id, correlation_id, branch y requested_sha.",
+        "Revalidar el plan live en Observer: state CURRENT, canonical branch, observed SHA y gate decision RUN; WAIT/REUSE/REFRESH/RECONCILE no despachan.",
+        "Llamar Bridge server-to-server con BRIDGE_DISPATCH_KEY, sanitizar respuesta y tratar timeout como outcome unknown sin reintento ciego."
+      ],
+      "exit_criteria": "POST de Observer protegido y probado; el contrato OpenAPI público solo presenta Observer y nunca Bridge."
+    },
+    {
+      "id": "O4",
+      "title": "Separar scopes y endurecer identidad Observer→Bridge",
+      "status": "partially_completed",
+      "active": false,
+      "blocked_by": [],
+      "steps": [
+        "Aplicar bridge_key_scopes; las claves existentes reciben solo read por defecto y dispatch se concede explícitamente.",
+        "Separar llm (read-only) de BRIDGE_DISPATCH_KEY (dispatch-only); no permitir fallback entre credenciales.",
+        "Probar rechazo de claves read-only en POST y de claves dispatch-only en GET; mantener el LLM sin URL/credencial Bridge."
+      ],
+      "exit_criteria": "Solo la identidad de servicio de Observer puede ejecutar despachos permitidos; el acceso LLM→Bridge no existe."
+    },
+    {
+      "id": "O5",
+      "title": "Validar idempotencia, reconciliación y trazabilidad",
+      "status": "in_progress",
+      "active": true,
+      "blocked_by": [
+        "O3",
+        "O4"
+      ],
+      "steps": [
+        "Propagar idempotency_key, validation_id y correlation_id sin cambios entre Observer y Bridge.",
+        "Probar replay, fingerprint conflict, concurrencia, lease, fallos de storage, rechazo GitHub, timeout/outcome unknown y reconciliación.",
+        "Bridge tests cubren replay exacto, fingerprint conflict, ocho claims concurrentes, persistencia entre procesos, expiración/fencing de lease, uncertain intent, rechazo GitHub, network error, SHA obsoleto y acceso anónimo.",
+        "Bridge CI #41131674843, SHA de CI 4427b5871bd8a46f9cc5fd03032eb053bf448d1e: ambos jobs SUCCESS. Job Supabase local reconstruyó las seis migraciones, validó seguridad/esquema, ejecutó las cinco RPC, 13/13 pruebas DB de idempotencia y lint sin errores.",
+        "El mismo CI registró 80 pruebas unitarias/regresión PASS, 13 pruebas DB separadas (13/13 PASS), ESLint con 0 errores y 6 warnings, y build Node SUCCESS. GitHub dispatch permanece simulado.",
+        "Observer PR #4 HEAD 6e712094a7e4b06a13224f66d6f3a6c26f991152, CI #41064924977 SUCCESS (29 tests): verifies authenticated dispatch route, live-plan gating, stale SHA/canonical branch rejection, separate dispatch-scoped credential, unchanged idempotency/validation/correlation fields, timeout as uncertain outcome, and read-scoped receipt reconciliation. These tests mock Bridge and do not dispatch.",
+        "Runner Lite y Plus: contrato de workflow v2 equivalente en ramas canónicas; ambos aceptan target_repo=both, protegen dry_run, no despachan en push, resuelven rama canónica y bloquean security en Plus. Test file idéntico en ambos repositorios (blob ff5c499cb6eae8277279265a26a897ff982288a0); suites unittest de regresión 44/44 Lite y 63/63 Plus.",
+        "Los runs de Runner por push terminaron SUCCESS, con Gate policy/dispatch SKIPPED y Push summary SUCCESS: no se inició ningún workflow matemático.",
+        "Pendiente para cerrar O5: flujo Observer→Bridge→Actions→Runner→evidencia matemática real y replay sin duplicación; los mocks no sustituyen esa trazabilidad E2E.",
+        "Reconciliación r360 del Certification Runner en Lite: push run 41138509571 SUCCESS en SHA c8c29d820e5bd16ab4df8a528bcea9b4a72f8acc. Rama canónica resuelta desde README, checkout, BASE_SHA y fingerprint correctos; push summary SUCCESS. Gate policy, dry-run summary, detección/espera, dispatch, registro QA, persistencia y commit documental SKIPPED.",
+        "Reconciliación r360 del Certification Runner en Plus: push run 41136660038 SUCCESS en SHA 218d682848a03a000930e2028f057563847381f3. Mismos pasos de resolución canónica, checkout, BASE_SHA y fingerprint correctos; dispatch, espera, registro y persistencia SKIPPED.",
+        "Decisión Runner: PASS_SCOPED para evento push/no-dispatch en ambos repositorios. No acredita workflow_dispatch, gate dispatch, receipt durable, registro runner post-dispatch ni replay idempotente.",
+        "Los resultados de los gates matemáticos AS-EXP-02 Lite (CI 41138509410, cumulative 41138509481, H1d 41138509536) son evidencia del motor, no evidencia de dispatch del mecanismo paralelo.",
+        "R365 Runner reconciliation: Lite push run 41142684118 SUCCESS on SHA 5901316519ca98d0810ac0f228c91abe6380ee7f; Plus push run 41136660038 SUCCESS on SHA 218d682848a03a000930e2028f057563847381f3. Both resolve canonical branch, checkout, record base SHA, calculate read-only fingerprint and finish Push summary. Dispatch, QA receipt, continuity persistence and documentary commit are SKIPPED. Runner remains PASS_SCOPED_PUSH_ONLY; no E2E receipt chain or idempotent replay is proven.",
+        "Current PR snapshot: Bridge PR #1 remains open/draft at HEAD ce634c5a5078d57de1f54a8f77a352077487373b; CI 41142813306 is pending. The previously verified Bridge CI 41131674843 was SUCCESS on prior HEAD 4427b5871bd8a46f9cc5fd03032eb053bf448d1e. Observer PR #4 remains open/ready at HEAD 6e712094a7e4b06a13224f66d6f3a6c26f991152 with CI 41064924977 SUCCESS.",
+        "R367 Runner refresh: Lite push run 41144150833 SUCCESS on SHA c791540390b2e5a3c27f11b7a9a444ad04012a20; Plus push run 41136660038 SUCCESS on SHA 218d682848a03a000930e2028f057563847381f3. Both remain PASS_SCOPED_PUSH_ONLY; no dispatch, durable receipt or replay."
+      ],
+      "exit_criteria": "Evidencia de pruebas demuestra no duplicación, reconciliación y trazabilidad request→receipt→Actions→Runner."
+    },
+    {
+      "id": "O6",
+      "title": "Validación end-to-end controlada",
+      "status": "pending",
+      "active": false,
+      "blocked_by": [
+        "O1",
+        "O2",
+        "O3",
+        "O4",
+        "O5"
+      ],
+      "steps": [
+        "Pruebas locales/staging sin efectos externos están cubiertas por los CI y tests documentados en O5.",
+        "No se ha invocado POST /v1/bridge/dispatch ni workflow_dispatch real; no se crea recibo enlazado a un nuevo Actions run en esta iteración.",
+        "La solicitud del usuario para esta iteración es mantener despacho real inactivo; O6 permanece pendiente y no se sustituye por dispatch directo ni por mocks.",
+        "Corte r360: no se ejecutó workflow_dispatch real ni POST de Observer/Bridge, de acuerdo con el límite operativo vigente. Los runs push de Runner no generan receipt ni disparan gates. O6 permanece PENDING, no FAIL.",
+        "R365 confirmation: no POST /v1/bridge/dispatch and no workflow_dispatch were invoked. Runner push SUCCESS runs do not create durable receipts or satisfy the E2E criterion. O6 remains PENDING by the explicit operational restriction, not FAIL."
+      ],
+      "exit_criteria": "Validación end-to-end completa y trazable; repetición idempotente sin segundo workflow. dry_run=true cuenta como despacho real y se permite dentro del alcance general delegado cuando tests/policy lo habilitan."
+    },
+    {
+      "id": "O7",
+      "title": "Cerrar infraestructura auxiliar y volver a certificación matemática",
+      "status": "pending",
+      "active": false,
+      "blocked_by": [
+        "O1",
+        "O2",
+        "O3",
+        "O4",
+        "O5",
+        "O6"
+      ],
+      "steps": [
+        "Congelar el alcance Observer/Bridge y documentar límites/evidencia.",
+        "No crear otra capa, otro Runner ni funciones cosméticas adicionales.",
+        "Retomar certificación matemática en Lite y Plus como prioridad principal."
+      ],
+      "exit_criteria": "No quedan gaps auxiliares dentro del alcance acordado; la siguiente línea de trabajo activa es certificación matemática Lite/Plus."
+    }
+  ],
+  "integration_catalog": [
+    {
+      "priority": "P0",
+      "id": "rest_https",
+      "mechanism": "REST/HTTPS",
+      "entrypoints": [
+        "Observer",
+        "Bridge"
+      ],
+      "status": "base_transport_present_command_api_pending"
+    },
+    {
+      "priority": "P0",
+      "id": "openapi",
+      "mechanism": "OpenAPI",
+      "entrypoints": [
+        "Observer",
+        "Bridge"
+      ],
+      "status": "Observer_contract_present_Bridge_command_contract_pending"
+    },
+    {
+      "priority": "P0",
+      "id": "function_calling",
+      "mechanism": "Function Calling / Tool Use",
+      "entrypoints": [
+        "Observer",
+        "Bridge"
+      ],
+      "status": "adapter_pending"
+    },
+    {
+      "priority": "P1",
+      "id": "gpt_actions",
+      "mechanism": "GPT Actions",
+      "entrypoints": [
+        "Observer",
+        "Bridge where client supports"
+      ],
+      "status": "consumer_action_validation_pending"
+    },
+    {
+      "priority": "P1",
+      "id": "mcp_remote",
+      "mechanism": "MCP remote Streamable HTTP",
+      "entrypoints": [
+        "Observer",
+        "Bridge"
+      ],
+      "status": "server_adapter_pending"
+    },
+    {
+      "priority": "P1",
+      "id": "mcp_stdio",
+      "mechanism": "MCP local stdio",
+      "entrypoints": [
+        "local adapter to Observer or Bridge"
+      ],
+      "status": "adapter_pending"
+    },
+    {
+      "priority": "P2",
+      "id": "sdk_python",
+      "mechanism": "Python SDK",
+      "entrypoints": [
+        "Observer",
+        "Bridge"
+      ],
+      "status": "pending"
+    },
+    {
+      "priority": "P2",
+      "id": "sdk_typescript",
+      "mechanism": "TypeScript/JavaScript SDK",
+      "entrypoints": [
+        "Observer",
+        "Bridge"
+      ],
+      "status": "pending"
+    },
+    {
+      "priority": "P2",
+      "id": "cli",
+      "mechanism": "CLI",
+      "entrypoints": [
+        "Observer",
+        "Bridge"
+      ],
+      "status": "pending"
+    },
+    {
+      "priority": "P3",
+      "id": "webhooks",
+      "mechanism": "Signed webhooks",
+      "entrypoints": [
+        "Bridge"
+      ],
+      "status": "pending"
+    },
+    {
+      "priority": "P3",
+      "id": "a2a",
+      "mechanism": "Agent2Agent",
+      "entrypoints": [
+        "Bridge"
+      ],
+      "status": "pending"
+    },
+    {
+      "priority": "P3",
+      "id": "framework_adapters",
+      "mechanism": "LangChain, LangGraph, CrewAI, AutoGen, LlamaIndex and similar",
+      "entrypoints": [
+        "SDK/API adapter"
+      ],
+      "status": "pending"
+    },
+    {
+      "priority": "P3",
+      "id": "provider_native",
+      "mechanism": "Native provider tool/connectors",
+      "entrypoints": [
+        "Provider-specific adapter"
+      ],
+      "status": "evaluate_per_provider"
+    },
+    {
+      "priority": "exception",
+      "id": "github_native",
+      "mechanism": "GitHub App / GitHub connector / delegated GitHub token",
+      "entrypoints": [
+        "GitHub Actions/Runner"
+      ],
+      "status": "optional_not_required_for_no_github_llm"
+    }
+  ],
+  "command_api_contract": {
+    "status": "proposed_not_implemented",
+    "owner": "Bridge",
+    "version": "v1",
+    "routes": [
+      {
+        "method": "GET",
+        "path": "/api/v1/capabilities",
+        "purpose": "Return capabilities, supported operations, schema versions and scope requirements."
+      },
+      {
+        "method": "GET",
+        "path": "/api/v1/context/status",
+        "purpose": "Sanitized Bridge proxy to Observer project status for Bridge-only agents."
+      },
+      {
+        "method": "GET",
+        "path": "/api/v1/context/files/{repo}/{path}",
+        "purpose": "Read authorized repository files through Observer information plane."
+      },
+      {
+        "method": "GET",
+        "path": "/api/v1/context/gates/{gate}/plan",
+        "purpose": "Return live gate plan; Bridge must revalidate before execution."
+      },
+      {
+        "method": "POST",
+        "path": "/api/v1/commands",
+        "purpose": "Validate, persist idempotently and enqueue a typed command."
+      },
+      {
+        "method": "GET",
+        "path": "/api/v1/commands/{command_id}",
+        "purpose": "Read sanitized command status and receipt."
+      },
+      {
+        "method": "GET",
+        "path": "/api/v1/commands/lookup",
+        "purpose": "Reconcile by Idempotency-Key without creating or retrying a workflow."
+      }
+    ],
+    "envelope": {
+      "required": [
+        "schema_version",
+        "command_type",
+        "target_repo",
+        "expected_branch",
+        "expected_sha",
+        "payload",
+        "idempotency_key",
+        "correlation_id",
+        "validation_id"
+      ],
+      "actor": "Derived from authenticated agent identity/key; never trusted from request JSON.",
+      "target_repo": [
+        "lite",
+        "plus"
+      ],
+      "initial_command_types": [
+        "repo.inspect",
+        "repo.patch",
+        "repo.validate",
+        "repo.commit",
+        "repo.pull_request",
+        "certification.plan",
+        "certification.dispatch"
+      ],
+      "validation_profile": "Allowlisted named profiles; no arbitrary shell commands or arbitrary workflow names.",
+      "large_payloads": "Private artifact references with checksum, max size, TTL and owner validation.",
+      "server_generated": [
+        "command_id",
+        "fingerprint",
+        "status",
+        "created_at",
+        "receipt_uuid",
+        "actions_run_id",
+        "runner_record"
+      ]
+    },
+    "states": [
+      "accepted",
+      "queued",
+      "validating",
+      "running",
+      "awaiting_review",
+      "completed",
+      "failed",
+      "blocked",
+      "reconcile_required"
+    ],
+    "idempotency": {
+      "same_key_same_fingerprint": "Return the same command/receipt; do not create another workflow.",
+      "same_key_different_fingerprint": "409 conflict.",
+      "uncertain_outcome": "Reconcile using the same key; never blindly repeat POST."
+    },
+    "security": {
+      "structured_file_operations_only": true,
+      "no_arbitrary_shell": true,
+      "repo_path_and_file_type_allowlists": true,
+      "expected_sha_compare_and_swap": true,
+      "isolated_branch_pattern": "agent/{command_id}",
+      "default_no_direct_write_to_canonical_branch": true,
+      "no_automatic_merge_unless_explicitly_allowed_by_existing_policy": true
+    },
+    "backward_compatibility": "Keep POST /api/runs for existing gate dispatch during transition; route it through the same Bridge policy/idempotency/audit core or maintain it as a compatibility adapter, never as a bypass."
+  },
+  "runner_repo_change_capability": {
+    "status": "proposed_not_implemented",
+    "logical_runner": "Existing Runner execution plane in Lite/Plus; no new public Runner service.",
+    "certification_workflow": "Keep .github/workflows/certification-runner.yml for certification gates; preserve parity and existing policy.",
+    "repository_worker": "A dedicated repository-command workflow entrypoint may be added within the same Runner execution plane; it is a workflow entrypoint, not a second Runner service.",
+    "flow": [
+      "Bridge persists command and lease before dispatch.",
+      "Dispatch workflow with opaque command_id only; do not place secrets or unbounded patch payload in workflow_dispatch inputs.",
+      "Runner claims manifest using GitHub OIDC workload identity or a short-lived one-time lease token.",
+      "Verify owner, expiry, schema, allowlist, fingerprint, expected branch and expected_sha.",
+      "Apply typed file operations on isolated branch agent/{command_id}; reject stale SHA and never force-push.",
+      "Run allowlisted validation profiles and collect logs/artifacts.",
+      "On passing required checks, create commit and PR; on failure return diagnostic and do not merge.",
+      "Authenticate callback to Bridge; store commit/PR, Actions run and Runner record in receipt."
+    ],
+    "acceptance": "A no-GitHub LLM can cause an authorized file change, validated commit/PR and complete evidence chain using only its Observer/Bridge credential."
+  },
+  "migration_notes": {
+    "architecture_version": 2,
+    "decision_date": "2026-10-30",
+    "markdown_path": "docs/parallel-tool-roadmap.md",
+    "json_path": "docs/parallel-tool-roadmap.json",
+    "preserved_completed_phases": [
+      "A",
+      "B"
+    ],
+    "superseded_workstream": "Observer-only O1–O7",
+    "new_workstream": "Multi-entry M0–M7",
+    "important": "The Command API, Bridge→Observer context proxy and Runner repository-change worker are specified, not yet implemented or E2E certified."
+  },
+  "limitations": [
+    "Bridge PR #1 current HEAD 50978189950cd36cdae6ea4e19f87006ce1aa1d5 passed full CI 41178465402: tests/lint/build plus disposable Supabase migration replay, RPC security/RLS/grants, SQL contracts, DB integration and schema lint.",
+    "Lite PR #60 current HEAD f7c4cf6ac31967b74e936ba38d1597404e652e33: Runner safety-contract, Playwright E2E and cross-browser passed. Normal CI fails solely at npm audit hard gate with 11 findings (3 low, 8 moderate, 0 high/critical); typecheck/unit/build are skipped afterward.",
+    "One Lite audit finding is deepmerge@4.3.1 via @rollup/plugin-node-resolve. Current GitHub advisory lists affected versions through 4.3.1 and no patched npm release. Do not lower audit policy, add an exception or introduce an unreviewed fork.",
+    "Plus PR #41 current HEAD 5288fae3f42065e3246f62e9f017098a1bad5cc4 normal CI passed; Playwright run 41178121954 remains in progress.",
+    "All Node Runner profiles run npm ci then npm audit --package-lock-only before profile validation. BRIDGE_COMMAND_EXECUTION_ENABLED remains false. No live dispatch, production deploy/migration, secret update, merge, command-generated PR or mathematical certification. Observer live auth remains unverified; O6/O7 PENDING."
+  ],
+  "latest_m2_reconciliation": {
+    "as_of": "2026-10-31",
+    "status": "IN_PROGRESS",
+    "bridge": {
+      "repository": "c2melendez/precision-lab-bridge",
+      "branch": "hardening/secure-status-independent-runtime",
+      "pr": 1,
+      "head_sha": "50978189950cd36cdae6ea4e19f87006ce1aa1d5",
+      "ci_run": 41178465402,
+      "ci_conclusion": "success",
+      "evidence": [
+        "Unit/regression tests, ESLint and Node production build passed on exact current HEAD.",
+        "Disposable Supabase complete migration replay, RPC security/RLS/grants, legacy/M1/M2 SQL functional contracts, database-backed idempotency/Command API tests and schema lint passed."
+      ]
+    },
+    "lite": {
+      "repository": "c2melendez/precision-lab-lite",
+      "branch": "feature/m2-command-runner-bridge",
+      "pr": 60,
+      "head_sha": "f7c4cf6ac31967b74e936ba38d1597404e652e33",
+      "ci_run": 41178122450,
+      "ci_conclusion": "failure",
+      "runner_contract": "success",
+      "playwright_run": 41178122439,
+      "playwright_conclusion": "success",
+      "cross_browser_run": 41178122475,
+      "cross_browser_conclusion": "success",
+      "audit": {
+        "total": 11,
+        "low": 3,
+        "moderate": 8,
+        "high": 0,
+        "critical": 0
+      },
+      "blocker": "npm audit hard gate; deepmerge@4.3.1 enters via @rollup/plugin-node-resolve and the current GHSA lists no patched npm release."
+    },
+    "plus": {
+      "repository": "c2melendez/precision-lab-plus",
+      "branch": "feature/m2-command-runner-bridge",
+      "pr": 41,
+      "head_sha": "5288fae3f42065e3246f62e9f017098a1bad5cc4",
+      "lockfile_commit": "d54d80af0294ba781d9d8d30114f82bb8891cc93",
+      "ci_run": 41178121902,
+      "ci_conclusion": "success",
+      "playwright_run": 41178121954,
+      "playwright_status": "in_progress"
+    },
+    "runner_security_policy": {
+      "node_profiles_require_clean_install": true,
+      "npm_audit_hard_gate": true,
+      "audit_command": "npm audit --package-lock-only",
+      "audit_runs_before_profile_tests": true
+    },
+    "operational_limits": {
+      "execution_enabled": false,
+      "real_dispatch_performed": false,
+      "production_deploy_performed": false,
+      "production_database_migration_performed": false,
+      "draft_prs_merged": false,
+      "observer_live_http_verified": false,
+      "mathematical_certification_claimed": false,
+      "o6": "PENDING",
+      "o7": "PENDING"
+    }
+  },
+  "llm_mechanism_review_2026_10_31": {
+    "status": "DOCUMENTARY_DECISION_RECORDED",
+    "as_of": "2026-10-31",
+    "scope": "Six exported conversations (Copilot, Qwen, Qwen Coder, DeepSeek, Gemini, Meta AI) listing the mechanisms each LLM believes it can use, reviewed against the P0-P3 catalog and the v2 architecture.",
+    "evidence_classification": {
+      "self_report_only": [
+        "Copilot",
+        "Qwen",
+        "DeepSeek",
+        "Gemini",
+        "Meta AI"
+      ],
+      "sandbox_probe_not_precision_lab_evidence": [
+        "Qwen Coder"
+      ],
+      "sandbox_probe_detail": "Public curl to api.github.com without credentials, validation of a sample OpenAPI 3.0.3 spec, and urllib/https requests to public endpoints. These prove outbound HTTPS from the sandbox only."
+    },
+    "contradictions_observed": [
+      "Meta AI states it has no OpenAPI capability; Qwen Coder validated an OpenAPI 3.0.3 sample in its sandbox.",
+      "Copilot gives two different answers to the same question across its two exports.",
+      "Copilot and DeepSeek say a GitHub connector may exist; Qwen Coder found no token or GitHub App in its environment.",
+      "Qwen's export truncates the user's first message; Gemini refers to a second image with /api/v1/ routes that is not part of this review."
+    ],
+    "verdict": "The v2 architecture does not change. Most reports say they cannot call an arbitrary REST API, MCP server or webhook on their own, so the practical bottleneck is the host adapter per deployment, not the Command API. Routes are assigned per consumer after probing.",
+    "findings": [
+      "Function Calling is named as a consumer's own mechanism in 5 of 6 reports, but every report conditions it on the host exposing the tool. It is the first adapter to build in M4, generated from the same OpenAPI document.",
+      "No agent without a public endpoint can receive inbound notifications, so command outcomes are read by pull (GET by command_id or lookup by Idempotency-Key).",
+      "Consumer sandboxes can run local checks and generate patches, but their results are never validation evidence for Lite/Plus.",
+      "A consumer holding write-capable connectors (GitHub, Render or others) could write outside Bridge. The exception must cover every write-capable connector, not only GitHub, and such consumers do not count as credentialless for M6.",
+      "The roadmap does not define a background process that closes abandoned accepted/queued commands or expired leases without a receipt. Bridge tests cover lease expiry at claim time only. This must be designed before M2 closes."
+    ],
+    "candidate_decisions": [
+      {
+        "id": "streaming_status",
+        "mechanism": "SSE or WebSocket for status",
+        "reported_by": [
+          "Qwen",
+          "DeepSeek",
+          "Copilot",
+          "Qwen Coder"
+        ],
+        "decision": "DEFERRED_OPTIONAL",
+        "condition": "Read-only GET /api/v1/commands/{command_id}/events after M3, only if polling is shown insufficient. Polling remains the baseline."
+      },
+      {
+        "id": "outbound_push_to_llm",
+        "mechanism": "Outbound notifications to the agent",
+        "reported_by": [
+          "Qwen"
+        ],
+        "decision": "REJECTED_AS_MECHANISM",
+        "condition": "Adopted as invariant: completion is observed by pull only."
+      },
+      {
+        "id": "scheduled_jobs",
+        "mechanism": "Scheduled tasks and reminders",
+        "reported_by": [
+          "Meta AI"
+        ],
+        "decision": "ADOPTED_INTERNAL_NEED",
+        "condition": "Not an LLM mechanism. Needed as a Bridge background sweep for abandoned commands and expired leases; design before M2 closes."
+      },
+      {
+        "id": "code_sandbox",
+        "mechanism": "Code execution sandbox",
+        "reported_by": [
+          "Copilot",
+          "DeepSeek",
+          "Qwen",
+          "Qwen Coder",
+          "Meta AI"
+        ],
+        "decision": "CONSUMER_SIDE_ONLY",
+        "condition": "Consumers may run local checks; only Runner allowlisted profiles count as validation."
+      },
+      {
+        "id": "artifacts_files",
+        "mechanism": "File attachments and storage references",
+        "reported_by": [
+          "Qwen"
+        ],
+        "decision": "ALREADY_COVERED",
+        "condition": "artifact_refs in the Command API envelope."
+      },
+      {
+        "id": "rag_memory",
+        "mechanism": "RAG, vector store, persistent memory",
+        "reported_by": [
+          "Copilot",
+          "Qwen",
+          "DeepSeek"
+        ],
+        "decision": "DEFERRED",
+        "condition": "If needed, lives in Observer as information plane. A separate semantic index would become a second source of truth."
+      },
+      {
+        "id": "tool_discovery",
+        "mechanism": "Dynamic tool discovery",
+        "reported_by": [
+          "Copilot",
+          "Qwen"
+        ],
+        "decision": "ALREADY_COVERED",
+        "condition": "GET /api/v1/capabilities; it should also be the source for generated tool schemas."
+      },
+      {
+        "id": "git_ssh_tcp_grpc",
+        "mechanism": "Git over HTTPS, SSH, raw TCP, gRPC",
+        "reported_by": [
+          "Qwen Coder",
+          "Copilot",
+          "DeepSeek"
+        ],
+        "decision": "REJECTED",
+        "condition": "Conflicts with no arbitrary shell and with writes only through typed operations. gRPC duplicates the REST contract with no consumer requesting it."
+      },
+      {
+        "id": "graphql",
+        "mechanism": "GraphQL",
+        "reported_by": [
+          "DeepSeek"
+        ],
+        "decision": "REJECTED",
+        "condition": "Duplicates the OpenAPI contract without a consumer that needs it."
+      },
+      {
+        "id": "voice_browser_desktop",
+        "mechanism": "Voice/WebRTC, browser or desktop control",
+        "reported_by": [
+          "Qwen",
+          "DeepSeek"
+        ],
+        "decision": "REJECTED",
+        "condition": "Outside the scope of the command plane."
+      },
+      {
+        "id": "personal_connectors",
+        "mechanism": "Personal and enterprise connectors (mail, drives, chat, calendar, social graph)",
+        "reported_by": [
+          "Copilot",
+          "Meta AI"
+        ],
+        "decision": "REJECTED",
+        "condition": "These are host connectors, not Precision Lab mechanisms."
+      },
+      {
+        "id": "sub_agents",
+        "mechanism": "Sub-agents of one platform",
+        "reported_by": [
+          "Meta AI"
+        ],
+        "decision": "NOT_COUNTED_FOR_M6",
+        "condition": "M6 requires two independent agents with separate identities and keys."
+      },
+      {
+        "id": "web_search",
+        "mechanism": "Web search",
+        "reported_by": [
+          "Copilot",
+          "Meta AI",
+          "DeepSeek"
+        ],
+        "decision": "OUTSIDE_COMMAND_PLANE",
+        "condition": "Host tool; does not change the contract."
+      }
+    ],
+    "roadmap_adjustments": [
+      "Consumer probe: each LLM that connects uses its own key. Battery: docs/parallel-tool-consumer-probe-battery.md (33 tests, groups A to F). Checks include GET /api/v1/capabilities and GET /api/v1/context/status with context:read (200); POST without command:submit (403); POST with command:submit (202); exact replay (200); GET by command_id and lookup. Record result per mechanism and per consumer. Status: PENDING until Bridge to Observer is deployed and configured.",
+      "Routes are assigned per consumer from probe results, not from a global design. A consumer without outbound HTTP uses an adapter or the hybrid route.",
+      "Function Calling adapter (M4): generate tool schemas from the same OpenAPI document and from GET /api/v1/capabilities. Do not maintain separate hand-written schemas.",
+      "Connector exception: any connector with write capability (GitHub, Render or other) is inventoried per consumer and never writes to canonical branches or to infrastructure outside Bridge. A consumer that uses Bridge may hold such connectors only for read-only work, unless a non-canonical workflow is separately authorized under the same branch, expected_sha and evidence rules. A consumer with write-capable connectors is not credentialless for M6 and must disconnect them during the M6 test, with the disconnection recorded.",
+      "Add a Bridge background sweep for accepted/queued commands without receipt and for expired leases, moving them to reconcile_required without redispatch. Design and test before M2 closes.",
+      "M6 uses two independent consumers, each with its own key and host. Sub-agents of one platform do not count."
+    ],
+    "open_items": [
+      "Identify the host runtime of each consumer LLM; the reports do not state it and cannot be assumed.",
+      "Confirm the design of the background sweep (schedule, lease expiry window, reconcile_required transition).",
+      "Run the consumer probe after OBSERVER_SERVICE_KEY is configured and the Bridge build is deployed. Until then no route is assigned to any consumer."
+    ],
+    "no_state_changes": "This review changes no PASS, PENDING or IN_PROGRESS status. M0-M7 are unchanged. No code, secrets, deployments or workflow dispatches were involved.",
+    "probe_battery": "docs/parallel-tool-consumer-probe-battery.md",
+    "consumer_registry": [
+      {
+        "position": 4,
+        "consumer_id": "claude_2026_10_31",
+        "source": "Exported conversation, 2026-10-31, 00:54 to 00:59 local time (America/Tegucigalpa). Self-report, not probed.",
+        "plan_declared": "gratuito",
+        "runtime_declared": {
+          "shell": "Cloud workspace; egress limited to npm/pip registries and GitHub",
+          "http_public": "WebFetch for public pages (GET)",
+          "mcp_remote": [
+            "Render",
+            "GitHub"
+          ],
+          "subagents": "internal to the session",
+          "scheduled_tasks": false,
+          "inbound_webhooks": false,
+          "a2a": false,
+          "persistent_memory": true,
+          "artifacts": true
+        },
+        "write_capable_connectors": [
+          {
+            "name": "Render",
+            "declared_write": "services, deployments, environment variables",
+            "credential_bearing": true
+          },
+          {
+            "name": "GitHub",
+            "declared_write": "repositories (connector with its own authorization)",
+            "credential_bearing": true
+          }
+        ],
+        "m6_eligible": false,
+        "m6_reason": "Connected to GitHub and Render with write capability. M6 requires consumers without GitHub credentials; eligible only if both connectors are disconnected during the test, with the disconnection recorded.",
+        "route_assignment": "NONE_UNTIL_PROBE",
+        "probe_battery": "docs/parallel-tool-consumer-probe-battery.md",
+        "probe_status": "PENDING",
+        "probe_conditions": [
+          "Keys are resolved from the consumer environment; missing keys yield BLOCKED and the run continues",
+          "Run A1-A7, B1-B9 and C1-C8 in read and validation mode",
+          "D1-D3 run automatically when a submit key is present; they create records without executing changes",
+          "D4 runs only when the server confirms execution_enabled: true; otherwise BLOCKED",
+          "E1-E2 as capability inventory only, without invoking writes",
+          "Record plan and host with every result",
+          "No secret values in output"
+        ]
+      }
+    ],
+    "registry_note": "Positions 1 to 3 have no prior entries in this version. They are assigned once their host and plan are confirmed."
+  },
+  "llm_capability_benchmark": {
+    "version": "2.0.0",
+    "tests": [
+      "CB1",
+      "CB2",
+      "CB3",
+      "CB4",
+      "CB5",
+      "CB6",
+      "CB7",
+      "CB8",
+      "CB9",
+      "CB10"
+    ],
+    "minimum_repetitions": 3,
+    "scoring": "0-4 per task, with exactness, technical_quality, reliability_security, autonomy and efficiency reported separately",
+    "comparison_controls": [
+      "same prompt version",
+      "same fixture and source SHA",
+      "same tools and permissions",
+      "same transport when comparing models",
+      "same budget and host configuration"
+    ],
+    "evidence": "Observed decisions, patches, tests, CI classification, receipts, reconciliation and sanitized artifacts; no private chain-of-thought.",
+    "distinct_model_ids_required_for_m6": true
+  },
+  "credential_handling": {
+    "policy": "No consumer or operator pastes credentials into prompts or chat. Credentials are provisioned directly in the secret manager/host/MCP server/connector and injected by the runtime.",
+    "per_consumer_identity": true,
+    "minimum_scopes": [
+      "context:read",
+      "command:submit",
+      "command:read"
+    ],
+    "secret_values_visible_to_llm": false,
+    "if_secure_injection_unavailable": "BLOCKED/credential_not_provisioned",
+    "server_only": [
+      "OBSERVER_SERVICE_KEY",
+      "GH_TOKEN",
+      "SUPABASE_SECRET_KEY",
+      "BRIDGE_ADMIN_PASSWORD"
+    ],
+    "key_issuance": {
+      "admin_ui_route": "/",
+      "implementation_files": [
+        "src/routes/index.tsx",
+        "src/lib/bridge/admin.functions.ts"
+      ],
+      "admin_auth_secret": "BRIDGE_ADMIN_PASSWORD",
+      "scopes_selectable": [
+        "context:read",
+        "command:submit",
+        "command:read",
+        "read",
+        "dispatch"
+      ],
+      "raw_key_display": "once_only",
+      "persistence": "sha256 hash and key prefix; raw credential is not recoverable",
+      "deployment_guard": "verify the actual deployed SHA contains this UI before relying on it",
+      "copy_destination": "directly into the consumer host/secret manager; never into prompts or chat"
+    }
+  },
+  "consumer_probe_battery": {
+    "version": "2.1.0",
+    "markdown_path": "docs/parallel-tool-consumer-probe-battery.md",
+    "connectivity_security_tests": 33,
+    "capability_benchmark_tests": 10,
+    "credential_exposure_lab_tests": 5,
+    "test_groups": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "F",
+      "G"
+    ],
+    "benchmark_tests": [
+      "CB1",
+      "CB2",
+      "CB3",
+      "CB4",
+      "CB5",
+      "CB6",
+      "CB7",
+      "CB8",
+      "CB9",
+      "CB10"
+    ],
+    "credential_lab_tests": [
+      "G1",
+      "G2",
+      "G3",
+      "G4",
+      "G5"
+    ]
+  },
+  "tca_design": {
+    "version": "1.0.0",
+    "document": "docs/temporary-credential-access-design.md",
+    "design_status": "documented",
+    "implementation_status": {
+      "TCA_1": "not_implemented",
+      "TCA_2_credential_lab": "not_implemented",
+      "credential_broker": "not_implemented"
+    },
+    "TCA_1": "host-injected Bridge credential; secret not visible to model; provisional operational mode",
+    "TCA_2": "separate synthetic canary lab; no Bridge/repository/production access",
+    "TCA_2_bridge_readonly": "future_optional_blocked",
+    "credential_broker": "future OAuth 2.1/OIDC identity and short-lived scoped token service",
+    "TCA_2_required_for_M6": false,
+    "no_credentials_created": true,
+    "no_production_changes": true,
+    "observer_credential_issuer": "Separate from Bridge admin panel; not verified in this repository. Direct Observer route stays BLOCKED until its safe issuance/provisioning flow is documented. Never reuse a Bridge key."
+  }
+}

@@ -1,20 +1,75 @@
 // @vitest-environment node
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({ claim: vi.fn(), prepare: vi.fn(), begin: vi.fn(), record: vi.fn(), finish: vi.fn(), fetch: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  claim: vi.fn(), prepare: vi.fn(), begin: vi.fn(), record: vi.fn(), finish: vi.fn(), fetch: vi.fn(),
+  statusFilters: [] as [string, string, unknown][],
+  statusRows: { run: null as unknown, ledger: null as unknown },
+  keyScopes: ["read", "dispatch"] as string[],
+}));
 vi.mock("./idempotency.server", () => ({ claimRequest: mocks.claim, prepareRun: mocks.prepare,
   beginDispatch: mocks.begin, recordDispatch: mocks.record, finishClaim: mocks.finish }));
-vi.mock("@/integrations/supabase/client.server", () => ({ supabaseAdmin: { from: (table: string) => ({
-  select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: table === "bridge_keys" ?
-    { id: "key1", expires_at: "2099-01-01", revoked_at: null } : null }) }) }),
-  update: () => ({ eq: async () => ({ error: null }) }), insert: async () => ({ error: null }),
-}) } }));
-import { trigger } from "./core.server";
+vi.mock("@/integrations/supabase/client.server", () => ({
+  supabaseAdmin: {
+    from: (table: string) => ({
+      select: () => {
+        const query = {
+          eq: (column: string, value: unknown) => {
+            if (table === "bridge_runs" || table === "bridge_idempotency") {
+              mocks.statusFilters.push([table, column, value]);
+            }
+            return query;
+          },
+          maybeSingle: async () => ({
+            data: table === "bridge_keys"
+              ? { id: "key1", expires_at: "2099-01-01", revoked_at: null, scopes: mocks.keyScopes }
+              : table === "bridge_runs"
+                ? mocks.statusRows.run
+                : table === "bridge_idempotency"
+                  ? mocks.statusRows.ledger
+                  : null,
+            error: null,
+          }),
+        };
+        return query;
+      },
+      update: () => ({ eq: async () => ({ error: null }) }),
+      insert: async () => ({ error: null }),
+    }),
+  },
+}));
+import { runStatus, trigger } from "./core.server";
 
 const raw = { target_repo: "lite", gate: "h1d", idempotency_key: "v1" };
-beforeEach(() => { vi.clearAllMocks(); vi.stubGlobal("fetch", mocks.fetch); });
+beforeEach(() => {
+  vi.clearAllMocks();
+  mocks.statusFilters.length = 0;
+  mocks.statusRows.run = null;
+  mocks.statusRows.ledger = null;
+  mocks.keyScopes = ["read", "dispatch"];
+  vi.stubGlobal("fetch", mocks.fetch);
+});
 
 describe("claim must precede every external dispatch", () => {
+  it("rejects a read-only key before claiming or dispatching", async () => {
+    mocks.keyScopes = ["read"];
+    const result = await trigger("test", "plb_read_only", raw);
+    expect(result).toEqual({ status: 403, body: { error: "insufficient_scope", required_scope: "dispatch" } });
+    expect(mocks.claim).not.toHaveBeenCalled();
+    expect(mocks.fetch).not.toHaveBeenCalled();
+  });
+
+  it("rejects security for Plus or both before claiming or dispatching", async () => {
+    for (const target_repo of ["plus", "both"]) {
+      const result = await trigger("test", "plb_test", { ...raw, target_repo, gate: "security" });
+      expect(result.status).toBe(400);
+      expect(result.body).toMatchObject({ error: expect.stringContaining("only available for lite") });
+    }
+    expect(mocks.claim).not.toHaveBeenCalled();
+    expect(mocks.fetch).not.toHaveBeenCalled();
+  });
+
+
   it("does not dispatch without a durable claim", async () => {
     mocks.claim.mockRejectedValue(new Error("database failure with sensitive detail"));
     const result = await trigger("test", "plb_test", raw);
@@ -88,10 +143,65 @@ describe("dispatch outcome handling", () => {
     expect(r.body).toMatchObject({ error: "GITHUB_DISPATCH_REJECTED_403" });
     expect(mocks.finish).toHaveBeenCalledWith(claimed.record, "FAILED", 502, expect.anything(), "GITHUB_DISPATCH_REJECTED_403");
   });
+  it("rejects a stale requested SHA before sending a workflow dispatch", async () => {
+    mocks.fetch.mockResolvedValue(Response.json({ object: { sha: "b".repeat(40) } }));
+    const r = await trigger("test", "plb_test", { ...raw, branch: "main", requested_sha: "a".repeat(40) });
+    expect(r.status).toBe(502);
+    expect(r.body).toMatchObject({ error: "GITHUB_DISPATCH_REJECTED_422" });
+    expect(mocks.fetch).toHaveBeenCalledTimes(1);
+    expect(String(mocks.fetch.mock.calls[0][0])).toContain("/git/ref/heads/main");
+    expect(mocks.fetch.mock.calls.some(([url]) => String(url).includes("/dispatches"))).toBe(false);
+  });
   it("treats network errors as uncertain and never retries blindly", async () => {
     mocks.fetch.mockRejectedValue(new Error("socket hangup"));
     const r = await trigger("test", "plb_test", raw);
     expect(r.status).toBe(409);
     expect(mocks.finish).toHaveBeenCalledWith(claimed.record, "BLOCKED", 409, expect.anything(), "DISPATCH_OUTCOME_UNKNOWN");
+  });
+});
+describe("run status ownership", () => {
+  it("scopes run lookup to the authenticated bridge key", async () => {
+    const id = "00000000-0000-0000-0000-000000000001";
+    const result = await runStatus("plb_test", id);
+
+    expect(result).toEqual({ status: 404, body: { error: "not found" } });
+    expect(mocks.statusFilters).toEqual([
+      ["bridge_runs", "id", id],
+      ["bridge_runs", "key_id", "key1"],
+    ]);
+    expect(mocks.fetch).not.toHaveBeenCalled();
+  });
+});
+
+describe("run status ledger ownership", () => {
+  it("scopes the idempotency ledger lookup to the same owner key", async () => {
+    const id = "00000000-0000-0000-0000-000000000002";
+    mocks.statusRows.run = {
+      id,
+      target_repo: "lite",
+      gate: "h1d",
+      dry_run: true,
+      dispatched_at: "2026-10-30T00:00:00.000Z",
+      gh_runs: [],
+      key_id: "key1",
+    };
+    mocks.statusRows.ledger = {
+      id: "ledger1",
+      run_id: id,
+      key_id: "key1",
+      state: "BLOCKED",
+      response: { idempotency_id: "ledger1" },
+    };
+
+    const result = await runStatus("plb_test", id);
+
+    expect(result.status).toBe(200);
+    expect(mocks.statusFilters).toEqual([
+      ["bridge_runs", "id", id],
+      ["bridge_runs", "key_id", "key1"],
+      ["bridge_idempotency", "run_id", id],
+      ["bridge_idempotency", "key_id", "key1"],
+    ]);
+    expect(mocks.fetch).not.toHaveBeenCalled();
   });
 });

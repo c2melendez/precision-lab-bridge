@@ -1,0 +1,40 @@
+services:
+  - type: web
+    name: precision-lab-bridge
+    runtime: node
+    plan: free
+    region: virginia
+    autoDeployTrigger: "off"
+    buildCommand: bun install --frozen-lockfile && bun run build
+    startCommand: bun run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NITRO_PRESET
+        value: render-com
+      - key: HOST
+        value: 0.0.0.0
+      - key: GH_OWNER
+        value: c2melendez
+      - key: GH_REF
+        value: main
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SECRET_KEY
+        sync: false
+      - key: SUPABASE_PUBLISHABLE_KEY
+        sync: false
+      - key: VITE_SUPABASE_URL
+        sync: false
+      - key: VITE_SUPABASE_PUBLISHABLE_KEY
+        sync: false
+      - key: OBSERVER_BASE_URL
+        value: https://precision-lab-readonly-api.onrender.com
+      - key: OBSERVER_SERVICE_KEY
+        sync: false
+      - key: BRIDGE_COMMAND_EXECUTION_ENABLED
+        value: "false"
+      - key: GH_TOKEN
+        sync: false
+      - key: BRIDGE_ADMIN_PASSWORD
+        sync: false

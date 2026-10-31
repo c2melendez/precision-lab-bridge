@@ -99,11 +99,11 @@ describe("TCA-1 Bridge client", () => {
   it("redacts error response bodies and never includes the credential in errors", async () => {
     fetcher.mockResolvedValueOnce(jsonResponse({ error: "insufficient_scope", debug: API_KEY }, 403));
     const client = createTca1BridgeClient(config, { fetcher: fetcher as Tca1Fetch });
-    await expect(client.getCapabilities()).rejects.toMatchObject({
-      httpStatus: 403,
-      code: "BRIDGE_HTTP_403",
-    } satisfies Partial<Tca1BridgeError>);
-    try { await client.getCapabilities(); } catch (error) {
+    try {
+      await client.getCapabilities();
+      throw new Error("expected request to fail");
+    } catch (error) {
+      expect(error).toMatchObject({ httpStatus: 403, code: "BRIDGE_HTTP_403" });
       expect(String(error)).not.toContain(API_KEY);
       expect(JSON.stringify(error)).not.toContain(API_KEY);
     }
@@ -116,8 +116,8 @@ describe("TCA-1 Bridge client", () => {
       httpStatus: 0,
       code: "BRIDGE_NETWORK_OR_TIMEOUT",
     });
-    await expect(createTca1BridgeClient({
+    expect(() => createTca1BridgeClient({
       ...config, baseUrl: "http://bridge.example",
-    })).rejects.toBeUndefined();
+    })).toThrow("TCA1_UNSAFE_BASE_URL");
   });
 });

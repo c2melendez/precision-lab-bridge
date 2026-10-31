@@ -14,7 +14,7 @@ Este documento es la fuente de seguimiento. Sustituye la sección «Trabajo de i
 5. Ejecuta autónomamente las operaciones ordinarias dentro del alcance y políticas ya aprobados. Escala al usuario solo decisiones materiales no resueltas por el contrato, las pruebas o los límites definidos; no pidas aprobación por cada despacho rutinario.
 6. Anota SHA, URL de run, códigos HTTP y cualquier cambio de configuración no secreta. Nunca registres valores de credenciales.
 
-Un LLM sin GitHub es el consumidor previsto de Observador. El LLM que construye/mantiene la herramienta necesita acceso a GitHub; el humano administra Render y los secretos.
+Un LLM sin acceso GitHub puede consumir Observer, Bridge o ambos, según sus capacidades y las credenciales asignadas. El LLM que implementa/mantiene los repositorios auxiliares puede necesitar acceso GitHub de mantenimiento; ese acceso no se entrega a los agentes consumidores. El operador administra Render y los secretos; ningún secreto de servidor se incluye en prompts.
 
 ## Decisión arquitectónica v2 — arquitectura multientrada y multicanal (2026-10-30)
 

@@ -17,8 +17,8 @@
   "active_phase_id": "M1",
   "resume_protocol": {
     "audience": {
-      "executes_this_roadmap": "LLM con acceso a GitHub. El humano opera Render y las claves.",
-      "does_not_execute_this_roadmap": "LLM sin GitHub. Ese modelo es el usuario final de Observador."
+      "executes_this_roadmap": "Un LLM/agente consumidor puede completar tareas autorizadas sin acceso GitHub mediante Observer y/o Bridge. La implementación/mantenimiento del plano auxiliar puede requerir un agente mantenedor con permisos GitHub separados.",
+      "does_not_execute_this_roadmap": "No se limita el agente consumidor a Observer: puede entrar por Bridge directamente o combinar Observer y Bridge."
     },
     "steps": [
       "No solicitar, copiar, registrar ni hacer commit de secretos: llm, SERVICE_API_KEY, GITHUB_READ_TOKEN, GH_TOKEN, SUPABASE_SECRET_KEY o BRIDGE_ADMIN_PASSWORD.",
@@ -471,10 +471,13 @@
       "last_docs_ci_run_id": 41142813306,
       "last_docs_ci_sha": "ce634c5a5078d57de1f54a8f77a352077487373b",
       "last_docs_ci_status": "success",
-      "last_observed_head_sha": "6c3a71d51100b0e4e69523df0845c901eedb8c78",
+      "last_observed_head_sha": "f5be8c798f735a117c6eabc40054504e81d0dafb",
       "last_observed_ci_run_id": 41143814074,
       "last_observed_ci_status": "pending",
-      "last_observed_at": "2026-10-30T23:09:14Z"
+      "last_observed_at": "2026-10-30T22:15:20-06:00",
+      "head_sha": null,
+      "head_sha_policy": "Consultar el HEAD live de la PR/rama en GitHub. El JSON de roadmap no autocita el SHA de su propio commit.",
+      "latest_documentation_commit_before_snapshot_update": "f5be8c798f735a117c6eabc40054504e81d0dafb"
     }
   },
   "deferred_items": [

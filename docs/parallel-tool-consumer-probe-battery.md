@@ -433,7 +433,7 @@ La batería distingue tres estados:
 5. Registra consumer ID, host, model ID/version, transport, scopes, key ID/prefix y expiración. Nunca la clave o su hash.
 6. Al terminar, revoca desde el panel y verifica que la siguiente llamada autenticada devuelve 401.
 
-La UI revisada admite expiración de 1 a 365 días, no minutos. Para una prueba temporal, revocar manualmente al final; no describir la UI actual como TTL de minutos. Si el host no oculta la credencial al modelo, BLOCKED/credential_not_provisioned.
+La UI revisada admite expiración de 1 a 365 días, no minutos. Para una prueba temporal, revocar manualmente al final; no describir la UI actual como TTL de minutos. Si el host no oculta la credencial al modelo, BLOCKED/credential_not_provisioned. El panel Bridge no emite `OBSERVER_KEY`: una ruta directa LLM→Observer requiere una identidad Observer independiente, emitida por el administrador de Observer y provisionada en el host. No reutilizar la Bridge key. Si no está documentado/verificado el mecanismo Observer, marcar esa ruta BLOCKED; en la ruta Bridge-direct, `OBSERVER_SERVICE_KEY` permanece server-only en Bridge.
 
 ### TCA-2 — controlled exposure lab
 

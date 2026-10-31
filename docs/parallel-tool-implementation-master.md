@@ -238,7 +238,7 @@ No confundir PASS de conectividad con competencia técnica ni benchmark offline 
 
 **Emisión de claves Bridge:** esta rama contiene el panel de administración en `/` (`src/routes/index.tsx`) y la función `createKey` (`src/lib/bridge/admin.functions.ts`). El operador entra en el panel del despliegue verificado, introduce allí `BRIDGE_ADMIN_PASSWORD` directamente, asigna etiqueta/duración/scopes y crea la clave. La clave completa se muestra una sola vez; se copia directamente al secret store del host y no al prompt. Bridge persiste hash/prefijo, no el valor recuperable. Verificar que el SHA desplegado contiene esta implementación antes de depender del panel. La contraseña admin no es una credencial de consumidor.
 
-La aceptación M6 exige dos agentes/identidades distintos y dos transportes reales, y una traza completa request → command → receipt → Actions → Runner → commit/PR → tests → reconciliación, con replay sin duplicado y sin credenciales GitHub entregadas a los agentes.
+La aceptación M6 exige dos modelos LLM distintos (model_id/versión diferenciados), dos identidades de consumidor independientes y dos transportes reales, y una traza completa request → command → receipt → Actions → Runner → commit/PR → tests → reconciliación, con replay sin duplicado y sin credenciales GitHub entregadas a los agentes.
 
 ## 11. Handoff prompt for an independent LLM
 

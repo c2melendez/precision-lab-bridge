@@ -221,10 +221,22 @@ M1 se registra **PASS_SCOPED**: evidencia completa de código/CI/DB en el SHA ci
 | M3 | NOT_STARTED | Route parity / hybrid paths acceptance |
 | M4 | NOT_STARTED | REST/OpenAPI, Function Calling, GPT Actions and MCP adapters |
 | M5 | NOT_STARTED / CONDITIONAL | SDKs, CLI, webhooks, A2A and framework/provider adapters |
-| M6 | NOT_STARTED | Two LLMs, two transports, no GitHub credentials, end-to-end command lifecycle |
+| M6 | NOT_STARTED | Dos LLM distintos, dos transportes, pruebas A–F de conectividad/seguridad y benchmark CB1–CB10; lectura → diagnóstico → patch → validación → commit/PR → reconciliación sin credenciales GitHub en los agentes |
 | M7 | NOT_STARTED | Freeze infrastructure and resume math certification |
 
 The historical A/B results do not prove M1/M2. CI on this documentation commit does not prove code execution or math certification.
+
+### M6 — cualificación de consumidores y capacidades LLM
+
+M6 contiene dos pistas independientes, definidas en `docs/parallel-tool-consumer-probe-battery.md` v2.0.0:
+- **Conectividad y seguridad (A–F):** rutas Observer/Bridge, scopes, contratos, idempotencia, aislamiento de rama, auditoría de conectores e higiene de secretos.
+- **Capacidad técnica (CB1–CB10):** comprensión del repositorio, diagnóstico, planificación, generación de correcciones, selección de pruebas, interpretación de CI, corrección iterativa, incertidumbre, resistencia a prompt injection y continuidad multiagente.
+
+No confundir PASS de conectividad con competencia técnica ni benchmark offline con ejecución end-to-end. Comparar modelos con prompts, fixtures, SHA, permisos, transportes y presupuestos equivalentes; procurar al menos tres repeticiones comparables por modelo/tarea.
+
+**Política de credenciales:** el operador provisiona claves de consumidor directamente en el gestor de secretos/host/MCP/conector; el runtime adjunta las cabeceras. Nunca pedir ni incluir claves en prompts, mensajes, archivos, argumentos visibles de herramientas o reportes. Si no existe una frontera segura que oculte el secreto al modelo, la prueba se marca `BLOCKED/credential_not_provisioned`. Cada consumidor tiene identidad propia y scopes mínimos. Secretos internos Bridge→Observer, GitHub, Supabase, Render y Runner permanecen server-side.
+
+La aceptación M6 exige dos agentes/identidades distintos y dos transportes reales, y una traza completa request → command → receipt → Actions → Runner → commit/PR → tests → reconciliación, con replay sin duplicado y sin credenciales GitHub entregadas a los agentes.
 
 ## 11. Handoff prompt for an independent LLM
 

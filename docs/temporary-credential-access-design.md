@@ -77,6 +77,8 @@ El LLM y cualquier contenido que lea (issues, README, código, logs, resultados)
 6. Bridge autentica, comprueba scopes, persiste solo datos no secretos y devuelve el resultado sanitizado.
 7. Al cerrar la campaña, el operador revoca la clave o deja que expire; registra key ID/prefijo, scopes y hora de revocación, nunca el valor.
 
+**Separación Observer/Bridge:** el panel descrito aquí emite únicamente claves Bridge (`X-Bridge-Key`). No emite `OBSERVER_KEY` ni autoriza reutilizar una Bridge key como Observer key. Si el consumidor accede directamente a Observer, su administrador debe provisionar una identidad Observer independiente por el mecanismo documentado por ese servicio y guardarla en el secret store del host. La implementación/rotación de claves Observer no está verificada en este repositorio; hasta documentarla, esa ruta queda BLOCKED si no hay una credencial provisionada de forma segura. En la ruta Bridge-direct, Bridge usa su identidad interna `OBSERVER_SERVICE_KEY`; ese secreto permanece exclusivamente en el runtime Bridge y nunca se provisiona al consumidor.
+
 ### 4.2 Reglas operativas
 
 - Una clave por consumidor y entorno; no compartir claves de escritura.

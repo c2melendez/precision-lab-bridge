@@ -435,12 +435,12 @@
         "Provisionar una identidad/clave propia por consumidor en el gestor de secretos/host MCP/conector; el runtime adjunta la cabecera y el LLM nunca recibe el valor. Si no hay frontera segura: BLOCKED/credential_not_provisioned.",
         "Ejecutar CB1–CB10 con fixtures versionados para comprensión, diagnóstico, planificación, patches, selección de pruebas, interpretación CI, corrección iterativa, incertidumbre, prompt injection y continuidad multiagente.",
         "Comparar modelos con mismo prompt, fixture/SHA, transporte, permisos y presupuesto; procurar al menos tres repeticiones por modelo/tarea y registrar host/transporte como factores separados.",
-        "Usar dos agentes/identidades distintos y al menos dos transportes sin entregar credenciales GitHub a los agentes.",
+        "Use two distinct LLM models (different model IDs/versions), separate consumer identities/API keys and at least two real transport mechanisms; do not provide GitHub credentials to either agent.",
         "Leer estado/archivos, diagnosticar una corrección autorizada, enviar patch, ejecutar validaciones, obtener commit/PR y reconciliar recibos.",
         "Ejercitar 401/403, SHA obsoleto, WAIT/REUSE, conflicto de payload, replay exacto, concurrencia, timeout, callback fallido y prompt injection.",
         "Demostrar que no hay workflow duplicado y conservar traza request→command→receipt→Actions→Runner→commit/PR→test evidence."
       ],
-      "exit_criteria": "Dos agentes/identidades distintos y dos transportes completan el flujo autorizado sin credenciales GitHub entregadas a los agentes; la traza es completa, replay no duplica y el perfil de capacidades CB1–CB10 queda publicado con fixtures y repeticiones comparables. Las pruebas bloqueadas por falta de despliegue/secretos se reportan BLOCKED, no PASS."
+      "exit_criteria": "Dos modelos LLM distintos (model_id/version diferenciados), con dos identidades independientes y al menos dos transportes, completan el flujo autorizado sin credenciales GitHub entregadas a los agentes; la traza es completa, replay no duplica y el perfil CB1–CB10 queda publicado con fixtures y repeticiones comparables. Las pruebas bloqueadas por despliegue/secretos se reportan BLOCKED, no PASS."
     },
     {
       "id": "M7",
@@ -1744,7 +1744,8 @@
       "same transport when comparing models",
       "same budget and host configuration"
     ],
-    "evidence": "Observed decisions, patches, tests, CI classification, receipts, reconciliation and sanitized artifacts; no private chain-of-thought."
+    "evidence": "Observed decisions, patches, tests, CI classification, receipts, reconciliation and sanitized artifacts; no private chain-of-thought.",
+    "distinct_model_ids_required_for_m6": true
   },
   "credential_handling": {
     "policy": "No consumer or operator pastes credentials into prompts or chat. Credentials are provisioned directly in the secret manager/host/MCP server/connector and injected by the runtime.",

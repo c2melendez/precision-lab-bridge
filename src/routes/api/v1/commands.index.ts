@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { MAX_COMMAND_BODY_BYTES } from "@/lib/bridge/commands";
+import { readBoundedCommandBody } from "@/lib/bridge/commands";
 
 export const Route = createFileRoute("/api/v1/commands/")({
   server: {
@@ -10,14 +10,18 @@ export const Route = createFileRoute("/api/v1/commands/")({
             status: 400, headers: { "cache-control": "no-store" },
           });
         }
-        const raw = await request.text();
-        if (new TextEncoder().encode(raw).byteLength > MAX_COMMAND_BODY_BYTES) {
-          return Response.json({ error: "command exceeds the 256 KiB limit" }, {
-            status: 413, headers: { "cache-control": "no-store" },
+        const boundedBody = await readBoundedCommandBody(request);
+        if (!boundedBody.ok) {
+          const tooLarge = boundedBody.reason === "too_large";
+          return Response.json({ error: tooLarge
+            ? "command exceeds the 256 KiB limit"
+            : "request body must be valid UTF-8" }, {
+            status: tooLarge ? 413 : 400,
+            headers: { "cache-control": "no-store" },
           });
         }
         let body: unknown;
-        try { body = JSON.parse(raw) as unknown; }
+        try { body = JSON.parse(boundedBody.text) as unknown; }
         catch {
           return Response.json({ error: "body must be valid JSON" }, {
             status: 400, headers: { "cache-control": "no-store" },

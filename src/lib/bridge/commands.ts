@@ -25,6 +25,52 @@ export type CommandEnvelope = {
   validation_id: string;
 };
 
+export type BoundedCommandBody =
+  | { ok: true; text: string }
+  | { ok: false; reason: "too_large" | "invalid_utf8" | "read_failed" };
+
+export async function readBoundedCommandBody(request: Request): Promise<BoundedCommandBody> {
+  const declaredLength = request.headers.get("content-length");
+  if (declaredLength && /^\d+$/.test(declaredLength) &&
+    Number(declaredLength) > MAX_COMMAND_BODY_BYTES) {
+    try { await request.body?.cancel(); } catch { /* reject without buffering */ }
+    return { ok: false, reason: "too_large" };
+  }
+
+  const reader = request.body?.getReader();
+  if (!reader) return { ok: true, text: "" };
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      totalBytes += value.byteLength;
+      if (totalBytes > MAX_COMMAND_BODY_BYTES) {
+        try { await reader.cancel(); } catch { /* connection may already be closed */ }
+        return { ok: false, reason: "too_large" };
+      }
+      chunks.push(value);
+    }
+  } catch {
+    return { ok: false, reason: "read_failed" };
+  } finally {
+    try { reader.releaseLock(); } catch { /* cancelled readers can already be released */ }
+  }
+
+  const bytes = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  try {
+    return { ok: true, text: new TextDecoder("utf-8", { fatal: true }).decode(bytes) };
+  } catch {
+    return { ok: false, reason: "invalid_utf8" };
+  }
+}
+
 export type ParseResult =
   | { ok: true; envelope: CommandEnvelope }
   | { ok: false; status: 400 | 413 | 422; error: string };

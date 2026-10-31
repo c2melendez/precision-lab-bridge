@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fingerprintCommand, parseCommandEnvelope, stableStringify } from "./commands";
+import { fingerprintCommand, parseCommandEnvelope, readBoundedCommandBody, stableStringify } from "./commands";
 
 const sha = "a".repeat(40);
 const valid = (overrides: Record<string, unknown> = {}) => ({
@@ -13,6 +13,43 @@ const valid = (overrides: Record<string, unknown> = {}) => ({
   correlation_id: "correlation-1",
   validation_id: "validation-1",
   ...overrides,
+});
+
+describe("bounded command request body reader", () => {
+  it("rejects an oversized streamed body without buffering the full payload", async () => {
+    const payload = new Uint8Array(256 * 1024 + 1);
+    const request = new Request("https://bridge.example/api/v1/commands", {
+      method: "POST",
+      body: payload,
+    });
+    await expect(readBoundedCommandBody(request)).resolves.toEqual({
+      ok: false,
+      reason: "too_large",
+    });
+  });
+
+  it("rejects an oversized declared content length before reading", async () => {
+    const request = new Request("https://bridge.example/api/v1/commands", {
+      method: "POST",
+      headers: { "content-length": String(256 * 1024 + 1) },
+      body: "{}",
+    });
+    await expect(readBoundedCommandBody(request)).resolves.toEqual({
+      ok: false,
+      reason: "too_large",
+    });
+  });
+
+  it("rejects invalid UTF-8 instead of silently replacing bytes", async () => {
+    const request = new Request("https://bridge.example/api/v1/commands", {
+      method: "POST",
+      body: new Uint8Array([0xff, 0xfe]),
+    });
+    await expect(readBoundedCommandBody(request)).resolves.toEqual({
+      ok: false,
+      reason: "invalid_utf8",
+    });
+  });
 });
 
 describe("M1 command envelope validation", () => {

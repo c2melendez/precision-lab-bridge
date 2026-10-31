@@ -2,10 +2,10 @@
   "schema_version": 1,
   "id": "precision-lab-parallel-tool-roadmap",
   "title": "Hoja de ruta — Precision Lab Multi-Agent Command Plane",
-  "as_of": "2026-10-30",
+  "as_of": "2026-10-31",
   "language": "es",
-  "status": "m1_pass_scoped_m2_not_started",
-  "summary": "Arquitectura v2 registrada. M1 PASS_SCOPED: Command API, scopes opt-in, persistencia/RPC, conexión server-side de Observer para estado/plan, rutas y pruebas verificadas en CI 41172743808 sobre SHA b622a26605b1402c73fe1aff327fc2f1941bc1e2. No hay deploy ni prueba Observer live; M2 Runner y fases posteriores permanecen sin iniciar.",
+  "status": "m1_pass_scoped_m2_in_progress",
+  "summary": "Arquitectura v2 multientrada. M1 PASS_SCOPED sin repetición. M2 IN_PROGRESS: Bridge OIDC dispatcher/lease/callback y pruebas DB pasan en CI 41177703847 sobre SHA 11108701f4f0699ecb9fffa72daaadb0d7f3937b. Lite PR #60 runner contract PASS, CI bloqueado por npm audit hard gate (11 findings). Plus PR #41 lockfile sincronizado y validación npm ci/typecheck/unit/build SUCCESS en workflow temporal 41177671725; CI normal sobre HEAD 9ad247947c131c8e95711323ed7ce7ad2bff794f sigue en cola al corte. No hay deploy, merge ni dispatch real; execution flag false y O6/O7 PENDING.",
   "canonical_markdown": {
     "repo": "c2melendez/precision-lab-bridge",
     "branch": "hardening/secure-status-independent-runtime",
@@ -352,14 +352,17 @@
     {
       "id": "M2",
       "title": "Extend existing Runner execution plane for repository changes",
-      "status": "pending",
-      "active": false,
+      "status": "in_progress",
+      "active": true,
       "blocked_by": [],
       "steps": [
-        "Add a repository-command workflow entrypoint in Lite/Plus while preserving certification-runner.yml gate behavior and parity.",
-        "Use opaque command_id and short-lived OIDC/lease identity; fetch typed manifest from Bridge.",
-        "Apply bounded patch operations to isolated agent/{command_id} branch after expected_sha validation.",
-        "Run allowlisted targeted/regression profiles, create commit/PR on successful validation and authenticate callback/receipt."
+        "Worker entrypoints workflow_dispatch-only añadidos a Lite y Plus; conservan certification-runner.yml y reciben únicamente command_id opaco.",
+        "Bridge valida GitHub OIDC (issuer, firma, audience, repositorio/ID, workflow, evento, rama y run) y vincula el run a un lease durable de 60 minutos con límite de intentos.",
+        "Worker recupera un manifiesto tipado, valida propietario/fingerprint/target/branch/expected_sha y aplica create/replace/delete seguros sobre agent/{command_id} con CAS y blob-SHA.",
+        "Perfiles allowlisted ejecutan validaciones fijas. Plus unit instala frontend con npm ci y ejecuta backend pytest más frontend npm test; frontend lockfile sincronizado.",
+        "Cambios validados generan commit y draft PR sin auto-merge; callback OIDC + lease persiste status, Actions run, commit y PR; replay/reconciliación no redispatcha ciegamente.",
+        "Completar checks normales sobre SHA exactos de Lite/Plus y resolver el hard gate npm audit de Lite sin reducir la política.",
+        "La aceptación M2 requiere una traza end-to-end autorizada Bridge → Actions → Runner → receipt → Observer y replay idempotente; no se ha ejecutado."
       ],
       "exit_criteria": "A typed repo patch sent by a no-GitHub agent produces a validated commit/PR and evidence without direct GitHub credentials in the agent."
     },
@@ -756,7 +759,7 @@
       "shared_contract": "target_repo=both; workflow_dispatch gate and dry_run inputs; canonical README branch resolution; push and dry-run cannot dispatch; security gate remains blocked in Plus."
     }
   },
-  "next_step": "Continue Lite Algebra114 at AS-EXP-08 using the source row (x+2)(x-3)(x+1)=x^3-7x-6 and independent arithmetic oracle. Keep Runner PASS_SCOPED_PUSH_ONLY distinct from Observer/Bridge O5/O6/O7. No real dispatch, merge, deploy or production cut.",
+  "next_step": "Completar los checks normales en el HEAD exacto de Plus; resolver con cambios seguros y evidencia el hard gate npm audit de Lite (sin bajar el umbral ni downgrades inseguros); revisar los tres PR Draft. Mantener BRIDGE_COMMAND_EXECUTION_ENABLED=false y no ejecutar dispatch real. No aceptar M2 hasta que exista una traza end-to-end autorizada Bridge→Actions→Runner→receipt→Observer con replay idempotente. Después continuar M3 y preservar la certificación matemática separada.",
   "mathematical_progress_r360": {
     "repository": "c2melendez/precision-lab-lite",
     "status": "PASS_SCOPED",
@@ -1404,9 +1407,61 @@
     "important": "The Command API, Bridge→Observer context proxy and Runner repository-change worker are specified, not yet implemented or E2E certified."
   },
   "limitations": [
-    "OBSERVER_SERVICE_KEY está declarado como secreto server-only requerido, pero su valor no ha sido configurado en Render y no existe prueba HTTP live Bridge→Observer.",
-    "La lectura Bridge de archivos/contexto se completará en M3; M1 expone Observer status y gate plan.",
-    "M1 persiste comandos con execution_enabled=false; no ejecuta patch, validation en Runner, commit ni PR.",
-    "No se ha desplegado ni fusionado el código; no se ha aplicado ninguna migración a Supabase producción."
-  ]
+    "OBSERVER_SERVICE_KEY está declarado como secreto server-only requerido, pero su configuración/llamada HTTP live Bridge→Observer no está verificada; la lectura de archivos/contexto se completa en M3.",
+    "Bridge M2 está en el PR Draft #1, no fusionado ni desplegado. El feature flag BRIDGE_COMMAND_EXECUTION_ENABLED permanece false; no hubo workflow_dispatch real ni comando aplicado por Runner.",
+    "Lite PR #60: el job Runner safety-contract pasa, pero el CI de frontend permanece bloqueado por el hard gate npm audit (11 findings: 3 low, 8 moderate); no se bajó la política. E2E/cross-browser del SHA final seguían pendientes al corte.",
+    "Plus PR #41: el lockfile está sincronizado y npm ci/typecheck/unit/build tuvieron validación focalizada exitosa; el CI normal y Playwright del HEAD actual estaban pendientes/en cola al corte.",
+    "Ninguno de los PR Draft se ha fusionado. No se ha desplegado código ni aplicado migración a Supabase producción; no hay prueba end-to-end real ni certificación matemática derivada de M2."
+  ],
+  "latest_m2_reconciliation": {
+    "as_of": "2026-10-31",
+    "status": "IN_PROGRESS",
+    "bridge": {
+      "repository": "c2melendez/precision-lab-bridge",
+      "branch": "hardening/secure-status-independent-runtime",
+      "pr": 1,
+      "head_sha": "11108701f4f0699ecb9fffa72daaadb0d7f3937b",
+      "ci_run": 41177703847,
+      "ci_conclusion": "success",
+      "evidence": [
+        "Unit/regression tests, ESLint and Node build passed on exact SHA.",
+        "Disposable database replay, RPC security/RLS/grants and legacy/M1/M2 SQL functional tests passed.",
+        "19/19 database-backed command/idempotency tests and supabase db lint passed."
+      ]
+    },
+    "lite": {
+      "repository": "c2melendez/precision-lab-lite",
+      "branch": "feature/m2-command-runner-bridge",
+      "pr": 60,
+      "head_sha": "18700426e5c014821fe8b337c53d772acb0fc4fc",
+      "ci_run": 41177838853,
+      "runner_contract": "success",
+      "ci_conclusion": "failure",
+      "blocker": "npm audit hard gate: 11 findings (3 low, 8 moderate); later frontend checks skipped."
+    },
+    "plus": {
+      "repository": "c2melendez/precision-lab-plus",
+      "branch": "feature/m2-command-runner-bridge",
+      "pr": 41,
+      "head_sha": "9ad247947c131c8e95711323ed7ce7ad2bff794f",
+      "lockfile_commit": "d54d80af0294ba781d9d8d30114f82bb8891cc93",
+      "targeted_dependency_validation_run": 41177671725,
+      "targeted_dependency_validation_conclusion": "success",
+      "normal_ci_run": 41177839617,
+      "normal_ci_status_at_cutoff": "queued",
+      "playwright_run": 41177839673,
+      "playwright_status_at_cutoff": "queued"
+    },
+    "operational_limits": {
+      "execution_enabled": false,
+      "real_dispatch_performed": false,
+      "production_deploy_performed": false,
+      "production_database_migration_performed": false,
+      "draft_prs_merged": false,
+      "observer_live_http_verified": false,
+      "mathematical_certification_claimed": false,
+      "o6": "PENDING",
+      "o7": "PENDING"
+    }
+  }
 }

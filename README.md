@@ -85,6 +85,19 @@ Initial types are `repo.inspect`, `repo.patch`, and `repo.validate`. Patch paylo
 
 Observer credentials are held only in the Bridge server environment. Direct Bridge command submission reads Observer state server-side; LLM clients never receive `OBSERVER_SERVICE_KEY` or GitHub credentials.
 
+## M2 Runner execution plane — implementation in progress
+
+M2 adds a separate internal Runner path in the existing Lite/Plus GitHub Actions repositories. It does not replace or modify `certification-runner.yml`.
+
+- Bridge creates a durable dispatch intent before calling GitHub. Only the opaque `command_id` is sent as a `workflow_dispatch` input; request payloads and credentials are not passed to the workflow.
+- The Runner obtains a GitHub OIDC token with audience `precision-lab-bridge`. Bridge validates the issuer, signature, audience, repository ID/name, workflow path, default branch, event and run identity.
+- A service-role RPC binds the command to the exact Actions run, issues a 60-minute lease and limits the claim count. The callback is OIDC-authenticated and additionally must present the current lease token.
+- The worker accepts only the typed `repo.inspect`, `repo.validate` and `repo.patch` contracts. Patch files are bounded, path/symlink/secret checks are enforced, and replacement/deletion requires the expected Git blob SHA.
+- The worker verifies the Observer-supplied canonical branch and SHA, rechecks the SHA before publishing an isolated `agent/{command_id}` branch, runs fixed repository-specific profiles, and creates/reuses a draft PR. It never merges.
+- Ambiguous dispatch outcomes are reconciled by the exact workflow run name and persisted as `reconcile_required` when no unique run can be established. An existing durable dispatch intent is never re-dispatched automatically.
+
+**Operational state:** `BRIDGE_COMMAND_EXECUTION_ENABLED=false` by default. It remains false in the Render Blueprint and `.env.example`. No deployment, privileged environment configuration, real workflow dispatch or Lite/Plus patch has been performed as part of this implementation. The Bridge OIDC routes, migration and service code require CI and deployment configuration before live use. Lite PR [#60](https://github.com/c2melendez/precision-lab-lite/pull/60) and Plus PR [#41](https://github.com/c2melendez/precision-lab-plus/pull/41) carry the isolated worker branches; their baseline CI blockers are tracked separately.
+
 ## API contract
 
 ### Create a run

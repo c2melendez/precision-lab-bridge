@@ -32,6 +32,8 @@ services:
         value: https://precision-lab-readonly-api.onrender.com
       - key: OBSERVER_SERVICE_KEY
         sync: false
+      - key: BRIDGE_COMMAND_EXECUTION_ENABLED
+        value: "false"
       - key: GH_TOKEN
         sync: false
       - key: BRIDGE_ADMIN_PASSWORD

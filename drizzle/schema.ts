@@ -117,6 +117,8 @@ export const bridgeCommands = pgTable("bridge_commands", {
   attempt_count: integer("attempt_count").notNull().default(0),
   lease_token: uuid("lease_token"),
   lease_expires_at: timestamp("lease_expires_at", { withTimezone: true, mode: "string" }),
+  dispatch_intent_at: timestamp("dispatch_intent_at", { withTimezone: true, mode: "string" }),
+  dispatch_attempt_count: integer("dispatch_attempt_count").notNull().default(0),
   actions_run_id: text("actions_run_id"),
   runner_record: jsonb("runner_record"),
   commit_sha: text("commit_sha"),
@@ -129,5 +131,6 @@ export const bridgeCommands = pgTable("bridge_commands", {
   statusCreatedIdx: index("bridge_commands_status_created_idx").on(t.status, t.created_at.desc()),
   keyLength: check("bridge_commands_idempotency_key_length", sql.raw("length(idempotency_key) BETWEEN 1 AND 200")),
   fingerprintValid: check("bridge_commands_fingerprint_check", sql.raw("request_fingerprint ~ '^[0-9a-f]{64}$'")),
+  dispatchAttemptsNonnegative: check("bridge_commands_dispatch_attempt_count_check", sql.raw("dispatch_attempt_count >= 0")),
   statusValid: check("bridge_commands_status_check", sql.raw("status IN ('accepted','queued','validating','running','awaiting_review','completed','failed','blocked','reconcile_required')")),
 }));

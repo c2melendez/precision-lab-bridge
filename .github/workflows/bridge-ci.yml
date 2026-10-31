@@ -78,7 +78,11 @@ jobs:
               'bridge_begin_dispatch(uuid,uuid,text)',
               'bridge_record_dispatch(uuid,uuid,jsonb)',
               'bridge_finish(uuid,uuid,text,integer,jsonb,text)',
-              'bridge_submit_command(uuid,text,text,text,text,text,text,jsonb,jsonb,text,text)'
+              'bridge_submit_command(uuid,text,text,text,text,text,text,jsonb,jsonb,text,text)',
+              'bridge_command_begin_dispatch(uuid)',
+              'bridge_command_record_dispatch(uuid,text,text,text,text)',
+              'bridge_command_claim_runner(uuid,text,text,integer)',
+              'bridge_command_finish_runner(uuid,text,text,uuid,text,text,text,jsonb)'
             ];
             signature text;
             function_oid oid;
@@ -203,6 +207,7 @@ jobs:
           test -n "$db_container"
           docker exec -i "$db_container" psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/bridge_rpc_functional.sql
           docker exec -i "$db_container" psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/bridge_commands_functional.sql
+          docker exec -i "$db_container" psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/bridge_command_runner_functional.sql
 
       - name: Set up Bun for database-backed idempotency tests
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6

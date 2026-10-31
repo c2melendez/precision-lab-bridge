@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { checkKey, prefixOf } from "./core.server";
+import { commandExecutionEnabled, dispatchAcceptedCommand, type DispatchOutcome } from "./runner-dispatch.server";
 import { fingerprintCommand, parseCommandEnvelope, type CommandEnvelope } from "./commands";
 import {
   fetchObserverGatePlan,
@@ -72,7 +73,7 @@ function publicReceipt(record: Partial<CommandRecord>) {
     ...(record.commit_sha ? { commit_sha: record.commit_sha } : {}),
     ...(record.pull_request_number ? { pull_request_number: record.pull_request_number } : {}),
     ...(record.pull_request_url ? { pull_request_url: record.pull_request_url } : {}),
-    execution_enabled: false,
+    execution_enabled: commandExecutionEnabled(),
   };
 }
 
@@ -156,7 +157,7 @@ async function audit(endpoint: string, key: string, envelope: CommandEnvelope, r
       result: {
         command_id: result.body["command_id"] ?? null,
         error: result.body["error"] ?? null,
-        execution_enabled: false,
+        execution_enabled: commandExecutionEnabled(),
       } as never,
     });
   } catch { /* audit must never mask a durable command result */ }
@@ -231,6 +232,54 @@ export async function submitCommand(
     fingerprint,
     contextSnapshot(current, observed.served_at),
   );
+  if (result.status === 202 && typeof result.body["command_id"] === "string") {
+    const executionEnabled = commandExecutionEnabled();
+    result.body["execution_enabled"] = executionEnabled;
+    if (executionEnabled) {
+      let dispatch: DispatchOutcome | null;
+      try {
+        dispatch = await dispatchAcceptedCommand(
+          result.body["command_id"] as string,
+          envelope.target_repo,
+        );
+      } catch {
+        return {
+          status: 503,
+          body: {
+            command_id: result.body["command_id"],
+            status: "accepted",
+            execution_enabled: true,
+            error_code: "COMMAND_DISPATCH_INTENT_UNAVAILABLE",
+            reconcile_with_original_idempotency_key: true,
+          },
+        };
+      }
+      if (dispatch) {
+        if (!dispatch.recorded) {
+          return {
+            status: 503,
+            body: {
+              command_id: result.body["command_id"],
+              status: dispatch.commandStatus,
+              execution_enabled: true,
+              dispatch_outcome: dispatch.outcome,
+              error_code: dispatch.errorCode ?? "DISPATCH_RECEIPT_PERSISTENCE_UNCERTAIN",
+              ...(dispatch.actionsRunId ? { actions_run_id: dispatch.actionsRunId } : {}),
+              reconcile_with_original_idempotency_key: true,
+            },
+          };
+        }
+        result.body = {
+          ...result.body,
+          status: dispatch.commandStatus,
+          dispatch_outcome: dispatch.outcome,
+          execution_enabled: true,
+          ...(dispatch.actionsRunId ? { actions_run_id: dispatch.actionsRunId } : {}),
+          ...(dispatch.errorCode ? { error_code: dispatch.errorCode } : {}),
+        };
+      }
+    }
+  }
   await audit(endpoint, key!, envelope, result);
   return result;
 }

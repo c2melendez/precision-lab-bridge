@@ -5,7 +5,7 @@
   "as_of": "2026-10-31",
   "language": "es",
   "status": "m1_pass_scoped_m2_in_progress",
-  "summary": "M1 PASS_SCOPED. M2 IN_PROGRESS: Bridge OIDC dispatcher/lease/callback and typed workers exist on Draft PRs. Bridge code CI+DB passed on SHA 1110870...; newer docs HEAD validation has tests/lint/build success and disposable DB job queued. Lite and Plus now enforce npm audit inside every Node Runner profile. Lite current-head checks are queued; prior SHA exposed the existing npm audit hard-gate blocker. Plus prior-head CI passed; current SHA checks are running/queued. No deploy, merge, real dispatch or mathematical certification. Revisión de mecanismos reportados por LLM (2026-10-31): sin cambio de arquitectura v2; se añaden invariantes de finalización por pull, evidencia por sonda de cada consumidor y revisión de la excepción GitHub delegado.",
+  "summary": "M1 PASS_SCOPED. M2 IN_PROGRESS. Bridge current HEAD 50978189950cd36cdae6ea4e19f87006ce1aa1d5 passed full CI+DB validation. Lite current-head Runner safety-contract, Playwright E2E and cross-browser passed; normal CI is blocked solely by npm audit (11 findings: 3 low, 8 moderate, 0 high/critical), including upstream deepmerge@4.3.1 with no patched npm release. Plus current-head normal CI passed; Playwright E2E is still in progress. All PRs remain Draft; no deploy, merge, live dispatch or mathematical certification. User-authored mechanism review is preserved.",
   "canonical_markdown": {
     "repo": "c2melendez/precision-lab-bridge",
     "branch": "hardening/secure-status-independent-runtime",
@@ -766,7 +766,7 @@
       "shared_contract": "target_repo=both; workflow_dispatch gate and dry_run inputs; canonical README branch resolution; push and dry-run cannot dispatch; security gate remains blocked in Plus."
     }
   },
-  "next_step": "Complete exact-current-head Bridge, Lite and Plus checks. Resolve Lite npm audit advisories without lowering the hard gate or force-downgrading dependencies. Verify latest E2E/cross-browser/mutation reports. Keep BRIDGE_COMMAND_EXECUTION_ENABLED=false and all Draft PRs unmerged. M2 cannot be accepted until an authorized end-to-end Bridge→Actions→Runner→durable receipt→Observer trace and same-idempotency replay are evidenced. Then continue M3; preserve math certification as separate work.",
+  "next_step": "Finish Plus Playwright E2E on exact SHA. Remediate Lite npm audit findings without lowering the hard gate, using a reviewed upstream fix or approved/tested dependency replacement for deepmerge. Keep BRIDGE_COMMAND_EXECUTION_ENABLED=false. M2 cannot be accepted until Lite hard gate passes and an authorized Bridge→Actions→Runner→durable receipt→Observer trace and same-idempotency replay are verified. Then proceed M3; mathematical certification remains separate.",
   "mathematical_progress_r360": {
     "repository": "c2melendez/precision-lab-lite",
     "status": "PASS_SCOPED",
@@ -1414,12 +1414,11 @@
     "important": "The Command API, Bridge→Observer context proxy and Runner repository-change worker are specified, not yet implemented or E2E certified."
   },
   "limitations": [
-    "Bridge M2 remains in an unmerged Draft PR. Code-level CI+DB passed on SHA 11108701f4f0699ecb9fffa72daaadb0d7f3937b. Newer docs HEAD b4d62e7118ef669254627b8086c26e55a0d280cb has tests/lint/build SUCCESS while DB job 41178045754 is queued at cutoff.",
-    "Lite PR #60 current HEAD f7c4cf6ac31967b74e936ba38d1597404e652e33 has new npm audit enforcement in every Runner Node profile; current CI/E2E/cross-browser runs are queued. Prior CI failed at npm audit with 11 findings (3 low, 8 moderate), while prior worker-head Playwright and cross-browser succeeded.",
-    "Plus PR #41 current HEAD 5288fae3f42065e3246f62e9f017098a1bad5cc4 has new npm audit enforcement in every Runner Node profile; current CI is running and Playwright queued. Prior worker-head normal CI and S23/S25/S20/S21 checks passed; earlier E2E/S19 mutation runs were still running at last observation.",
-    "Every Node-based Runner profile runs npm ci then npm audit --package-lock-only before tests/lint/typecheck/build. Lite's audit gate is not waived or softened.",
-    "BRIDGE_COMMAND_EXECUTION_ENABLED remains false. No live dispatch, deploy, production DB migration, secret update, merge, command-generated PR or mathematical certification performed. Observer live auth is not verified; M3 covers file/context parity. O6/O7 remain PENDING.",
-    "Reportes de LLM (2026-10-31): las respuestas son autodeclaraciones; solo las pruebas de Qwen Coder se ejecutaron, y solo demuestran salida HTTPS del sandbox a endpoints públicos. Ninguna sonda contra Bridge u Observer se ejecutó en esta revisión."
+    "Bridge PR #1 current HEAD 50978189950cd36cdae6ea4e19f87006ce1aa1d5 passed full CI 41178465402: tests/lint/build plus disposable Supabase migration replay, RPC security/RLS/grants, SQL contracts, DB integration and schema lint.",
+    "Lite PR #60 current HEAD f7c4cf6ac31967b74e936ba38d1597404e652e33: Runner safety-contract, Playwright E2E and cross-browser passed. Normal CI fails solely at npm audit hard gate with 11 findings (3 low, 8 moderate, 0 high/critical); typecheck/unit/build are skipped afterward.",
+    "One Lite audit finding is deepmerge@4.3.1 via @rollup/plugin-node-resolve. Current GitHub advisory lists affected versions through 4.3.1 and no patched npm release. Do not lower audit policy, add an exception or introduce an unreviewed fork.",
+    "Plus PR #41 current HEAD 5288fae3f42065e3246f62e9f017098a1bad5cc4 normal CI passed; Playwright run 41178121954 remains in progress.",
+    "All Node Runner profiles run npm ci then npm audit --package-lock-only before profile validation. BRIDGE_COMMAND_EXECUTION_ENABLED remains false. No live dispatch, production deploy/migration, secret update, merge, command-generated PR or mathematical certification. Observer live auth remains unverified; O6/O7 PENDING."
   ],
   "latest_m2_reconciliation": {
     "as_of": "2026-10-31",
@@ -1428,31 +1427,34 @@
       "repository": "c2melendez/precision-lab-bridge",
       "branch": "hardening/secure-status-independent-runtime",
       "pr": 1,
-      "head_sha": "b4d62e7118ef669254627b8086c26e55a0d280cb",
-      "code_ci_sha": "11108701f4f0699ecb9fffa72daaadb0d7f3937b",
-      "code_ci_run": 41177703847,
-      "code_ci_conclusion": "success",
-      "latest_docs_ci_run": 41178045754,
-      "latest_docs_ci_status": "tests_lint_build_success_db_validation_queued"
+      "head_sha": "50978189950cd36cdae6ea4e19f87006ce1aa1d5",
+      "ci_run": 41178465402,
+      "ci_conclusion": "success",
+      "evidence": [
+        "Unit/regression tests, ESLint and Node production build passed on exact current HEAD.",
+        "Disposable Supabase complete migration replay, RPC security/RLS/grants, legacy/M1/M2 SQL functional contracts, database-backed idempotency/Command API tests and schema lint passed."
+      ]
     },
     "lite": {
       "repository": "c2melendez/precision-lab-lite",
       "branch": "feature/m2-command-runner-bridge",
       "pr": 60,
       "head_sha": "f7c4cf6ac31967b74e936ba38d1597404e652e33",
-      "latest_ci_run": 41178122450,
-      "latest_ci_status": "queued",
-      "latest_e2e_run": 41178122439,
-      "latest_e2e_status": "queued",
-      "latest_cross_browser_run": 41178122475,
-      "latest_cross_browser_status": "queued",
-      "prior_ci_run": 41177838853,
-      "prior_ci_conclusion": "failure",
-      "prior_e2e_run": 41177838863,
-      "prior_e2e_conclusion": "success",
-      "prior_cross_browser_run": 41177838834,
-      "prior_cross_browser_conclusion": "success",
-      "blocker": "npm audit hard gate: 11 findings (3 low, 8 moderate); every Node-based Runner profile now enforces npm audit before any further validation."
+      "ci_run": 41178122450,
+      "ci_conclusion": "failure",
+      "runner_contract": "success",
+      "playwright_run": 41178122439,
+      "playwright_conclusion": "success",
+      "cross_browser_run": 41178122475,
+      "cross_browser_conclusion": "success",
+      "audit": {
+        "total": 11,
+        "low": 3,
+        "moderate": 8,
+        "high": 0,
+        "critical": 0
+      },
+      "blocker": "npm audit hard gate; deepmerge@4.3.1 enters via @rollup/plugin-node-resolve and the current GHSA lists no patched npm release."
     },
     "plus": {
       "repository": "c2melendez/precision-lab-plus",
@@ -1460,24 +1462,10 @@
       "pr": 41,
       "head_sha": "5288fae3f42065e3246f62e9f017098a1bad5cc4",
       "lockfile_commit": "d54d80af0294ba781d9d8d30114f82bb8891cc93",
-      "targeted_dependency_validation_run": 41177671725,
-      "targeted_dependency_validation_conclusion": "success",
-      "prior_ci_run": 41177839617,
-      "prior_ci_conclusion": "success",
-      "latest_ci_run": 41178121902,
-      "latest_ci_status": "frontend_tests_in_progress_backend_and_runner_contract_queued",
-      "latest_playwright_run": 41178121954,
-      "latest_playwright_status": "queued",
-      "security_s25_run": 41177839603,
-      "security_s25_conclusion": "success",
-      "accessibility_s23_run": 41177839633,
-      "accessibility_s23_conclusion": "success",
-      "performance_s20_run": 41177839690,
-      "performance_s20_conclusion": "success",
-      "compatibility_s21_run": 41177839675,
-      "compatibility_s21_conclusion": "success",
-      "mutation_s19_run": 41177839620,
-      "mutation_s19_status": "in_progress_at_prior_head"
+      "ci_run": 41178121902,
+      "ci_conclusion": "success",
+      "playwright_run": 41178121954,
+      "playwright_status": "in_progress"
     },
     "runner_security_policy": {
       "node_profiles_require_clean_install": true,

@@ -57,17 +57,16 @@ export function createTca1BridgeClient(
   async function request(path: string, init: RequestInit = {}): Promise<Record<string, unknown>> {
     let response: Response;
     try {
+      const headers = new Headers(init.headers);
+      headers.set("Accept", "application/json");
+      headers.set("X-Bridge-Key", config.apiKey);
+      if (init.body) headers.set("Content-Type", "application/json");
       response = await fetcher(new URL(path, `${baseUrl}/`), {
         ...init,
         redirect: "error",
         cache: "no-store",
         signal: AbortSignal.timeout(config.timeoutMs),
-        headers: {
-          Accept: "application/json",
-          "X-Bridge-Key": config.apiKey,
-          ...(init.body ? { "Content-Type": "application/json" } : {}),
-          ...(init.headers ?? {}),
-        },
+        headers,
       });
     } catch {
       // Never include the request URL, headers or fetch exception: they may contain secrets.

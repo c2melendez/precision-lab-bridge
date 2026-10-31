@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { createKey, listAdmin, revokeKey } from "@/lib/bridge/admin.functions";
+import { createKey, createTca1Key, listAdmin, revokeKey } from "@/lib/bridge/admin.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -20,12 +20,14 @@ export const Route = createFileRoute("/")({
 });
 
 type Data = Awaited<ReturnType<typeof listAdmin>>;
+type Tca1Created = Awaited<ReturnType<typeof createTca1Key>>;
 
 const AVAILABLE_SCOPES = ["read", "dispatch", "context:read", "command:submit", "command:read"] as const;
 
 function Admin() {
   const list = useServerFn(listAdmin);
   const create = useServerFn(createKey);
+  const createTca1 = useServerFn(createTca1Key);
   const revoke = useServerFn(revokeKey);
   const [password, setPassword] = useState("");
   const [data, setData] = useState<Data | null>(null);
@@ -34,6 +36,10 @@ function Admin() {
   const [days, setDays] = useState(30);
   const [scopes, setScopes] = useState<Array<(typeof AVAILABLE_SCOPES)[number]>>(["read"]);
   const [fresh, setFresh] = useState("");
+  const [tca1Label, setTca1Label] = useState("tca1-consumer");
+  const [tca1TtlMinutes, setTca1TtlMinutes] = useState(60);
+  const [tca1AccessMode, setTca1AccessMode] = useState<"read" | "submit">("read");
+  const [freshTca1, setFreshTca1] = useState<Tca1Created | null>(null);
 
   const load = async () => {
     setErr("");

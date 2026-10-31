@@ -137,8 +137,19 @@ La fusión automática de PR no se presume. Solo puede ocurrir cuando un contrat
 | M3 | Conectar rutas multientrada y política | LLM→Observer, LLM→Bridge y ruta híbrida; Bridge→Observer interno; mismas decisiones y evidencia en todas. |
 | M4 | Entregar adaptadores P0/P1 | REST/OpenAPI, Function Calling, GPT Actions, MCP remoto y MCP stdio usando el mismo contrato. |
 | M5 | Entregar adaptadores P2/P3 | SDK Python/TS, CLI, webhooks, A2A y adaptadores de frameworks/proveedores según disponibilidad y valor demostrado. |
-| M6 | Certificar interoperabilidad multiagente y capacidades LLM | Dos LLM distintos (model_id/version diferenciados), con identidades independientes y dos transportes, completan sin credenciales GitHub: lectura → diagnóstico → patch → validación → commit/PR → reconciliación; replay sin duplicado y benchmark CB1–CB10 con resultados reproducibles por modelo/host/transporte. |
+| M6 | Certificar interoperabilidad multiagente y capacidades LLM | Dos modelos LLM distintos, identidades independientes y dos transportes completan con TCA-1 (o Broker equivalente), sin credenciales GitHub en los agentes: lectura → diagnóstico → patch → validación → commit/PR → reconciliación; replay sin duplicado y benchmark CB1–CB10 reproducible. TCA-2/G1–G5 es investigación opcional y no criterio de producción. |
 | M7 | Congelar infraestructura auxiliar y reanudar matemática | Evidencia integral publicada; no quedan gaps de conexión/ejecución dentro del alcance; reanudar Lite/Plus según sus índices canónicos. |
+
+## Diseño TCA — acceso temporal a credenciales
+
+Se incorpora [Temporary Credential Access (TCA)](./temporary-credential-access-design.md) v1.0.0:
+- **TCA-D0: DESIGN DOCUMENTED.** No crea claves, endpoints, servicios ni despliegues.
+- **TCA-1:** modo provisional operativo; el host/MCP/conector inyecta la clave individual por consumidor desde su secret store. El modelo no conoce el valor. Comienza con `context:read`; scopes de comando solo en staging y según necesidad. La UI actual tiene expiración mínima de un día, por lo que exige revocación manual al terminar.
+- **TCA-2:** Credential Lab independiente con canary sintético, TTL objetivo máximo 15 minutos, intentos limitados, sin red ni credenciales de producción. No es una clave Bridge y nunca habilita acceso a repositorios. G1–G5 son investigación independiente, no requisito de M6.
+- **Credential Broker:** destino final OAuth 2.1/OIDC con identidad por consumidor, tokens cortos, scopes, audiencia y revocación. No implementado.
+- **TCA-2-Bridge-ReadOnly:** variante futura deshabilitada; no usar con Bridge de producción.
+
+No cambiar los estados M0–M7 ni activar claves, feature flags, servicios, migraciones o ejecución por el hecho de documentar este diseño.
 
 **Conservación de trabajo previo:** Fases A/B de la integración Observer→Bridge (GET autenticado 200 y anónimo 401; contrato/OpenAPI y CI asociados) permanecen CERRADAS y no se repiten. No demuestran por sí solas la nueva Command API ni modificación de repositorios. La ruta Observer-only, las fases O1–O7 y su estado previo se conservan como historial de la arquitectura v1; quedan supersedidas como plan de aceptación final, no se borran como evidencia.
 

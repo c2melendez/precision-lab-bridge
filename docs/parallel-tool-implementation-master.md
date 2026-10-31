@@ -228,15 +228,18 @@ The historical A/B results do not prove M1/M2. CI on this documentation commit d
 
 ### M6 — cualificación de consumidores y capacidades LLM
 
-M6 contiene dos pistas independientes, definidas en `docs/parallel-tool-consumer-probe-battery.md` v2.0.0:
+M6 contiene dos pistas independientes, definidas en `docs/parallel-tool-consumer-probe-battery.md` v2.1.0:
 - **Conectividad y seguridad (A–F):** rutas Observer/Bridge, scopes, contratos, idempotencia, aislamiento de rama, auditoría de conectores e higiene de secretos.
 - **Capacidad técnica (CB1–CB10):** comprensión del repositorio, diagnóstico, planificación, generación de correcciones, selección de pruebas, interpretación de CI, corrección iterativa, incertidumbre, resistencia a prompt injection y continuidad multiagente.
+- **Acceso de credenciales (TCA):** TCA-1 inyecta claves Bridge desde el host sin revelarlas al modelo; TCA-2 usa exclusivamente un canary sintético en un laboratorio separado. G1–G5 son pruebas de exposición controlada, independientes de M6.
 
 No confundir PASS de conectividad con competencia técnica ni benchmark offline con ejecución end-to-end. Comparar modelos con prompts, fixtures, SHA, permisos, transportes y presupuestos equivalentes; procurar al menos tres repeticiones comparables por modelo/tarea.
 
 **Política de credenciales:** el operador provisiona claves de consumidor directamente en el gestor de secretos/host/MCP/conector; el runtime adjunta las cabeceras. Nunca pedir ni incluir claves en prompts, mensajes, archivos, argumentos visibles de herramientas o reportes. Si no existe una frontera segura que oculte el secreto al modelo, la prueba se marca `BLOCKED/credential_not_provisioned`. Cada consumidor tiene identidad propia y scopes mínimos. Secretos internos Bridge→Observer, GitHub, Supabase, Render y Runner permanecen server-side.
 
 **Emisión de claves Bridge:** esta rama contiene el panel de administración en `/` (`src/routes/index.tsx`) y la función `createKey` (`src/lib/bridge/admin.functions.ts`). El operador entra en el panel del despliegue verificado, introduce allí `BRIDGE_ADMIN_PASSWORD` directamente, asigna etiqueta/duración/scopes y crea la clave. La clave completa se muestra una sola vez; se copia directamente al secret store del host y no al prompt. Bridge persiste hash/prefijo, no el valor recuperable. Verificar que el SHA desplegado contiene esta implementación antes de depender del panel. La contraseña admin no es una credencial de consumidor.
+
+**Diseño TCA:** ver `docs/temporary-credential-access-design.md`. TCA-D0 queda documentado; TCA-1, Credential Lab TCA-2 y Credential Broker no están implementados ni habilitados. TCA-2 no es requisito de M6 ni permite utilizar una clave Bridge real visible al LLM.
 
 La aceptación M6 exige dos modelos LLM distintos (model_id/versión diferenciados), dos identidades de consumidor independientes y dos transportes reales, y una traza completa request → command → receipt → Actions → Runner → commit/PR → tests → reconciliación, con replay sin duplicado y sin credenciales GitHub entregadas a los agentes.
 
@@ -246,6 +249,7 @@ La aceptación M6 exige dos modelos LLM distintos (model_id/versión diferenciad
 
 ## 12. Related authoritative records
 
+- [Temporary Credential Access design](./temporary-credential-access-design.md)
 - [Architecture roadmap (Markdown)](./parallel-tool-roadmap.md)
 - [Architecture roadmap (JSON)](./parallel-tool-roadmap.json)
 - Bridge CI workflow: `.github/workflows/bridge-ci.yml`

@@ -1,7 +1,7 @@
 # Hoja de ruta — herramienta paralela para LLMs sin GitHub
 
 Fecha de actualización: 2026-10-30.
-Estado: decisión arquitectónica v2 multientrada/multicanal registrada; M0 documentado. Fases A/B Observer→Bridge permanecen cerradas. M1–M7 pendientes según implementación. El estado histórico O1–O7 corresponde al diseño v1 Observer-only y no define ya la aceptación multiagente. La certificación matemática de Lite/Plus sigue siendo el objetivo final.
+Estado: arquitectura v2 multientrada/multicanal; M0 documentado; M1 PASS_SCOPED con migración/RPC, rutas, pruebas y CI exitosos en SHA `b622a26605b1402c73fe1aff327fc2f1941bc1e2`. Fases A/B permanecen cerradas. M2–M7 no iniciadas. El estado histórico O1–O7 corresponde al diseño v1 Observer-only y no define ya la aceptación multiagente. La certificación matemática de Lite/Plus sigue siendo el objetivo final.
 
 Este documento es la fuente de seguimiento. Sustituye la sección «Trabajo de integración pendiente» de `docs/observer-bridge-integration.md`. La evidencia más reciente de los HEAD y runs prevalece sobre los registros históricos de PR.
 
@@ -132,7 +132,7 @@ La fusión automática de PR no se presume. Solo puede ocurrir cuando un contrat
 | Fase | Objetivo | Criterio de salida |
 |---|---|---|
 | M0 | Registrar esta decisión y contrato común en Markdown/JSON | Ambos artefactos coherentes, validados y versionados en el mismo commit/serie documental. |
-| M1 | Especificar/implementar Command API y scopes de Bridge | OpenAPI, esquema, auth por agente, capacidades, context proxy, registro durable, estados, idempotencia y pruebas de rechazo/replay/concurrencia. |
+| M1 | Command API y scopes de Bridge | **PASS_SCOPED**: OpenAPI, esquema, auth/scopes, capacidades, proxy Observer de estado/plan, registro durable, estados, idempotencia y pruebas/CI en SHA `b622a26605b1402c73fe1aff327fc2f1941bc1e2`. Proxy de archivos queda en M3; despliegue/Observer live no verificado. |
 | M2 | Implementar ejecución de cambios en Runner | Worker en Lite/Plus, lease seguro, verificación SHA, rama aislada, patch tipado, perfiles de prueba, commit/PR y callback autenticado. |
 | M3 | Conectar rutas multientrada y política | LLM→Observer, LLM→Bridge y ruta híbrida; Bridge→Observer interno; mismas decisiones y evidencia en todas. |
 | M4 | Entregar adaptadores P0/P1 | REST/OpenAPI, Function Calling, GPT Actions, MCP remoto y MCP stdio usando el mismo contrato. |
@@ -142,7 +142,7 @@ La fusión automática de PR no se presume. Solo puede ocurrir cuando un contrat
 
 **Conservación de trabajo previo:** Fases A/B de la integración Observer→Bridge (GET autenticado 200 y anónimo 401; contrato/OpenAPI y CI asociados) permanecen CERRADAS y no se repiten. No demuestran por sí solas la nueva Command API ni modificación de repositorios. La ruta Observer-only, las fases O1–O7 y su estado previo se conservan como historial de la arquitectura v1; quedan supersedidas como plan de aceptación final, no se borran como evidencia.
 
-**Estado tras esta decisión:** M0 queda documentado. M1–M7 siguen pendientes de implementación/validación en sus criterios respectivos. La infraestructura actual, los PR y deploys no se consideran modificados por esta decisión documental.
+**Estado actualizado tras la implementación M1 (2026-10-30/31):** M0 COMPLETED; M1 PASS_SCOPED en SHA `b622a26605b1402c73fe1aff327fc2f1941bc1e2`, CI [41172743808](https://github.com/c2melendez/precision-lab-bridge/actions/runs/41172743808) SUCCESS. M2–M7 siguen sin iniciar. La aceptación M1 cubre código, migración reproducible, RPC, tests y CI en DB local desechable; no implica deploy, configuración de `OBSERVER_SERVICE_KEY`, petición live, ejecución Runner ni certificación matemática.
 
 
 ## Estado ejecutivo
@@ -152,8 +152,8 @@ La fusión automática de PR no se presume. Solo puede ocurrir cuando un contrat
 | Repositorios Lite, Plus, Bridge y Observador | Públicos | Metadatos de repositorios |
 | Observador PR #4 | Abierto, Ready for review, no fusionado; HEAD `6e712094a7e4b06a13224f66d6f3a6c26f991152` | [PR #4](https://github.com/c2melendez/precision-lab-readonly-api/pull/4) |
 | Observador CI | PASS en HEAD actual | [Run 41064924977](https://github.com/c2melendez/precision-lab-readonly-api/actions/runs/41064924977) |
-| Bridge PR #1 | Abierto, Draft, no fusionado; última observación previa a este commit: HEAD `6c3a71d51100b0e4e69523df0845c901eedb8c78` | [PR #1](https://github.com/c2melendez/precision-lab-bridge/pull/1) |
-| Bridge CI | Última observación: PENDING en HEAD documental `6c3a71d51100b0e4e69523df0845c901eedb8c78` | [Run 41143814074](https://github.com/c2melendez/precision-lab-bridge/actions/runs/41143814074). CI previo 41142813306 SUCCESS en SHA `ce634c5a5078d57de1f54a8f77a352077487373b`; último CI con evidencia de código 41131674843 SUCCESS en SHA `4427b5871bd8a46f9cc5fd03032eb053bf448d1e` |
+| Bridge PR #1 | Abierto, Draft, no fusionado; HEAD `b622a26605b1402c73fe1aff327fc2f1941bc1e2` | [PR #1](https://github.com/c2melendez/precision-lab-bridge/pull/1) |
+| Bridge CI | PASS en el mismo HEAD `b622a26605b1402c73fe1aff327fc2f1941bc1e2` | [Run 41172743808](https://github.com/c2melendez/precision-lab-bridge/actions/runs/41172743808): ambos jobs SUCCESS, incluidas migraciones, seguridad DB y 19/19 tests DB |
 | Observador staging → Bridge independiente | Fase A PASS | HTTP 200 autenticado y 401 anónimo; UUID `94c102a5-5242-48ba-bdb7-4754a57513db` |
 | Evidencia de Actions del recibo | Run preexistente, no nuevo | Lite `41005884405`, cumulative, completed/success |
 | Despacho Bridge → Runner end-to-end | NO VALIDADO | No se ha autorizado ni ejecutado una prueba real de despacho |
@@ -586,3 +586,15 @@ Sin merge, deploy, cambio de producción ni despacho real. La certificación glo
 ## Registro de decisión v2 — 2026-10-30
 
 La decisión arquitectónica multientrada/multicanal, el catálogo de mecanismos, el Command API objetivo y las fases M0–M7 están definidos al inicio de este documento. Esta sección no declara que los adaptadores, el Command API o el worker de modificación ya estén implementados. M0 queda documentado; M1 es el siguiente bloque de implementación. Las fases A/B permanecen cerradas; los estados O1–O7 se conservan como historial v1 supersedido.
+
+## Evidencia M1 — cierre PASS_SCOPED (2026-10-30; timestamps CI 2026-10-31 UTC)
+
+- Repositorio/branch: `c2melendez/precision-lab-bridge`, `hardening/secure-status-independent-runtime`.
+- SHA exacto validado: `b622a26605b1402c73fe1aff327fc2f1941bc1e2`.
+- Commit: [b622a266](https://github.com/c2melendez/precision-lab-bridge/commit/b622a26605b1402c73fe1aff327fc2f1941bc1e2).
+- CI: [41172743808](https://github.com/c2melendez/precision-lab-bridge/actions/runs/41172743808), `completed / success`; `Tests, lint and build` SUCCESS y `Supabase migration chain (disposable local DB)` SUCCESS.
+- Tests de aplicación: 111 passed; 19 tests DB skipped en el job sin DB. En el job DB dedicado, 19/19 tests passed y 0 skipped.
+- Seguridad DB: replay de migraciones desde base limpia, RLS/grants/constraints, scripts SQL de RPC/idempotencia, todo SUCCESS. `supabase db lint`: `No schema errors found`.
+- Lint: 0 errores; 6 warnings React Fast Refresh. Build Vite/Nitro: SUCCESS.
+
+**Limitaciones:** no se desplegó el commit ni se configuró el valor de `OBSERVER_SERVICE_KEY` en Render; por tanto no se declara llamada live Bridge→Observer. El proxy de archivos se reserva para M3. M1 solo registra comandos con estado `accepted` y `execution_enabled: false`; no ejecuta patches ni jobs. Sin merge, dispatch real, migración en producción o cambios en Lite/Plus. M2 permanece NOT_STARTED.

@@ -4,8 +4,8 @@
   "title": "Hoja de ruta — Precision Lab Multi-Agent Command Plane",
   "as_of": "2026-10-30",
   "language": "es",
-  "status": "architecture_v2_recorded_implementation_pending",
-  "summary": "Decisión arquitectónica v2 multientrada/multicanal registrada. LLM puede entrar por Observer, Bridge o ruta híbrida; Bridge consulta Observer para contexto/política y despacha al Runner. A/B permanecen PASS y no se repiten. M0 documentado; M1–M7 pendientes. El plan O1–O7 Observer-only se conserva como historial supersedido. Command API y capacidad Runner repo-patch aún no implementados.",
+  "status": "m1_pass_scoped_m2_not_started",
+  "summary": "Arquitectura v2 registrada. M1 PASS_SCOPED: Command API, scopes opt-in, persistencia/RPC, conexión server-side de Observer para estado/plan, rutas y pruebas verificadas en CI 41172743808 sobre SHA b622a26605b1402c73fe1aff327fc2f1941bc1e2. No hay deploy ni prueba Observer live; M2 Runner y fases posteriores permanecen sin iniciar.",
   "canonical_markdown": {
     "repo": "c2melendez/precision-lab-bridge",
     "branch": "hardening/secure-status-independent-runtime",
@@ -14,7 +14,7 @@
   },
   "supersedes": "docs/observer-bridge-integration.md#Trabajo de integración pendiente",
   "evidence_rule": "Si un comentario de PR cita un SHA o una prueba más nueva, esa evidencia manda y este archivo debe actualizarse en el mismo cambio.",
-  "active_phase_id": "M1",
+  "active_phase_id": "M2",
   "resume_protocol": {
     "audience": {
       "executes_this_roadmap": "Un LLM/agente consumidor puede completar tareas autorizadas sin acceso GitHub mediante Observer y/o Bridge. La implementación/mantenimiento del plano auxiliar puede requerir un agente mantenedor con permisos GitHub separados.",
@@ -23,8 +23,8 @@
     "steps": [
       "No solicitar, copiar, registrar ni hacer commit de secretos: llm, SERVICE_API_KEY, GITHUB_READ_TOKEN, GH_TOKEN, SUPABASE_SECRET_KEY o BRIDGE_ADMIN_PASSWORD.",
       "Usar GitHub como fuente de verdad; verificar refs, PR heads, despliegues y evidencia de workflows actuales antes de depender de SHAs históricos.",
-      "Observer es la única API expuesta al LLM; la Action nunca llama Bridge directamente.",
-      "Observer orquesta y aplica políticas; Bridge valida despacho interno, persiste idempotencia y recibos; los runners existentes de Lite/Plus ejecutan.",
+      "El LLM autorizado puede entrar por Observer, Bridge o una ruta híbrida; en el acceso directo Bridge consulta Observer internamente para contexto/política.",
+      "Observer entrega contexto/política; Bridge autentica y persiste comandos tipados/idempotentes; el Runner dentro de Actions será el ejecutor de M2 (aún no implementado).",
       "El usuario ya concedió autonomía general para completar el trabajo ordinario dentro del alcance, repositorios, gates, workflows, ramas y límites establecidos. No pedir aprobación por cada despacho, prueba, reconciliación o bloque rutinario.",
       "Ejecutar automáticamente consultas, correcciones, pruebas, despachos y reconciliaciones ordinarias cuando contratos, allowlists, scopes y pruebas demuestren que están dentro de política.",
       "Escalar únicamente decisiones materiales no resueltas por documentación/pruebas: cambios de alcance, criterios ambiguos, licencia, exposición de datos, aceptación de riesgo nuevo o desactivación de protecciones.",
@@ -303,25 +303,58 @@
     {
       "id": "M1",
       "title": "Specify and implement Bridge Command API",
-      "status": "pending",
-      "active": true,
+      "status": "pass_scoped",
+      "active": false,
       "blocked_by": [],
       "steps": [
-        "Define OpenAPI/JSON schemas for command envelope, capabilities, context proxy, submit/status/lookup.",
-        "Add agent identities and scopes context:read, command:submit and command:read; retain existing read/dispatch compatibility without implicitly widening existing keys.",
-        "Persist command, fingerprint, idempotency, lease, owner and receipts durably; handle concurrency, replay and unknown outcomes.",
-        "Add Bridge→Observer internal authenticated client for context/files/plans; never expose its service credential."
+        "OpenAPI 3.1 y rutas GET capabilities/context status/gate plan, POST commands y GET command receipt/lookup.",
+        "Scopes opt-in context:read, command:submit y command:read; legacy read/dispatch no se amplían automáticamente.",
+        "bridge_commands privada con fingerprint, owner, expected branch/SHA, Observer snapshot, lifecycle y receipt; RPC transaccional atomic insert/replay/conflict.",
+        "Bridge→Observer client server-only con HTTPS, X-API-Key, timeout, no-store, redirect refusal y validación de estado/plan.",
+        "Rutas HTTP autenticadas, lectura de body limitada en streaming, patch operations typed y owner-scoped receipt lookup.",
+        "Pruebas unitarias, SQL/RLS/grants, concurrencia/idempotencia y DB integration; CI exacto SHA b622a26605b1402c73fe1aff327fc2f1941bc1e2 SUCCESS."
       ],
-      "exit_criteria": "Bridge accepts commands from an agent key without GitHub access, returns durable status/receipt and rejects unauthorized, stale, conflicting or malformed requests."
+      "exit_criteria": "PASS_SCOPED: CI 41172743808 sobre SHA b622a26605b1402c73fe1aff327fc2f1941bc1e2; tests app, lint, build, migración local, SQL security/RPC, 19/19 DB integration y DB lint SUCCESS. No incluye deploy/OBSERVER_SERVICE_KEY ni prueba live Bridge→Observer; no activa Runner.",
+      "evidence": {
+        "code_sha": "b622a26605b1402c73fe1aff327fc2f1941bc1e2",
+        "commit_url": "https://github.com/c2melendez/precision-lab-bridge/commit/b622a26605b1402c73fe1aff327fc2f1941bc1e2",
+        "ci_run_id": 41172743808,
+        "ci_url": "https://github.com/c2melendez/precision-lab-bridge/actions/runs/41172743808",
+        "conclusion": "success",
+        "jobs": {
+          "Tests, lint and build": "success",
+          "Supabase migration chain (disposable local DB)": "success"
+        },
+        "app_tests": {
+          "passed": 111,
+          "skipped": 19,
+          "skip_reason": "DB-only suites run in the dedicated migration/DB job"
+        },
+        "database_tests": {
+          "passed": 19,
+          "skipped": 0
+        },
+        "database": {
+          "migration_replay": "success",
+          "security_rls_grants_constraints": "success",
+          "sql_rpc_contracts": "success",
+          "lint": "No schema errors found"
+        },
+        "lint": {
+          "errors": 0,
+          "warnings": 6
+        },
+        "deployment": "not_deployed",
+        "live_observer_auth": "not_verified",
+        "runner_execution": "disabled"
+      }
     },
     {
       "id": "M2",
       "title": "Extend existing Runner execution plane for repository changes",
       "status": "pending",
       "active": false,
-      "blocked_by": [
-        "M1"
-      ],
+      "blocked_by": [],
       "steps": [
         "Add a repository-command workflow entrypoint in Lite/Plus while preserving certification-runner.yml gate behavior and parity.",
         "Use opaque command_id and short-lived OIDC/lease identity; fetch typed manifest from Bridge.",
@@ -1369,5 +1402,11 @@
     "superseded_workstream": "Observer-only O1–O7",
     "new_workstream": "Multi-entry M0–M7",
     "important": "The Command API, Bridge→Observer context proxy and Runner repository-change worker are specified, not yet implemented or E2E certified."
-  }
+  },
+  "limitations": [
+    "OBSERVER_SERVICE_KEY está declarado como secreto server-only requerido, pero su valor no ha sido configurado en Render y no existe prueba HTTP live Bridge→Observer.",
+    "La lectura Bridge de archivos/contexto se completará en M3; M1 expone Observer status y gate plan.",
+    "M1 persiste comandos con execution_enabled=false; no ejecuta patch, validation en Runner, commit ni PR.",
+    "No se ha desplegado ni fusionado el código; no se ha aplicado ninguna migración a Supabase producción."
+  ]
 }

@@ -116,18 +116,18 @@ Lifecycle values: `accepted`, `queued`, `validating`, `running`, `awaiting_revie
 ## 6. M1 implementation checklist
 
 M1 is complete only when all items below are implemented and verified on the same commit:
-- [ ] OpenAPI 3.1 contract matches actual route schemas and status codes.
-- [ ] Capability and Observer context read routes require `context:read`.
-- [ ] Command submission requires `command:submit`; receipt/status/lookup require `command:read`.
-- [ ] Existing keys retain exactly their old scopes; admin can issue explicit new scope combinations.
-- [ ] Additive migration creates private `bridge_commands`, constraints, unique index, and atomic submit/replay/conflict RPC.
-- [ ] RPC grants are restricted to service role; RLS and database checks are included in CI.
-- [ ] Internal Bridge → Observer client uses server-only credentials, HTTPS origin validation, bounded routes/timeouts, redirect refusal, and safe error mapping.
-- [ ] Every direct Bridge command submission consults live Observer context and validates target repo, canonical branch and expected SHA before persistence.
-- [ ] GET command status and lookup are owner-scoped.
-- [ ] Tests cover auth/scope denial, old-key non-escalation, schema/path limits, exact replay, fingerprint conflict, concurrent submissions, stale SHA, upstream failures, owner isolation, and SQL grants/RLS.
-- [ ] CI passes for the exact branch HEAD; test skips caused by missing DB secrets are reported as skipped, not PASS for database integration.
-- [ ] No deployment, live command execution, or Runner dispatch is inferred from a unit/CI pass.
+- [x] OpenAPI 3.1 contract matches actual route schemas and status codes.
+- [x] Capability and Observer context read routes require `context:read`.
+- [x] Command submission requires `command:submit`; receipt/status/lookup require `command:read`.
+- [x] Existing keys retain exactly their old scopes; admin can issue explicit new scope combinations.
+- [x] Additive migration creates private `bridge_commands`, constraints, unique index, and atomic submit/replay/conflict RPC.
+- [x] RPC grants are restricted to service role; RLS and database checks are included in CI.
+- [x] Internal Bridge → Observer client uses server-only credentials, HTTPS origin validation, bounded routes/timeouts, redirect refusal, and safe error mapping.
+- [x] Every direct Bridge command submission consults live Observer context and validates target repo, canonical branch and expected SHA before persistence.
+- [x] GET command status and lookup are owner-scoped.
+- [x] Tests cover auth/scope denial, old-key non-escalation, schema/path limits, exact replay, fingerprint conflict, concurrent submissions, stale SHA, upstream failures, owner isolation, and SQL grants/RLS.
+- [x] CI passes for the exact branch HEAD; test skips caused by missing DB secrets are reported as skipped, not PASS for database integration.
+- [x] No deployment, live command execution, or Runner dispatch is inferred from a unit/CI pass.
 
 ## 7. M2 Runner checklist
 
@@ -171,6 +171,18 @@ For every work block record:
 
 Use precise statuses: `NOT_STARTED`, `IN_PROGRESS`, `PASS_SCOPED`, `PASS`, `BLOCKED`, `FAILED`, `SKIPPED`, `NOT_APPLICABLE`. Never call a phase PASS while mandatory acceptance evidence is absent.
 
+### M1 acceptance evidence — PASS_SCOPED
+
+**Código verificado:** `b622a26605b1402c73fe1aff327fc2f1941bc1e2` en `hardening/secure-status-independent-runtime`.
+**CI exacto:** [run 41172743808](https://github.com/c2melendez/precision-lab-bridge/actions/runs/41172743808), `completed / success`, ambos jobs sobre el mismo SHA.
+
+- Aplicación: Vitest `111 passed`; las 19 pruebas DB se omiten en este job general y se ejecutan en el job dedicado. ESLint terminó sin errores (6 warnings React Fast Refresh). Build Vite/Nitro: SUCCESS.
+- Base desechable: migración completa y `supabase db reset` SUCCESS; comprobaciones de RLS/grants/FKs/uniqueness/RPC SUCCESS; contrato SQL M1 SUCCESS; **19/19 tests de integración DB PASS**; `supabase db lint`: `No schema errors found`.
+- Seguridad: claves existentes `read`/`dispatch` no se amplían; scopes nuevos son opt-in. La RPC comprueba la autorización dentro de DB; tabla privada con RLS/grants de service role. El replay devuelve el recibo inicial. El POST limita el cuerpo mientras lee el stream.
+- Límites: no es una prueba HTTP live contra Render/Observer. `OBSERVER_SERVICE_KEY` está declarado como variable server-only, pero su valor no se ha configurado en Render y no se ha desplegado esta versión. La lectura de archivos/contexto queda en M3. No hay Runner: recibos reportan `execution_enabled: false`. No se modificaron Lite/Plus, no hubo dispatch real, merge ni migración de producción.
+
+M1 se registra **PASS_SCOPED**: evidencia completa de código/CI/DB en el SHA citado, con activación operativa/live aún fuera del alcance. M2 permanece `NOT_STARTED`.
+
 ## 10. Phase status at this revision
 
 | Phase | Status | Meaning |
@@ -178,7 +190,7 @@ Use precise statuses: `NOT_STARTED`, `IN_PROGRESS`, `PASS_SCOPED`, `PASS`, `BLOC
 | A | PASS (historical) | Observer → Bridge staging receipt; preserve evidence, do not rerun without invalidation |
 | B | PASS (historical) | Observer contract/read checks; preserve evidence |
 | M0 | COMPLETED | Architecture v2 recorded in roadmap Markdown/JSON |
-| M1 | IN_PROGRESS | Command API implementation and acceptance tests being prepared; do not claim complete |
+| M1 | PASS_SCOPED | Command API, DB/RPC, scopes, Observer context client, routes and acceptance tests passed in CI on code SHA `b622a26605b1402c73fe1aff327fc2f1941bc1e2`; runtime deployment/live Observer auth not verified |
 | M2 | NOT_STARTED | Runner repository worker not implemented |
 | M3 | NOT_STARTED | Route parity / hybrid paths acceptance |
 | M4 | NOT_STARTED | REST/OpenAPI, Function Calling, GPT Actions and MCP adapters |
@@ -190,7 +202,7 @@ The historical A/B results do not prove M1/M2. CI on this documentation commit d
 
 ## 11. Handoff prompt for an independent LLM
 
-> You are continuing Precision Lab Parallel Tool implementation. Read `docs/parallel-tool-implementation-master.md`, `docs/parallel-tool-roadmap.md`, and `docs/parallel-tool-roadmap.json` before acting. Use live GitHub repository state as source of truth. Continue the first incomplete phase only; currently M1. Implement and test the M1 checklist on the approved Bridge feature branch. Keep GitHub/Supabase/Observer/Runner credentials server-side; never request or expose them to the LLM. Preserve old scopes and legacy routes; no arbitrary shell; no production deployment, live Runner dispatch, merge, or mathematical certification run unless explicitly authorized. Use expected-SHA concurrency protection. Verify all tests and CI against the exact final HEAD, record evidence using section 9, update the roadmap and this master with factual status, and proceed to the next phase without asking for routine continuation. If repository state differs from this document, report and reconcile against live source before editing.
+> You are continuing Precision Lab Parallel Tool implementation. Read `docs/parallel-tool-implementation-master.md`, `docs/parallel-tool-roadmap.md`, and `docs/parallel-tool-roadmap.json` before acting. Use live GitHub repository state as source of truth. M1 is PASS_SCOPED on code SHA `b622a26605b1402c73fe1aff327fc2f1941bc1e2`, CI run 41172743808; do not repeat it absent invalidating evidence. M2 is the next phase and remains NOT_STARTED in this handoff. Begin it as a separate implementation block after the M1 acceptance record is reviewed. Keep GitHub/Supabase/Observer/Runner credentials server-side; never request or expose them to the LLM. Preserve old scopes and legacy routes; no arbitrary shell; no production deployment, live Runner dispatch, merge, or mathematical certification run unless explicitly authorized. Use expected-SHA concurrency protection. Verify all tests and CI against the exact final HEAD, record evidence using section 9, update the roadmap and this master with factual status, and proceed to the next phase without asking for routine continuation. If repository state differs from this document, report and reconcile against live source before editing.
 
 ## 12. Related authoritative records
 

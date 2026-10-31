@@ -113,7 +113,7 @@ describe("Bridge internal Observer client", () => {
       gate: { action_taken: false },
     })));
     const plan = await fetchObserverGatePlan("h1d", "lite");
-    expect(plan.action_taken).toBe(false);
+    expect((plan.gate as { action_taken?: boolean }).action_taken).toBe(false);
     await expect(fetchObserverGatePlan("../secret", "lite")).rejects.toMatchObject({
       code: "INVALID_GATE",
       httpStatus: 400,

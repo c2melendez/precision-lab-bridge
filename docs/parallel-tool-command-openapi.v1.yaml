@@ -8,8 +8,7 @@ info:
     dispatch GitHub Actions, create commits or pull requests. Server credentials
     remain server-side. Exact retries return the original owner-scoped receipt.
 servers:
-  - url: https://REPLACE-WITH-BRIDGE-SERVICE-HOST
-    description: Replace this placeholder with the deployed Bridge service origin before importing.
+  - url: https://precision-lab-bridge.onrender.com
 security:
   - BridgeKey: []
 paths:

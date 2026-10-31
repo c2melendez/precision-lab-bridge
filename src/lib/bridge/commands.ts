@@ -117,7 +117,7 @@ function validatePayload(commandType: CommandType, payload: unknown): string | n
 
 export function stableStringify(value: unknown): string {
   if (value === undefined) return "null";
-  if (value === null || typeof value !== "object") return JSON.stringify(value);
+  if (value === null || typeof value !== "object") return JSON.stringify(value) ?? "null";
   if (Array.isArray(value)) return "[" + value.map(stableStringify).join(",") + "]";
   const object = value as Record<string, unknown>;
   return "{" + Object.keys(object).sort().map((key) =>
@@ -152,7 +152,7 @@ export function parseCommandEnvelope(raw: unknown, idempotencyHeader: string | n
     target_repo: raw.target_repo,
     expected_branch: raw.expected_branch,
     expected_sha: raw.expected_sha.toLowerCase(),
-    payload: raw.payload,
+    payload: raw.payload as Record<string, unknown>,
     idempotency_key: raw.idempotency_key,
     correlation_id: raw.correlation_id,
     validation_id: raw.validation_id,

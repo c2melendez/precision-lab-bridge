@@ -97,7 +97,23 @@ Si el host solo permite configurar la clave pegándola en un prompt o dejándola
 
 La identidad de C1 puede reutilizar BRIDGE_KEY_READ si sus scopes son exactamente context:read y no incluyen command:submit. No crear una segunda clave si ya existe esa identidad. Las claves Observer y Bridge son independientes. Cada consumidor usa identidad propia; no distribuir una clave compartida de escritura.
 
-### 2.3 Prohibiciones y controles
+### 2.3 Emisión de claves desde el panel administrativo Bridge
+
+El código de esta rama implementa el panel administrativo en la ruta raíz `/` del servicio Bridge (archivo `src/routes/index.tsx`; emisión en `src/lib/bridge/admin.functions.ts`). No asumir que el servicio live contiene esta versión: antes de operar, verificar que el despliegue al que se accede incluye esa implementación y que es el entorno Bridge previsto.
+
+Procedimiento para el administrador:
+
+1. Abrir la URL HTTPS del servicio Bridge verificado y entrar en la pantalla administrativa.
+2. Introducir la contraseña administrativa directamente en el campo de contraseña del panel. Nunca enviarla al LLM, conversación, prompt o herramienta.
+3. En **New key**, establecer etiqueta única por consumidor, duración de expiración y scopes.
+4. Para lectura, seleccionar únicamente `context:read`. Para envío/recepción, seleccionar `context:read`, `command:submit` y `command:read`. Para C1, usar una identidad que tenga `context:read` y no tenga `command:submit`.
+5. Pulsar **Create**. El panel muestra el valor completo una sola vez. Copiarlo directamente desde el navegador al gestor de secretos del host/MCP/conector que hará las llamadas. No pegarlo en este chat ni en instrucciones para el modelo.
+6. Confirmar que el listado administrativo muestra únicamente etiqueta, prefijo, scopes, expiración y último uso. La clave completa no se puede volver a recuperar porque se almacena su hash.
+7. Si se pierde la clave o se expone al modelo, revocarla desde el panel y crear una nueva identidad; no intentar recuperar el valor original.
+
+La contraseña administrativa autoriza operaciones de administración y nunca se utiliza como clave de consumidor. Tampoco se utilizan en el panel las credenciales internas de GitHub, Supabase u Observer.
+
+### 2.4 Prohibiciones y controles
 
 - Nunca pedir que el usuario pegue claves, tokens, contraseñas o cabeceras Authorization en la conversación.
 - Nunca leer ni imprimir valores secretos con echo, printenv, set -x u operaciones equivalentes.
@@ -109,7 +125,7 @@ La identidad de C1 puede reutilizar BRIDGE_KEY_READ si sus scopes son exactament
 - Preferir credenciales separadas por consumidor, con expiración y revocación.
 - No usar OBSERVER_SERVICE_KEY, GH_TOKEN, SUPABASE_SECRET_KEY ni BRIDGE_ADMIN_PASSWORD como credenciales de consumidor.
 
-### 2.4 Resolución de configuración
+### 2.5 Resolución de configuración
 
 Orden permitido:
 1. Inyección por gestor de secretos del host/runtime.

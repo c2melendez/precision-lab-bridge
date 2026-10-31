@@ -1,6 +1,6 @@
 # Batería de conectividad, seguridad y capacidades LLM — Precision Lab
 
-**Versión:** 2.1.0  
+**Versión:** 2.2.0  
 **Fecha:** 2026-10-31  
 **Aplica a:** LLM/agentes consumidores de Observer y/o Bridge sin credenciales de GitHub, y campañas controladas de comparación de capacidades.  
 **Documentos relacionados:** `docs/parallel-tool-roadmap.md`, `docs/parallel-tool-implementation-master.md` y `docs/parallel-tool-command-openapi.v1.yaml`.
@@ -433,7 +433,28 @@ La batería distingue tres estados:
 5. Registra consumer ID, host, model ID/version, transport, scopes, key ID/prefix y expiración. Nunca la clave o su hash.
 6. Al terminar, revoca desde el panel y verifica que la siguiente llamada autenticada devuelve 401.
 
-La UI revisada admite expiración de 1 a 365 días, no minutos. Para una prueba temporal, revocar manualmente al final; no describir la UI actual como TTL de minutos. Si el host no oculta la credencial al modelo, BLOCKED/credential_not_provisioned. El panel Bridge no emite `OBSERVER_KEY`: una ruta directa LLM→Observer requiere una identidad Observer independiente, emitida por el administrador de Observer y provisionada en el host. No reutilizar la Bridge key. Si no está documentado/verificado el mecanismo Observer, marcar esa ruta BLOCKED; en la ruta Bridge-direct, `OBSERVER_SERVICE_KEY` permanece server-only en Bridge.
+La UI TCA-1 específica admite expiración de 5 a 1440 minutos; las claves generales conservan su rango de 1 a 365 días. La revocación manual sigue disponible. Si el host no oculta la credencial al modelo, BLOCKED/credential_not_provisioned. El panel Bridge no emite `OBSERVER_KEY`: una ruta directa LLM→Observer requiere una identidad Observer independiente, emitida por el administrador de Observer y provisionada en el host. No reutilizar la Bridge key. Si no está documentado/verificado el mecanismo Observer, marcar esa ruta BLOCKED; en la ruta Bridge-direct, `OBSERVER_SERVICE_KEY` permanece server-only en Bridge.
+
+### H1–H8 — certificación de TCA-1A/TCA-1B
+
+Estas pruebas forman parte de la certificación del Parallel Tool. H1–H6 son verificables automáticamente en CI; H7 exige staging con una clave temporal real y H8 combina pruebas automatizadas y revisión de artefactos redactados.
+
+| Prueba | Procedimiento | Resultado esperado |
+|---|---|---|
+| H1 — emisión temporal | Intentar crear clave TCA-1 con etiqueta `tca1-<consumer>`, TTL 5–1440 minutos y modo read/submit; probar TTL 4, 1441 y scopes legacy | Se aceptan solo inputs válidos; read produce únicamente `context:read`; submit produce exactamente `context:read`, `command:submit`, `command:read`; nunca `read` ni `dispatch` |
+| H2 — almacenamiento/one-time | Crear clave en DB desechable y revisar respuesta/UI | El valor se muestra una sola vez; DB almacena SHA-256, prefijo, scopes y expiración; no almacena el valor en claro ni existe endpoint de recuperación |
+| H3 — configuración segura | Arrancar adaptador con env válido, faltante, HTTP público, URL con userinfo/query/path, timeout y access mode inválidos | Config válida usa HTTPS y modo definido; config insegura/faltante falla cerrada sin imprimir clave |
+| H4 — inyección HTTP | Invocar capabilities/status/plan desde el adaptador; inspeccionar request stub | `X-Bridge-Key` se añade solo en server runtime; nunca en URL/query/body/tool arguments; `redirect:error`, `no-store`; no `Authorization` accidental |
+| H5 — perfil read | Crear adaptador `TCA1_ACCESS_MODE=read` | Solo expone capabilities, context status y gate plan; no publica herramientas de submit/receipt/lookup |
+| H6 — perfil submit | Crear adaptador `TCA1_ACCESS_MODE=submit`; enviar envelope válido y leer recibo | Expone submit/get/lookup; envelope estricto; `Idempotency-Key` coincide con el body; Bridge aplica owner/scope y 403 si la clave real carece de permiso |
+| H7 — expiración/revocación | En staging, llamar antes, después del TTL y después de revocar | Antes: 200 en ruta permitida; después de expirar o revocar: 401; no se crea/despacha un comando después del rechazo |
+| H8 — redacción y redirección | Inyectar errores de red/HTTP y una respuesta redirect en tests; revisar logs y artifacts | Errores no reproducen clave, cabeceras ni cuerpos arbitrarios; redirect se rechaza; ningún artefacto contiene el valor |
+
+**Código de referencia actual:** `src/lib/tca/tca1-policy.ts`, `src/lib/tca/bridge-client.server.ts`, `src/lib/tca/tca1-tool-adapter.server.ts`, `src/lib/bridge/admin.functions.ts` y `src/routes/index.tsx`. Tests: `tca1-policy.test.ts`, `bridge-client.server.test.ts`, `tca1-tool-adapter.server.test.ts`.
+
+El adaptador de herramientas es provider-neutral: ofrece tool definitions y handlers para que un host MCP/Function Calling los registre. No afirma que ya exista un servidor MCP remoto desplegado ni que todas las plataformas admitan inyección de cabeceras arbitrarias. La integración de cada host debe certificarse como transporte separado en M4/M6.
+
+H7 no puede pasar en CI unitario sin un staging real. Registrar su resultado BLOCKED hasta desplegar la versión exacta y ejecutar una prueba autorizada. Las rutas directas LLM→Observer siguen BLOCKED hasta verificar la emisión/provisión de una credencial Observer independiente; nunca reutilizar la Bridge key.
 
 ### TCA-2 — controlled exposure lab
 

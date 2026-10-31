@@ -110,7 +110,14 @@ async function main() {
           model,
           input,
           tools,
-          tool_choice: invoked.some((item) => REQUIRED_TOOLS.has(item.name)) ? "auto" : "required",
+          tool_choice: (() => {
+            const nextRequired = [...REQUIRED_TOOLS].find(
+              (name) => !invoked.some((item) => item.name === name),
+            );
+            return nextRequired
+              ? { type: "function", name: nextRequired }
+              : "none";
+          })(),
           parallel_tool_calls: false,
           max_output_tokens: 1200,
           store: false,
@@ -162,7 +169,10 @@ async function main() {
       if (Buffer.byteLength(serialized, "utf8") > MAX_TOOL_OUTPUT_BYTES) {
         throw new Error("TCA1_TOOL_OUTPUT_TOO_LARGE");
       }
-      invoked.push({ name: call.name, ok: result.ok !== false });
+      if (result.ok !== true) {
+        throw new Error("TCA1_TOOL_CALL_RETURNED_ERROR");
+      }
+      invoked.push({ name: call.name, ok: true });
       input.push({
         type: "function_call_output",
         call_id: call.call_id,

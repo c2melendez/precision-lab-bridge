@@ -5,7 +5,7 @@
   "as_of": "2026-10-31",
   "language": "es",
   "status": "m1_pass_scoped_m2_in_progress",
-  "summary": "M1 PASS_SCOPED. M2 IN_PROGRESS. Bridge current HEAD 50978189950cd36cdae6ea4e19f87006ce1aa1d5 passed full CI+DB validation. Lite current-head Runner safety-contract, Playwright E2E and cross-browser passed; normal CI is blocked solely by npm audit (11 findings: 3 low, 8 moderate, 0 high/critical), including upstream deepmerge@4.3.1 with no patched npm release. Plus current-head normal CI passed; Playwright E2E is still in progress. All PRs remain Draft; no deploy, merge, live dispatch or mathematical certification. User-authored mechanism review is preserved. M6 acceptance is extended to include the A–F consumer connectivity/security battery and CB1–CB10 LLM capability benchmark; credentials must be runtime-injected and never exposed to models. TCA v1.0.0 is documented only: TCA-1 host injection, TCA-2 isolated canary lab, and future OAuth/OIDC Credential Broker. None is deployed or enabled; no credential was created.",
+  "summary": "M1 PASS_SCOPED. M2 IN_PROGRESS. Bridge current HEAD 50978189950cd36cdae6ea4e19f87006ce1aa1d5 passed full CI+DB validation. Lite current-head Runner safety-contract, Playwright E2E and cross-browser passed; normal CI is blocked solely by npm audit (11 findings: 3 low, 8 moderate, 0 high/critical), including upstream deepmerge@4.3.1 with no patched npm release. Plus current-head normal CI passed; Playwright E2E is still in progress. All PRs remain Draft; no deploy, merge, live dispatch or mathematical certification. User-authored mechanism review is preserved. M6 acceptance is extended to include the A–F consumer connectivity/security battery and CB1–CB10 LLM capability benchmark; credentials must be runtime-injected and never exposed to models. TCA v1.0.0 is documented only: TCA-1 host injection, TCA-2 isolated canary lab, and future OAuth/OIDC Credential Broker. None is deployed or enabled; no credential was created. TCA-1A (temporary 5–1440 minute key issuance) and TCA-1B (server-side provider-neutral tool adapter) have code candidates in the working branch; exact-head CI, H7 staging and provider-specific host binding remain pending. Battery updated to v2.2.0 (H1–H8).",
   "canonical_markdown": {
     "repo": "c2melendez/precision-lab-bridge",
     "branch": "hardening/secure-status-independent-runtime",
@@ -431,16 +431,16 @@
         "M4"
       ],
       "steps": [
-        "Ejecutar batería A–F v2.1.0: conectividad, contrato, scopes, idempotencia, seguridad y frontera de secretos por consumidor con TCA-1 o Broker equivalente.",
-        "Provisionar identidad individual en host/secret manager; el runtime adjunta la cabecera y el LLM nunca recibe el valor. Si no existe frontera segura: BLOCKED/credential_not_provisioned.",
-        "Ejecutar CB1–CB10 con fixtures versionados. G1–G5/TCA-2 son una investigación opcional e independiente, no requisito de M6/producción.",
+        "Ejecutar batería A–F v2.2.0 y H1–H8 TCA-1A/TCA-1B por consumidor; H7 exige staging con TTL y revocación reales.",
+        "Usar TCA-1A (clave individual de 5–1440 minutos, perfiles read/submit cerrados) y TCA-1B (cliente/handlers server-side) o Credential Broker futuro; el LLM nunca conoce el valor.",
+        "Ejecutar CB1–CB10 con fixtures versionados. G1–G5/TCA-2 son investigación opcional e independiente, no requisito M6/producción.",
         "Comparar modelos con mismo prompt, fixture/SHA, transporte, permisos y presupuesto; procurar al menos tres repeticiones por modelo/tarea y registrar host/transporte como factores separados.",
         "Use two distinct LLM models (different model IDs/versions), separate consumer identities/API keys and at least two real transport mechanisms; do not provide GitHub credentials to either agent.",
-        "Leer estado/archivos, diagnosticar una corrección autorizada, enviar patch, ejecutar validaciones, obtener commit/PR y reconciliar recibos.",
+        "Leer estado/archivos, diagnosticar una corrección autorizada, enviar patch, ejecutar validaciones, obtener commit/PR y reconciliar recibos mediante TCA-1.",
         "Ejercitar 401/403, SHA obsoleto, WAIT/REUSE, conflicto de payload, replay exacto, concurrencia, timeout, callback fallido y prompt injection.",
         "Demostrar que no hay workflow duplicado y conservar traza request→command→receipt→Actions→Runner→commit/PR→test evidence."
       ],
-      "exit_criteria": "Dos modelos LLM distintos (model_id/version diferenciados), con identidades independientes y dos transportes, completan flujo autorizado mediante TCA-1 o Credential Broker sin credenciales GitHub entregadas a agentes; traza completa, replay sin duplicado y benchmark CB1–CB10 reproducible. TCA-2/G1–G5 no forma parte de la aceptación productiva. BLOCKED no se declara PASS."
+      "exit_criteria": "Dos modelos LLM distintos (model_id/version diferenciados), con identidades independientes y dos transportes, completan el flujo autorizado con TCA-1A/TCA-1B o Broker equivalente sin credenciales GitHub entregadas a agentes; A–F y H1–H8 (incluido H7 staging) se aceptan, CB1–CB10 queda publicado, la traza E2E es completa y replay no duplica. G1–G5/TCA-2 es opcional y no criterio productivo. BLOCKED no se declara PASS."
     },
     {
       "id": "M7",
@@ -1784,11 +1784,12 @@
     }
   },
   "consumer_probe_battery": {
-    "version": "2.1.0",
+    "version": "2.2.0",
     "markdown_path": "docs/parallel-tool-consumer-probe-battery.md",
     "connectivity_security_tests": 33,
     "capability_benchmark_tests": 10,
     "credential_exposure_lab_tests": 5,
+    "tca1_certification_tests": 8,
     "test_groups": [
       "A",
       "B",
@@ -1796,7 +1797,8 @@
       "D",
       "E",
       "F",
-      "G"
+      "G",
+      "H"
     ],
     "benchmark_tests": [
       "CB1",
@@ -1816,14 +1818,25 @@
       "G3",
       "G4",
       "G5"
+    ],
+    "tca1_tests": [
+      "H1",
+      "H2",
+      "H3",
+      "H4",
+      "H5",
+      "H6",
+      "H7",
+      "H8"
     ]
   },
   "tca_design": {
-    "version": "1.0.0",
+    "version": "1.1.0",
     "document": "docs/temporary-credential-access-design.md",
     "design_status": "documented",
     "implementation_status": {
-      "TCA_1": "not_implemented",
+      "TCA_1A": "code_candidate_in_branch_pending_exact_sha_CI_and_staging_H7",
+      "TCA_1B": "provider_neutral_server_adapter_candidate_in_branch_pending_CI_and_host_binding",
       "TCA_2_credential_lab": "not_implemented",
       "credential_broker": "not_implemented"
     },
@@ -1834,6 +1847,41 @@
     "TCA_2_required_for_M6": false,
     "no_credentials_created": true,
     "no_production_changes": true,
-    "observer_credential_issuer": "Separate from Bridge admin panel; not verified in this repository. Direct Observer route stays BLOCKED until its safe issuance/provisioning flow is documented. Never reuse a Bridge key."
+    "observer_credential_issuer": "Separate from Bridge admin panel; not verified in this repository. Direct Observer route stays BLOCKED until its safe issuance/provisioning flow is documented. Never reuse a Bridge key.",
+    "TCA_1A": "Temporary Bridge consumer key issuance: 5–1440 minute TTL, tca1-prefixed label, closed read/submit access profiles; one-time display, SHA-256 persistence and manual revocation.",
+    "TCA_1B": "Server-side Bridge HTTP client and provider-neutral tool schema/handler registry; reads TCA1_BRIDGE_KEY from host environment, injects X-Bridge-Key, rejects unsafe URL/redirects and excludes secrets from tool arguments.",
+    "certification_tests": [
+      "H1",
+      "H2",
+      "H3",
+      "H4",
+      "H5",
+      "H6",
+      "H7",
+      "H8"
+    ],
+    "host_binding_status": "provider-specific MCP/Function Calling registration remains pending; do not claim live host integration"
+  },
+  "certification_spec": {
+    "master_document": "docs/parallel-tool-implementation-master.md",
+    "consumer_battery": {
+      "document": "docs/parallel-tool-consumer-probe-battery.md",
+      "version": "2.2.0"
+    },
+    "tca_design": {
+      "document": "docs/temporary-credential-access-design.md",
+      "version": "1.1.0"
+    },
+    "command_contract": "docs/parallel-tool-command-openapi.v1.yaml",
+    "required_tracks": [
+      "A-F connectivity/security",
+      "H1-H8 TCA-1A/TCA-1B",
+      "CB1-CB10 capability benchmark",
+      "two-model/two-transport E2E"
+    ],
+    "optional_tracks": [
+      "G1-G5 TCA-2 controlled credential exposure lab"
+    ],
+    "staging_gate": "H7 requires exact deployed SHA, isolated staging and a real short-lived key; no production credential or write."
   }
 }

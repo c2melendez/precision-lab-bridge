@@ -128,17 +128,19 @@ describe("M2 Bridge command workflow dispatcher", () => {
 
   it("does not pick an unrelated run when the run-name does not contain the command ID", async () => {
     const started = Date.now();
-    const request = vi.fn()
-      .mockResolvedValueOnce(new Response(null, { status: 204 }))
-      .mockResolvedValueOnce(Response.json({
-        workflow_runs: [{
-          id: 987,
-          display_title: "Other workflow dispatch",
-          head_branch: "main",
-          created_at: new Date(started).toISOString(),
-          html_url: "https://github.com/c2melendez/precision-lab-plus/actions/runs/987",
-        }],
-      }));
+    const unrelatedRuns = {
+      workflow_runs: [{
+        id: 987,
+        display_title: "Other workflow dispatch",
+        head_branch: "main",
+        created_at: new Date(started).toISOString(),
+        html_url: "https://github.com/c2melendez/precision-lab-plus/actions/runs/987",
+      }],
+    };
+    const request = vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === "POST") return new Response(null, { status: 204 });
+      return Response.json(unrelatedRuns);
+    });
     vi.stubGlobal("fetch", request);
     const result = await dispatchAcceptedCommand(id, "plus");
     expect(result).toMatchObject({

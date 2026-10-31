@@ -60,13 +60,13 @@ async function github(path: string, init: RequestInit = {}): Promise<Response> {
 }
 
 async function findDispatchRun(
-  repository: string,
+  repositoryName: string,
   commandId: string,
   startedAtMs: number,
 ): Promise<{ id: string; url: string } | null> {
   const workflow = encodeURIComponent(WORKFLOW_FILE);
   const response = await github(
-    "repos/" + OWNER + "/" + repository + "/actions/workflows/" + workflow +
+    "repos/" + OWNER + "/" + repositoryName + "/actions/workflows/" + workflow +
     "/runs?event=workflow_dispatch&branch=" + RUNNER_REF + "&per_page=100",
   );
   if (!response.ok) throw new Error("GITHUB_DISPATCH_OUTCOME_UNKNOWN");
@@ -83,7 +83,7 @@ async function findDispatchRun(
     Date.parse(item.created_at) >= startedAtMs - 30_000 &&
     typeof item.id === "number" && Number.isSafeInteger(item.id) && item.id > 0 &&
     typeof item.html_url === "string" &&
-    item.html_url === "https://github.com/" + OWNER + "/" + repository + "/actions/runs/" + item.id,
+    item.html_url === "https://github.com/" + OWNER + "/" + repositoryName + "/actions/runs/" + item.id,
   );
   if (matches.length > 1) throw new Error("GITHUB_DISPATCH_AMBIGUOUS");
   if (matches.length === 0) return null;
@@ -91,13 +91,13 @@ async function findDispatchRun(
 }
 
 async function resolveRun(
-  repository: string,
+  repositoryName: string,
   commandId: string,
   startedAtMs: number,
 ): Promise<{ id: string; url: string }> {
   // workflow_dispatch returns 204 and no run ID. Only an exact run-name match is attachable.
   for (let attempt = 0; attempt < 8; attempt += 1) {
-    const found = await findDispatchRun(repository, commandId, startedAtMs);
+    const found = await findDispatchRun(repositoryName, commandId, startedAtMs);
     if (found) return found;
     await new Promise((resolve) => setTimeout(resolve, 1_000));
   }
@@ -137,7 +137,8 @@ export async function dispatchAcceptedCommand(
   commandId: string,
   targetRepo: "lite" | "plus",
 ): Promise<DispatchOutcome | null> {
-  if (!enabled()) return null;
+  // Do not create a durable dispatch intent unless all runtime prerequisites exist.
+  if (!commandExecutionEnabled()) return null;
 
   const intent = await beginDispatch(commandId);
   if (intent !== "started") {
@@ -153,7 +154,8 @@ export async function dispatchAcceptedCommand(
     };
   }
 
-  const repo = OWNER + "/" + REPOSITORIES[targetRepo];
+  const repositoryName = REPOSITORIES[targetRepo];
+  const repo = OWNER + "/" + repositoryName;
   const startedAtMs = Date.now();
   const endpoint = "repos/" + repo + "/actions/workflows/" +
     encodeURIComponent(WORKFLOW_FILE) + "/dispatches";
@@ -176,7 +178,7 @@ export async function dispatchAcceptedCommand(
       };
     } else if (response.status !== 204 && !response.ok) {
       // An unexpected status may still have created a run: reconcile by exact run-name before giving up.
-      const run = await resolveRun(repo, commandId, startedAtMs).catch(() => null);
+      const run = await resolveRun(repositoryName, commandId, startedAtMs).catch(() => null);
       outcome = run ? {
         outcome: "queued", actionsRunId: run.id, actionsRunUrl: run.url, errorCode: null,
       } : {

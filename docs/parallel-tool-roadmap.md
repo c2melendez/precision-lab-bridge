@@ -666,10 +666,10 @@ Las respuestas se contradicen en varios puntos (por ejemplo, Meta AI niega OpenA
 - **Estado de sonda:** PENDIENTE.
 
 Condiciones de la sonda:
-1. El operador configura la clave por consumidor fuera del prompt.
+1. Las claves se resuelven desde el entorno del consumidor; si faltan, la prueba queda BLOCKED y la batería continúa.
 2. Ejecutar A1 a A7, B1 a B9 y C1 a C8 en modo lectura y validación.
-3. D1 a D3 solo con autorización explícita del operador.
-4. D4 bloqueada hasta que `BRIDGE_COMMAND_EXECUTION_ENABLED=true` y haya autorización.
+3. D1 a D3 se ejecutan automáticamente cuando hay clave de envío; crean registros sin ejecutar cambios.
+4. D4 se ejecuta solo si el servidor confirma `execution_enabled: true`; de lo contrario queda BLOCKED.
 5. E1 y E2 solo como inventario de capacidades, sin invocar escrituras.
 6. Registrar plan y host con cada resultado.
 7. Ningún valor secreto en la salida.

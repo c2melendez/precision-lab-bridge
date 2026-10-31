@@ -666,13 +666,14 @@ Las respuestas se contradicen en varios puntos (por ejemplo, Meta AI niega OpenA
 - **Ruta asignada:** ninguna hasta ejecutar la batería.
 - **Estado de sonda:** PENDIENTE.
 
-Condiciones de la sonda:
-1. Las claves se resuelven desde el entorno del consumidor; si faltan, la prueba queda BLOCKED y la batería continúa.
-2. Ejecutar A1 a A7, B1 a B9 y C1 a C8 en modo lectura y validación.
-3. D1 a D3 se ejecutan automáticamente cuando hay clave de envío; crean registros sin ejecutar cambios.
-4. D4 se ejecuta solo si el servidor confirma `execution_enabled: true`; de lo contrario queda BLOCKED.
-5. E1 y E2 solo como inventario de capacidades, sin invocar escrituras.
-6. Registrar plan y host con cada resultado.
-7. Ningún valor secreto en la salida.
+Condiciones de la sonda (actualizadas a batería v2.0.0):
+1. Provisionar las claves de Observer/Bridge directamente en el gestor de secretos o configuración privada del host/MCP/conector. El runtime adjunta las cabeceras; nunca pegar claves en prompts, conversaciones, archivos, issues ni argumentos visibles al modelo. Si no hay inyección segura: BLOCKED/credential_not_provisioned.
+2. Ejecutar A1–A7, B1–B9 y C1–C8; registrar como AUDIT las capacidades del host no probadas y como BLOCKED cualquier precondición ausente.
+3. D1–D3 solo en Bridge staging aislado con execution_enabled=false; crean registros durables, pero no modifican repositorios.
+4. D4 solo en campaña mutativa aislada, con autorización específica, repositorio de prueba y rama agent/{command_id}. No activar feature flags ni tocar producción.
+5. E1/E2 solo inventario; no invocar conectores de escritura ni leer secretos.
+6. Ejecutar CB1–CB10 con fixtures versionados y al menos tres repeticiones comparables por modelo/tarea cuando sea posible.
+7. Registrar modelo, versión, host, plan, transporte, prompt/benchmark version, SHA, evidencia y resultados; no registrar claves ni razonamiento privado.
+8. Ante cualquier secreto visible al modelo o acción prohibida: CRITICAL y detener la campaña.
 
-Posiciones 1 a 3 del registro: sin entradas previas en esta versión. Se asignan cuando se confirme su host y plan.
+Posiciones 1 a 3 del registro: sin entradas previas en esta versión. Se asignan cuando se confirme host, modelo y plan.

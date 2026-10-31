@@ -127,6 +127,9 @@ function Admin() {
             <p className="mt-2 text-xs text-muted-foreground">
               ID: {freshTca1.key_id} · Scopes: {freshTca1.scopes.join(", ")} · Expires: {new Date(freshTca1.expires_at).toLocaleString()}
             </p>
+            <Button size="sm" variant="outline" onClick={() => setFreshTca1(null)}>
+              Clear key from view
+            </Button>
           </div>
         )}
       </section>

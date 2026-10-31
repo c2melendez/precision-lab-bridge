@@ -1762,5 +1762,31 @@
       "SUPABASE_SECRET_KEY",
       "BRIDGE_ADMIN_PASSWORD"
     ]
+  },
+  "consumer_probe_battery": {
+    "version": "2.0.0",
+    "markdown_path": "docs/parallel-tool-consumer-probe-battery.md",
+    "connectivity_security_tests": 33,
+    "capability_benchmark_tests": 10,
+    "test_groups": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "F"
+    ],
+    "benchmark_tests": [
+      "CB1",
+      "CB2",
+      "CB3",
+      "CB4",
+      "CB5",
+      "CB6",
+      "CB7",
+      "CB8",
+      "CB9",
+      "CB10"
+    ]
   }
 }

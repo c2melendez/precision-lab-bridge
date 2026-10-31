@@ -245,7 +245,7 @@ No confundir PASS de conectividad con competencia técnica ni benchmark offline 
 **Artefactos normativos de certificación Parallel Tool:**
 - `docs/parallel-tool-implementation-master.md`: autoridad de alcance, fases y criterios de aceptación.
 - `docs/parallel-tool-consumer-probe-battery.md` v2.2.2: 33 pruebas A–F, CB1–CB10, G1–G5 (investigación TCA-2) y H1–H9 (TCA-1A/TCA-1B/TCA-1C).
-- `docs/temporary-credential-access-design.md` v1.1.1: especificación de amenazas, límites de confianza, flujos TCA, configuración del adaptador, criterios de aceptación y evolución a Credential Broker.
+- `docs/temporary-credential-access-design.md` v1.2.0: especificación de amenazas, límites de confianza, flujos TCA, configuración del adaptador, criterios de aceptación y evolución a Credential Broker.
 - `docs/parallel-tool-command-openapi.v1.yaml`: contrato de la API Bridge.
 - `docs/parallel-tool-roadmap.md` y `docs/parallel-tool-roadmap.json`: estado y evidencia de las fases.
 

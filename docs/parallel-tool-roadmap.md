@@ -137,7 +137,7 @@ La fusión automática de PR no se presume. Solo puede ocurrir cuando un contrat
 | M3 | Conectar rutas multientrada y política | LLM→Observer, LLM→Bridge y ruta híbrida; Bridge→Observer interno; mismas decisiones y evidencia en todas. |
 | M4 | Entregar adaptadores P0/P1 | REST/OpenAPI, Function Calling, GPT Actions, MCP remoto y MCP stdio usando el mismo contrato. |
 | M5 | Entregar adaptadores P2/P3 | SDK Python/TS, CLI, webhooks, A2A y adaptadores de frameworks/proveedores según disponibilidad y valor demostrado. |
-| M6 | Certificar interoperabilidad multiagente y capacidades LLM | Dos agentes distintos y dos transportes completan sin credenciales GitHub: lectura → diagnóstico → patch → validación → commit/PR → reconciliación; replay sin duplicado y benchmark CB1–CB10 con resultados reproducibles por modelo/host/transporte. |
+| M6 | Certificar interoperabilidad multiagente y capacidades LLM | Dos LLM distintos (model_id/version diferenciados), con identidades independientes y dos transportes, completan sin credenciales GitHub: lectura → diagnóstico → patch → validación → commit/PR → reconciliación; replay sin duplicado y benchmark CB1–CB10 con resultados reproducibles por modelo/host/transporte. |
 | M7 | Congelar infraestructura auxiliar y reanudar matemática | Evidencia integral publicada; no quedan gaps de conexión/ejecución dentro del alcance; reanudar Lite/Plus según sus índices canónicos. |
 
 **Conservación de trabajo previo:** Fases A/B de la integración Observer→Bridge (GET autenticado 200 y anónimo 401; contrato/OpenAPI y CI asociados) permanecen CERRADAS y no se repiten. No demuestran por sí solas la nueva Command API ni modificación de repositorios. La ruta Observer-only, las fases O1–O7 y su estado previo se conservan como historial de la arquitectura v1; quedan supersedidas como plan de aceptación final, no se borran como evidencia.
@@ -648,7 +648,7 @@ Las respuestas se contradicen en varios puntos (por ejemplo, Meta AI niega OpenA
 3. **Adaptador Function Calling (M4).** Se genera desde el mismo OpenAPI y desde `capabilities`.
 4. **Excepción de conectores revisada.** Ningún conector con capacidad de escritura (GitHub, Render u otro) escribe en ramas canónicas ni en infraestructura fuera de Bridge. Un agente que usa Bridge solo puede usar esos conectores en lectura, salvo trabajo no canónico autorizado con las mismas reglas de rama, `expected_sha` y evidencia. Cada conector se inventaría por consumidor sin invocar escrituras.
 5. **Barrido de comandos y leases.** Job en Bridge que mueve a `reconcile_required` los comandos vencidos sin recibo y los leases expirados, sin redespachar.
-6. **M6 con identidades reales.** Dos consumidores distintos, cada uno con su clave y su host.
+6. **M6 con identidades reales.** Dos consumidores/identidades independientes y dos modelos LLM distintos, cada uno con su clave, host y transporte registrados.
 7. **Benchmark de capacidades LLM (M6).** Ejecutar CB1–CB10 con fixtures/versiones controladas, al menos tres repeticiones comparables por modelo/tarea cuando sea posible. Evaluar diagnóstico, planificación, correcciones, CI, incertidumbre, seguridad y continuidad; no confundir capacidades del host/transporte con las del modelo.
 
 **Pendiente.** Identificar el runtime de cada consumidor (los reportes no lo dicen). No se asigna ruta a ningún consumidor hasta ejecutar su sonda.

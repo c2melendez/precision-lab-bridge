@@ -5,7 +5,7 @@
   "as_of": "2026-10-31",
   "language": "es",
   "status": "m1_pass_scoped_m2_in_progress",
-  "summary": "M1 PASS_SCOPED. M2 IN_PROGRESS. Bridge current HEAD 50978189950cd36cdae6ea4e19f87006ce1aa1d5 passed full CI+DB validation. Lite current-head Runner safety-contract, Playwright E2E and cross-browser passed; normal CI is blocked solely by npm audit (11 findings: 3 low, 8 moderate, 0 high/critical), including upstream deepmerge@4.3.1 with no patched npm release. Plus current-head normal CI passed; Playwright E2E is still in progress. All PRs remain Draft; no deploy, merge, live dispatch or mathematical certification. User-authored mechanism review is preserved.",
+  "summary": "M1 PASS_SCOPED. M2 IN_PROGRESS. Bridge current HEAD 50978189950cd36cdae6ea4e19f87006ce1aa1d5 passed full CI+DB validation. Lite current-head Runner safety-contract, Playwright E2E and cross-browser passed; normal CI is blocked solely by npm audit (11 findings: 3 low, 8 moderate, 0 high/critical), including upstream deepmerge@4.3.1 with no patched npm release. Plus current-head normal CI passed; Playwright E2E is still in progress. All PRs remain Draft; no deploy, merge, live dispatch or mathematical certification. User-authored mechanism review is preserved. M6 acceptance is extended to include the A–F consumer connectivity/security battery and CB1–CB10 LLM capability benchmark; credentials must be runtime-injected and never exposed to models.",
   "canonical_markdown": {
     "repo": "c2melendez/precision-lab-bridge",
     "branch": "hardening/secure-status-independent-runtime",
@@ -431,12 +431,16 @@
         "M4"
       ],
       "steps": [
-        "Use two distinct LLM agents and at least two transport mechanisms with no GitHub credentials supplied to either agent.",
-        "Read canonical state and source files, identify a real authorized correction, submit patch, run validations, obtain commit/PR and reconcile.",
-        "Exercise 401/403, stale SHA, policy WAIT/REUSE, payload conflict, exact replay, concurrency, timeout and callback failure.",
-        "Prove there is no duplicate workflow and complete trace request→command→receipt→Actions→Runner→commit/PR→test evidence."
+        "Ejecutar la batería A–F de conectividad, contrato, scopes, idempotencia, seguridad y frontera de secretos por consumidor.",
+        "Provisionar una identidad/clave propia por consumidor en el gestor de secretos/host MCP/conector; el runtime adjunta la cabecera y el LLM nunca recibe el valor. Si no hay frontera segura: BLOCKED/credential_not_provisioned.",
+        "Ejecutar CB1–CB10 con fixtures versionados para comprensión, diagnóstico, planificación, patches, selección de pruebas, interpretación CI, corrección iterativa, incertidumbre, prompt injection y continuidad multiagente.",
+        "Comparar modelos con mismo prompt, fixture/SHA, transporte, permisos y presupuesto; procurar al menos tres repeticiones por modelo/tarea y registrar host/transporte como factores separados.",
+        "Usar dos agentes/identidades distintos y al menos dos transportes sin entregar credenciales GitHub a los agentes.",
+        "Leer estado/archivos, diagnosticar una corrección autorizada, enviar patch, ejecutar validaciones, obtener commit/PR y reconciliar recibos.",
+        "Ejercitar 401/403, SHA obsoleto, WAIT/REUSE, conflicto de payload, replay exacto, concurrencia, timeout, callback fallido y prompt injection.",
+        "Demostrar que no hay workflow duplicado y conservar traza request→command→receipt→Actions→Runner→commit/PR→test evidence."
       ],
-      "exit_criteria": "Two distinct agents and two transports complete the same authorized repository-change workflow using only their own Observer/Bridge credentials; the trace is complete and replay creates no duplicate."
+      "exit_criteria": "Dos agentes/identidades distintos y dos transportes completan el flujo autorizado sin credenciales GitHub entregadas a los agentes; la traza es completa, replay no duplica y el perfil de capacidades CB1–CB10 queda publicado con fixtures y repeticiones comparables. Las pruebas bloqueadas por falta de despliegue/secretos se reportan BLOCKED, no PASS."
     },
     {
       "id": "M7",
@@ -1716,5 +1720,47 @@
       }
     ],
     "registry_note": "Positions 1 to 3 have no prior entries in this version. They are assigned once their host and plan are confirmed."
+  },
+  "llm_capability_benchmark": {
+    "version": "2.0.0",
+    "tests": [
+      "CB1",
+      "CB2",
+      "CB3",
+      "CB4",
+      "CB5",
+      "CB6",
+      "CB7",
+      "CB8",
+      "CB9",
+      "CB10"
+    ],
+    "minimum_repetitions": 3,
+    "scoring": "0-4 per task, with exactness, technical_quality, reliability_security, autonomy and efficiency reported separately",
+    "comparison_controls": [
+      "same prompt version",
+      "same fixture and source SHA",
+      "same tools and permissions",
+      "same transport when comparing models",
+      "same budget and host configuration"
+    ],
+    "evidence": "Observed decisions, patches, tests, CI classification, receipts, reconciliation and sanitized artifacts; no private chain-of-thought."
+  },
+  "credential_handling": {
+    "policy": "No consumer or operator pastes credentials into prompts or chat. Credentials are provisioned directly in the secret manager/host/MCP server/connector and injected by the runtime.",
+    "per_consumer_identity": true,
+    "minimum_scopes": [
+      "context:read",
+      "command:submit",
+      "command:read"
+    ],
+    "secret_values_visible_to_llm": false,
+    "if_secure_injection_unavailable": "BLOCKED/credential_not_provisioned",
+    "server_only": [
+      "OBSERVER_SERVICE_KEY",
+      "GH_TOKEN",
+      "SUPABASE_SECRET_KEY",
+      "BRIDGE_ADMIN_PASSWORD"
+    ]
   }
 }

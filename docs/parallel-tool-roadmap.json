@@ -5,7 +5,7 @@
   "as_of": "2026-10-31",
   "language": "es",
   "status": "m1_pass_scoped_m2_in_progress",
-  "summary": "M1 PASS_SCOPED. M2 IN_PROGRESS. Bridge current HEAD 50978189950cd36cdae6ea4e19f87006ce1aa1d5 passed full CI+DB validation. Lite current-head Runner safety-contract, Playwright E2E and cross-browser passed; normal CI is blocked solely by npm audit (11 findings: 3 low, 8 moderate, 0 high/critical), including upstream deepmerge@4.3.1 with no patched npm release. Plus current-head normal CI passed; Playwright E2E is still in progress. All PRs remain Draft; no deploy, merge, live dispatch or mathematical certification. User-authored mechanism review is preserved. M6 acceptance is extended to include the A–F consumer connectivity/security battery and CB1–CB10 LLM capability benchmark; credentials must be runtime-injected and never exposed to models. TCA v1.0.0 is documented only: TCA-1 host injection, TCA-2 isolated canary lab, and future OAuth/OIDC Credential Broker. None is deployed or enabled; no credential was created. TCA-1A (temporary 5–1440 minute key issuance) and TCA-1B (server-side provider-neutral tool adapter) have code candidates in the working branch; exact-head CI, H7 staging and provider-specific host binding remain pending. Battery updated to v2.2.0 (H1–H8).",
+  "summary": "M1 PASS_SCOPED. M2 IN_PROGRESS. Bridge current HEAD 50978189950cd36cdae6ea4e19f87006ce1aa1d5 passed full CI+DB validation. Lite current-head Runner safety-contract, Playwright E2E and cross-browser passed; normal CI is blocked solely by npm audit (11 findings: 3 low, 8 moderate, 0 high/critical), including upstream deepmerge@4.3.1 with no patched npm release. Plus current-head normal CI passed; Playwright E2E is still in progress. All PRs remain Draft; no deploy, merge, live dispatch or mathematical certification. User-authored mechanism review is preserved. M6 acceptance is extended to include the A–F consumer connectivity/security battery and CB1–CB10 LLM capability benchmark; credentials must be runtime-injected and never exposed to models. TCA v1.0.0 is documented only: TCA-1 host injection, TCA-2 isolated canary lab, and future OAuth/OIDC Credential Broker. None is deployed or enabled; no credential was created. TCA-1A (temporary 5–1440 minute key issuance) and TCA-1B (server-side provider-neutral tool adapter) have code candidates in the working branch; exact-head CI, H7 staging and provider-specific host binding remain pending. Battery updated to v2.2.0 (H1–H8). TCA-1A/TCA-1B code candidate CI PASS on Bridge SHA 77510b58 (run 41246866999): 166 app tests passed, 19 skipped; lint/build, disposable Supabase migration/RPC/security/database tests and schema lint SUCCESS. Live staging H7, actual key issuance and host-specific MCP/Function Calling binding remain pending.",
   "canonical_markdown": {
     "repo": "c2melendez/precision-lab-bridge",
     "branch": "hardening/secure-status-independent-runtime",
@@ -431,8 +431,8 @@
         "M4"
       ],
       "steps": [
-        "Ejecutar batería A–F v2.2.0 y H1–H8 TCA-1A/TCA-1B por consumidor; H7 exige staging con TTL y revocación reales.",
-        "Usar TCA-1A (clave individual de 5–1440 minutos, perfiles read/submit cerrados) y TCA-1B (cliente/handlers server-side) o Credential Broker futuro; el LLM nunca conoce el valor.",
+        "Ejecutar batería A–F v2.2.1 y H1–H8 TCA-1A/TCA-1B por consumidor; CI exacto PASS en SHA 77510b58, H7 exige staging con TTL/revocación reales.",
+        "Usar TCA-1A (clave individual de 5–1440 minutos, perfiles read/submit cerrados) y TCA-1B (cliente/handlers server-side) o Credential Broker futuro; binding provider-specific y prueba live de no-exposición aún pendientes.",
         "Ejecutar CB1–CB10 con fixtures versionados. G1–G5/TCA-2 son investigación opcional e independiente, no requisito M6/producción.",
         "Comparar modelos con mismo prompt, fixture/SHA, transporte, permisos y presupuesto; procurar al menos tres repeticiones por modelo/tarea y registrar host/transporte como factores separados.",
         "Use two distinct LLM models (different model IDs/versions), separate consumer identities/API keys and at least two real transport mechanisms; do not provide GitHub credentials to either agent.",
@@ -1784,7 +1784,7 @@
     }
   },
   "consumer_probe_battery": {
-    "version": "2.2.0",
+    "version": "2.2.1",
     "markdown_path": "docs/parallel-tool-consumer-probe-battery.md",
     "connectivity_security_tests": 33,
     "capability_benchmark_tests": 10,
@@ -1831,12 +1831,12 @@
     ]
   },
   "tca_design": {
-    "version": "1.1.0",
+    "version": "1.1.1",
     "document": "docs/temporary-credential-access-design.md",
     "design_status": "documented",
     "implementation_status": {
-      "TCA_1A": "code_candidate_in_branch_pending_exact_sha_CI_and_staging_H7",
-      "TCA_1B": "provider_neutral_server_adapter_candidate_in_branch_pending_CI_and_host_binding",
+      "TCA_1A": "code_and_CI_pass_exact_sha_77510b58_pending_staging_H7_and_live_issue",
+      "TCA_1B": "code_and_CI_pass_exact_sha_77510b58_pending_provider_host_binding_and_live_non_exposure_check",
       "TCA_2_credential_lab": "not_implemented",
       "credential_broker": "not_implemented"
     },
@@ -1860,17 +1860,49 @@
       "H7",
       "H8"
     ],
-    "host_binding_status": "provider-specific MCP/Function Calling registration remains pending; do not claim live host integration"
+    "host_binding_status": "provider-specific MCP/Function Calling registration remains pending; do not claim live host integration",
+    "certification_status": {
+      "ci_run": 41246866999,
+      "ci_url": "https://github.com/c2melendez/precision-lab-bridge/actions/runs/41246866999",
+      "code_sha": "77510b58ca2e1d50e83754e722659fa3e8d10ef8",
+      "conclusion": "success",
+      "app_tests": {
+        "passed": 166,
+        "skipped": 19,
+        "test_files_passed": 18,
+        "test_files_skipped": 2
+      },
+      "app_jobs": [
+        "unit/regression tests",
+        "ESLint",
+        "Node production build"
+      ],
+      "database_jobs": [
+        "disposable migration replay",
+        "RPC security/RLS/grants assertions",
+        "legacy and M1/M2 SQL functional contracts",
+        "database-backed idempotency and Command API integration",
+        "schema lint"
+      ],
+      "H1": "pass_code_ci",
+      "H2": "pass_unit_contract_only_live_issue_pending",
+      "H3": "pass_ci",
+      "H4": "pass_ci",
+      "H5": "pass_ci",
+      "H6": "pass_ci",
+      "H7": "blocked_staging_not_deployed",
+      "H8": "pass_automated_redaction_redirect_controls_live_host_audit_pending"
+    }
   },
   "certification_spec": {
     "master_document": "docs/parallel-tool-implementation-master.md",
     "consumer_battery": {
       "document": "docs/parallel-tool-consumer-probe-battery.md",
-      "version": "2.2.0"
+      "version": "2.2.1"
     },
     "tca_design": {
       "document": "docs/temporary-credential-access-design.md",
-      "version": "1.1.0"
+      "version": "1.1.1"
     },
     "command_contract": "docs/parallel-tool-command-openapi.v1.yaml",
     "required_tracks": [
@@ -1882,6 +1914,13 @@
     "optional_tracks": [
       "G1-G5 TCA-2 controlled credential exposure lab"
     ],
-    "staging_gate": "H7 requires exact deployed SHA, isolated staging and a real short-lived key; no production credential or write."
+    "staging_gate": "H7 requires exact deployed SHA, isolated staging and a real short-lived key; no production credential or write.",
+    "tca1_ci": {
+      "run_id": 41246866999,
+      "url": "https://github.com/c2melendez/precision-lab-bridge/actions/runs/41246866999",
+      "sha": "77510b58ca2e1d50e83754e722659fa3e8d10ef8",
+      "conclusion": "success",
+      "staging_H7": "blocked_pending_deployed_staging"
+    }
   }
 }

@@ -142,14 +142,16 @@ La fusión automática de PR no se presume. Solo puede ocurrir cuando un contrat
 
 ## Diseño TCA — acceso temporal a credenciales
 
-Se incorpora [Temporary Credential Access (TCA)](./temporary-credential-access-design.md) v1.1.0 y su batería de certificación [v2.2.0](./parallel-tool-consumer-probe-battery.md):
+Se incorpora [Temporary Credential Access (TCA)](./temporary-credential-access-design.md) v1.1.0 y su batería de certificación [v2.2.1](./parallel-tool-consumer-probe-battery.md):
 - **TCA-D0: DESIGN DOCUMENTED.**
-- **TCA-1A: CODE CANDIDATE IN BRANCH.** El panel contiene el flujo **Temporary TCA-1 consumer key**. TTL permitido: 5–1440 minutos. Perfil read: `context:read`; perfil submit: `context:read`, `command:submit`, `command:read`. La DB almacena hash/prefijo, scopes y expiración; el valor se muestra una sola vez. Pendiente CI del SHA final, H1/H2 y prueba H7 en staging. No desplegado ni habilitado.
-- **TCA-1B: CODE CANDIDATE IN BRANCH.** Cliente HTTP server-side y tool handler registry provider-neutral (`bridge-client.server.ts`, `tca1-tool-adapter.server.ts`). Lee la clave desde `TCA1_BRIDGE_KEY`, solo inyecta `X-Bridge-Key`, rechaza URL insegura/redirects y no incluye credenciales en tool definitions. Pendiente CI y binding real a cada host/MCP/Function Calling; no afirmar integración MCP remota ya desplegada.
+- **TCA-1A: CODE + CI PASS (staging pending).** El panel contiene el flujo **Temporary TCA-1 consumer key**. TTL permitido: 5–1440 minutos. Perfil read: `context:read`; perfil submit: `context:read`, `command:submit`, `command:read`. La DB almacena hash/prefijo, scopes y expiración; el valor se muestra una sola vez. CI completo SUCCESS en SHA `77510b58ca2e1d50e83754e722659fa3e8d10ef8`, run [41246866999](https://github.com/c2melendez/precision-lab-bridge/actions/runs/41246866999); H1/H3–H6 pasan a nivel código, H2 contrato unitario. Pendiente emisión real y H7 en staging. No desplegado ni habilitado.
+- **TCA-1B: CODE + CI PASS (host binding pending).** Cliente HTTP server-side y tool handler registry provider-neutral (`bridge-client.server.ts`, `tca1-tool-adapter.server.ts`). Lee la clave desde `TCA1_BRIDGE_KEY`, solo inyecta `X-Bridge-Key`, rechaza URL insegura/redirects y no incluye credenciales en tool definitions. Cliente/tests/build PASS en el mismo run; binding real a cada host/MCP/Function Calling y evidencia de no-exposición en entorno real pendientes; no afirmar integración MCP remota ya desplegada.
 - **Certificación TCA-1:** H1–H8; H1–H6 automatizables en CI, H7 requiere staging real, H8 verifica redacción/redirects. No PASS hasta evidencia exacta.
 - **TCA-2:** Credential Lab independiente con canary sintético, TTL objetivo máximo 15 minutos e intentos limitados; no implementado y no es requisito productivo.
 - **Credential Broker:** destino final OAuth 2.1/OIDC con identidad por consumidor, tokens cortos, scopes, audiencia y revocación; no implementado.
 - **TCA-2-Bridge-ReadOnly:** variante futura bloqueada; no usar Bridge de producción.
+
+**Evidencia CI TCA-1:** run [41246866999](https://github.com/c2melendez/precision-lab-bridge/actions/runs/41246866999), SHA `77510b58ca2e1d50e83754e722659fa3e8d10ef8` — overall SUCCESS. Tests/lint/build SUCCESS; disposable Supabase migration replay, RPC security/RLS/grants, legacy/M1/M2 SQL contracts, DB idempotency/Command API tests and schema lint SUCCESS. No staging deploy, credential creation or live execution.
 
 **Certificación Parallel Tool:** Master + batería A–H + CB1–CB10 + OpenAPI + esta especificación son artefactos normativos. TCA-1 y CB forman parte de la evidencia M6; G1–G5/TCA-2 es investigación opcional. No cambiar estados M0–M7 ni activar despliegues, claves, flags o ejecución real por documentar el diseño.
 

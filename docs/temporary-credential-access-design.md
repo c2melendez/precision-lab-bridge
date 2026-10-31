@@ -1,10 +1,10 @@
 # Temporary Credential Access (TCA) — diseño de acceso temporal a credenciales
 
-**Versión:** 1.1.0  
+**Versión:** 1.1.1  
 **Fecha:** 2026-10-31  
-**Estado:** TCA-1A/TCA-1B IMPLEMENTACIÓN EN RAMA — pendiente CI y validación staging; no desplegado ni habilitado  
+**Estado:** TCA-1A/TCA-1B — CI PASS en SHA `77510b58ca2e1d50e83754e722659fa3e8d10ef8`; H7/staging y binding específico de host pendientes; no desplegado ni habilitado  
 **Ámbito:** Precision Lab Parallel Tool / Bridge / Observer / futuros adaptadores MCP y Function Calling.  
-**Relacionado:** `parallel-tool-consumer-probe-battery.md` v2.2.0, `parallel-tool-implementation-master.md` y `parallel-tool-roadmap.md`.
+**Relacionado:** `parallel-tool-consumer-probe-battery.md` v2.2.1, `parallel-tool-implementation-master.md` y `parallel-tool-roadmap.md`.
 
 ---
 
@@ -107,7 +107,9 @@ Si un host no puede inyectar el secreto sin revelarlo al modelo, TCA-1 queda `BL
 
 ### 4.4 Criterios de aceptación TCA-1
 
-- H1–H8 PASS o BLOCKED con motivo explícito; CI verifica H1–H6 y el comportamiento de redacción/redirects; H7 requiere staging.
+- CI [41246866999](https://github.com/c2melendez/precision-lab-bridge/actions/runs/41246866999) SUCCESS en SHA `77510b58ca2e1d50e83754e722659fa3e8d10ef8`: tests, lint, build y migración/contratos Supabase desechables.
+- H1/H3–H6: pruebas de política, configuración, inyección y adaptadores pasan en CI. H2 tiene test unitario del contrato hash-only/one-time, pero todavía no una emisión end-to-end contra staging. H8 pasa las pruebas automatizadas de redacción/configuración de redirects; el barrido live de host/logs sigue pendiente.
+- H7 permanece BLOCKED hasta desplegar el SHA exacto en staging, crear una clave temporal de prueba y observar 200 antes y 401 tras expirar/revocar.
 - Clave creada por flujo TCA-1A para consumidor individual, TTL 5–1440 minutos y perfil exacto read/submit.
 - Cabecera autenticada adjuntada por el runtime; el valor no aparece en prompt, historial, argumentos, salida, logs o artefactos.
 - Requests permitidos responden según contrato; requests sin scope responden 403.
@@ -244,8 +246,8 @@ Respuesta: detener la campaña, bloquear/revocar el canary, preservar evidencia 
 | Fase | Entregable | Criterio de salida |
 |---|---|---|
 | TCA-D0 | Diseño y threat model | Este documento revisado; no hay secretos creados ni servicios habilitados |
-| TCA-1A | Emisión temporal de claves TCA | Código en rama: TTL 5–1440 min, perfiles cerrados y clave one-time; pendiente CI y H7 staging |
-| TCA-1B | Cliente HTTP + tool handler registry server-side | Código/tests en rama; integración provider-specific y prueba real de no-exposición pendientes |
+| TCA-1A | Emisión temporal de claves TCA | Código y CI PASS en SHA `77510b58`; TTL 5–1440 min, perfiles cerrados y hash-only; pendiente H7 staging y emisión E2E |
+| TCA-1B | Cliente HTTP + tool handler registry server-side | Código, tests y build PASS en SHA `77510b58`; binding provider-specific, prueba real de no-exposición y H7 pendientes |
 | TCA-2A | Credential Lab aislado | Red, BD, endpoint, canary, expiración, rate limit y logging redactado verificados |
 | TCA-2B | G1–G5 | Resultados reproducibles para modelo/host; canary revocado |
 | TCA-B1 | Broker prototype | OAuth/OIDC, identidad, tokens cortos, scopes, revocación y JWKS/introspection |
@@ -265,4 +267,4 @@ El presente diseño no autoriza:
 
 Antes de TCA-1A se verifica el despliegue y se designa host/consumidor. Antes de TCA-2A se verifica el aislamiento de red y la ausencia de credenciales reales. Antes de TCA-B1 se versiona el contrato OAuth/OIDC y las pruebas de amenaza.
 
-**Estado al publicar este diseño:** TCA-D0 documentado; TCA-1A y TCA-1B tienen implementación candidata en la rama de trabajo y quedan pendientes CI exacto, H7 staging e integración de host; no están desplegados ni habilitados. TCA-2 Credential Lab y Credential Broker no implementados. No se han creado claves ni cambiado secretos. M0–M7 conservan sus estados previos.
+**Estado al publicar este diseño:** TCA-D0 documentado; TCA-1A y TCA-1B tienen código candidato y CI completo SUCCESS en SHA `77510b58ca2e1d50e83754e722659fa3e8d10ef8` (run 41246866999). H7 staging, emisión end-to-end y binding específico a hosts siguen pendientes; no están desplegados ni habilitados. TCA-2 Credential Lab y Credential Broker no implementados. No se han creado claves ni cambiado secretos. M0–M7 conservan sus estados previos.

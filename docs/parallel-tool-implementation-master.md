@@ -228,7 +228,7 @@ The historical A/B results do not prove M1/M2. CI on this documentation commit d
 
 ### M6 — cualificación de consumidores y capacidades LLM
 
-M6 contiene dos pistas independientes, definidas en `docs/parallel-tool-consumer-probe-battery.md` v2.2.0:
+M6 contiene dos pistas independientes, definidas en `docs/parallel-tool-consumer-probe-battery.md` v2.2.1:
 - **Conectividad y seguridad (A–F):** rutas Observer/Bridge, scopes, contratos, idempotencia, aislamiento de rama, auditoría de conectores e higiene de secretos.
 - **TCA-1A/TCA-1B (H1–H8):** emisión de claves limitadas por minutos y perfiles de scope; configuración segura del cliente; inyección de cabecera; perfiles read/submit; idempotencia; expiración/revocación y redacción. H7 exige staging real.
 - **Capacidad técnica (CB1–CB10):** comprensión del repositorio, diagnóstico, planificación, generación de correcciones, selección de pruebas, interpretación de CI, corrección iterativa, incertidumbre, resistencia a prompt injection y continuidad multiagente.
@@ -240,14 +240,16 @@ No confundir PASS de conectividad con competencia técnica ni benchmark offline 
 
 **Emisión de claves Bridge:** el panel general en `/` mantiene `createKey`; el flujo temporal nuevo añade `createTca1Key` en `src/lib/bridge/admin.functions.ts` y el formulario **Temporary TCA-1 consumer key** en `src/routes/index.tsx`. TCA-1A acepta TTL de 5–1440 minutos y solo perfiles read (`context:read`) o submit (`context:read`, `command:submit`, `command:read`). El valor se muestra una vez; la DB recibe hash/prefijo, scopes y expiración. Verificar el SHA desplegado antes de usarlo; la contraseña admin no es una credencial de consumidor.
 
-**Especificación TCA:** `docs/temporary-credential-access-design.md` v1.1.0 es la especificación de seguridad/implementación; `docs/parallel-tool-consumer-probe-battery.md` v2.2.0 es la batería ejecutable de certificación. TCA-1A (emisión temporal) y TCA-1B (cliente/handler registry server-side provider-neutral) tienen código candidato en esta rama; quedan pendientes CI del SHA final, H1–H8 y validación H7 en staging. No están desplegados/habilitados. TCA-2 Credential Lab y Credential Broker siguen como diseños futuros; G1–G5 no son requisito de M6.
+**Especificación TCA:** `docs/temporary-credential-access-design.md` v1.1.0 es la especificación de seguridad/implementación; `docs/parallel-tool-consumer-probe-battery.md` v2.2.1 es la batería ejecutable de certificación. TCA-1A (emisión temporal) y TCA-1B (cliente/handler registry server-side provider-neutral) tienen CI completo SUCCESS en SHA `77510b58ca2e1d50e83754e722659fa3e8d10ef8`, run [41246866999](https://github.com/c2melendez/precision-lab-bridge/actions/runs/41246866999). H1/H3–H6 pasan a nivel código/CI; H2 pasa su contrato unitario hash-only; H8 pasa redacción/redirects automatizados. H7 staging, emisión end-to-end y host binding siguen pendientes. No están desplegados/habilitados. TCA-2 Credential Lab y Credential Broker siguen como diseños futuros; G1–G5 no son requisito de M6.
 
 **Artefactos normativos de certificación Parallel Tool:**
 - `docs/parallel-tool-implementation-master.md`: autoridad de alcance, fases y criterios de aceptación.
-- `docs/parallel-tool-consumer-probe-battery.md` v2.2.0: 33 pruebas A–F, CB1–CB10, G1–G5 (investigación TCA-2) y H1–H8 (TCA-1A/TCA-1B).
-- `docs/temporary-credential-access-design.md` v1.1.0: especificación de amenazas, límites de confianza, flujos TCA, configuración del adaptador, criterios de aceptación y evolución a Credential Broker.
+- `docs/parallel-tool-consumer-probe-battery.md` v2.2.1: 33 pruebas A–F, CB1–CB10, G1–G5 (investigación TCA-2) y H1–H8 (TCA-1A/TCA-1B).
+- `docs/temporary-credential-access-design.md` v1.1.1: especificación de amenazas, límites de confianza, flujos TCA, configuración del adaptador, criterios de aceptación y evolución a Credential Broker.
 - `docs/parallel-tool-command-openapi.v1.yaml`: contrato de la API Bridge.
 - `docs/parallel-tool-roadmap.md` y `docs/parallel-tool-roadmap.json`: estado y evidencia de las fases.
+
+**Evidencia TCA-1 actual:** CI completo SUCCESS en SHA `77510b58ca2e1d50e83754e722659fa3e8d10ef8` (run 41246866999). Incluye app tests/lint/build y migración/contratos DB desechables. No equivale a aceptación live: H7, emisión temporal en staging, revisión de que el host no ve el secreto y binding MCP/Function Calling siguen pendientes.
 
 **Regla de aceptación:** M6 no puede aprobarse solo con CI unitario. Requiere A–F + H1–H8 (incluido H7 live staging), CB1–CB10, dos modelos/identidades y dos transportes, y trazabilidad end-to-end. G1–G5/TCA-2 es investigación opcional y queda fuera de aceptación productiva. Los estados BLOCKED no cuentan como PASS.
 

@@ -1,6 +1,6 @@
 # Batería de conectividad, seguridad y capacidades LLM — Precision Lab
 
-**Versión:** 2.2.0  
+**Versión:** 2.2.1  
 **Fecha:** 2026-10-31  
 **Aplica a:** LLM/agentes consumidores de Observer y/o Bridge sin credenciales de GitHub, y campañas controladas de comparación de capacidades.  
 **Documentos relacionados:** `docs/parallel-tool-roadmap.md`, `docs/parallel-tool-implementation-master.md` y `docs/parallel-tool-command-openapi.v1.yaml`.
@@ -450,7 +450,9 @@ Estas pruebas forman parte de la certificación del Parallel Tool. H1–H6 son v
 | H7 — expiración/revocación | En staging, llamar antes, después del TTL y después de revocar | Antes: 200 en ruta permitida; después de expirar o revocar: 401; no se crea/despacha un comando después del rechazo |
 | H8 — redacción y redirección | Inyectar errores de red/HTTP y una respuesta redirect en tests; revisar logs y artifacts | Errores no reproducen clave, cabeceras ni cuerpos arbitrarios; redirect se rechaza; ningún artefacto contiene el valor |
 
-**Código de referencia actual:** `src/lib/tca/tca1-policy.ts`, `src/lib/tca/bridge-client.server.ts`, `src/lib/tca/tca1-tool-adapter.server.ts`, `src/lib/bridge/admin.functions.ts` y `src/routes/index.tsx`. Tests: `tca1-policy.test.ts`, `bridge-client.server.test.ts`, `tca1-tool-adapter.server.test.ts`.
+**Código de referencia actual:** `src/lib/tca/tca1-policy.ts`, `src/lib/tca/tca1-key-issuer.server.ts`, `src/lib/tca/bridge-client.server.ts`, `src/lib/tca/tca1-tool-adapter.server.ts`, `src/lib/bridge/admin.functions.ts` y `src/routes/index.tsx`. Tests: `tca1-policy.test.ts`, `tca1-key-issuer.server.test.ts`, `bridge-client.server.test.ts`, `tca1-tool-adapter.server.test.ts`.
+
+**Evidencia CI del código candidato:** [run 41246866999](https://github.com/c2melendez/precision-lab-bridge/actions/runs/41246866999), SHA `77510b58ca2e1d50e83754e722659fa3e8d10ef8`, SUCCESS. Job app: 166 tests passed, 19 skipped; ESLint y build PASS. Job DB: replay de migraciones, aserciones RPC/RLS/grants, contratos SQL legacy/M1/M2, pruebas DB de idempotencia/Command API y schema lint PASS. Interpretación: H1/H3–H6 con PASS de nivel código/CI; H2 PASS unitario del contrato de persistencia, sin emisión live de panel; H8 PASS automatizado de redacción/configuración redirect, sin auditoría live de host; H7 BLOCKED hasta staging. Esta evidencia no demuestra despliegue ni binding a un host LLM.
 
 El adaptador de herramientas es provider-neutral: ofrece tool definitions y handlers para que un host MCP/Function Calling los registre. No afirma que ya exista un servidor MCP remoto desplegado ni que todas las plataformas admitan inyección de cabeceras arbitrarias. La integración de cada host debe certificarse como transporte separado en M4/M6.
 

@@ -1705,10 +1705,10 @@
         "probe_battery": "docs/parallel-tool-consumer-probe-battery.md",
         "probe_status": "PENDING",
         "probe_conditions": [
-          "Operator configures a per-consumer key outside the prompt",
+          "Keys are resolved from the consumer environment; missing keys yield BLOCKED and the run continues",
           "Run A1-A7, B1-B9 and C1-C8 in read and validation mode",
-          "D1-D3 only with explicit operator authorization",
-          "D4 blocked until BRIDGE_COMMAND_EXECUTION_ENABLED=true and authorized",
+          "D1-D3 run automatically when a submit key is present; they create records without executing changes",
+          "D4 runs only when the server confirms execution_enabled: true; otherwise BLOCKED",
           "E1-E2 as capability inventory only, without invoking writes",
           "Record plan and host with every result",
           "No secret values in output"

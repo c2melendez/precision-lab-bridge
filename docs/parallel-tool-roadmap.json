@@ -288,7 +288,7 @@
     "Keep existing certification-runner.yml as gate executor; any repository worker workflow is an entrypoint in the same Runner execution plane, not a second Runner service.",
     "Command completion is observed by pull only: an agent without an inbound endpoint reads GET /api/v1/commands/{command_id} or lookup by Idempotency-Key. Bridge never pushes results to LLMs.",
     "Self-declared LLM capabilities and results from a consumer's own sandbox are hypotheses or local checks. Only a per-consumer probe against Bridge or Observer using that consumer's own key, and allowlisted Runner profiles, count as evidence.",
-    "A consumer with delegated GitHub access must not write to a canonical branch outside Bridge's expected_sha and evidence rules, and the GitHub exception must not be used to bypass Bridge for agents that also use Bridge."
+    "A consumer holding any write-capable connector (GitHub, Render or other) must not write to canonical branches or to infrastructure outside Bridge. Agents that use Bridge may hold such connectors only for read-only use, or for non-canonical work authorized under the same branch, expected_sha and evidence rules. Such consumers are not credentialless for M6."
   ],
   "phases": [
     {
@@ -470,7 +470,8 @@
     "Do not add GraphQL, gRPC, raw TCP/SSH, Git transports, WebSocket command channels, voice/realtime, or browser/computer-use paths to the command plane.",
     "Do not count a consumer's sandbox tests, generated specs or curl results as Lite/Plus validation or as proof of access to Observer or Bridge.",
     "Do not assign a consumer a route from its self-description; assign it only after its consumer probe.",
-    "Do not let sub-agents of a single platform stand in for two independent agents in M6 acceptance."
+    "Do not let sub-agents of a single platform stand in for two independent agents in M6 acceptance.",
+    "Do not count a consumer with write-capable connectors (GitHub, Render or others) as credentialless for M6 while those connectors are connected."
   ],
   "definition_of_done": {
     "required_phases": [
@@ -1513,7 +1514,7 @@
       "Function Calling is named as a consumer's own mechanism in 5 of 6 reports, but every report conditions it on the host exposing the tool. It is the first adapter to build in M4, generated from the same OpenAPI document.",
       "No agent without a public endpoint can receive inbound notifications, so command outcomes are read by pull (GET by command_id or lookup by Idempotency-Key).",
       "Consumer sandboxes can run local checks and generate patches, but their results are never validation evidence for Lite/Plus.",
-      "A consumer with delegated GitHub access could write without passing through Bridge. The exception needs the same branch, SHA and evidence rules, and must not apply to agents that already use Bridge.",
+      "A consumer holding write-capable connectors (GitHub, Render or others) could write outside Bridge. The exception must cover every write-capable connector, not only GitHub, and such consumers do not count as credentialless for M6.",
       "The roadmap does not define a background process that closes abandoned accepted/queued commands or expired leases without a receipt. Bridge tests cover lease expiry at claim time only. This must be designed before M2 closes."
     ],
     "candidate_decisions": [
@@ -1652,10 +1653,10 @@
       }
     ],
     "roadmap_adjustments": [
-      "Consumer probe: each LLM that connects uses its own key. Checks: GET /api/v1/capabilities and GET /api/v1/context/status return 200 with context:read; POST without command:submit returns 403; POST with command:submit returns 202; exact replay returns 200; GET by command_id and lookup succeed. Record result per mechanism and per consumer. Status: PENDING until Bridge to Observer is deployed and configured.",
+      "Consumer probe: each LLM that connects uses its own key. Battery: docs/parallel-tool-consumer-probe-battery.md (33 tests, groups A to F). Checks include GET /api/v1/capabilities and GET /api/v1/context/status with context:read (200); POST without command:submit (403); POST with command:submit (202); exact replay (200); GET by command_id and lookup. Record result per mechanism and per consumer. Status: PENDING until Bridge to Observer is deployed and configured.",
       "Routes are assigned per consumer from probe results, not from a global design. A consumer without outbound HTTP uses an adapter or the hybrid route.",
       "Function Calling adapter (M4): generate tool schemas from the same OpenAPI document and from GET /api/v1/capabilities. Do not maintain separate hand-written schemas.",
-      "GitHub exception: no agent that uses Bridge may also hold direct write access to canonical branches. Agents with delegated GitHub access follow the same branch, expected_sha and evidence rules.",
+      "Connector exception: any connector with write capability (GitHub, Render or other) is inventoried per consumer and never writes to canonical branches or to infrastructure outside Bridge. A consumer that uses Bridge may hold such connectors only for read-only work, unless a non-canonical workflow is separately authorized under the same branch, expected_sha and evidence rules. A consumer with write-capable connectors is not credentialless for M6 and must disconnect them during the M6 test, with the disconnection recorded.",
       "Add a Bridge background sweep for accepted/queued commands without receipt and for expired leases, moving them to reconcile_required without redispatch. Design and test before M2 closes.",
       "M6 uses two independent consumers, each with its own key and host. Sub-agents of one platform do not count."
     ],
@@ -1664,6 +1665,56 @@
       "Confirm the design of the background sweep (schedule, lease expiry window, reconcile_required transition).",
       "Run the consumer probe after OBSERVER_SERVICE_KEY is configured and the Bridge build is deployed. Until then no route is assigned to any consumer."
     ],
-    "no_state_changes": "This review changes no PASS, PENDING or IN_PROGRESS status. M0-M7 are unchanged. No code, secrets, deployments or workflow dispatches were involved."
+    "no_state_changes": "This review changes no PASS, PENDING or IN_PROGRESS status. M0-M7 are unchanged. No code, secrets, deployments or workflow dispatches were involved.",
+    "probe_battery": "docs/parallel-tool-consumer-probe-battery.md",
+    "consumer_registry": [
+      {
+        "position": 4,
+        "consumer_id": "claude_2026_10_31",
+        "source": "Exported conversation, 2026-10-31, 00:54 to 00:59 local time (America/Tegucigalpa). Self-report, not probed.",
+        "plan_declared": "gratuito",
+        "runtime_declared": {
+          "shell": "Cloud workspace; egress limited to npm/pip registries and GitHub",
+          "http_public": "WebFetch for public pages (GET)",
+          "mcp_remote": [
+            "Render",
+            "GitHub"
+          ],
+          "subagents": "internal to the session",
+          "scheduled_tasks": false,
+          "inbound_webhooks": false,
+          "a2a": false,
+          "persistent_memory": true,
+          "artifacts": true
+        },
+        "write_capable_connectors": [
+          {
+            "name": "Render",
+            "declared_write": "services, deployments, environment variables",
+            "credential_bearing": true
+          },
+          {
+            "name": "GitHub",
+            "declared_write": "repositories (connector with its own authorization)",
+            "credential_bearing": true
+          }
+        ],
+        "m6_eligible": false,
+        "m6_reason": "Connected to GitHub and Render with write capability. M6 requires consumers without GitHub credentials; eligible only if both connectors are disconnected during the test, with the disconnection recorded.",
+        "route_assignment": "NONE_UNTIL_PROBE",
+        "probe_battery": "docs/parallel-tool-consumer-probe-battery.md",
+        "probe_status": "PENDING",
+        "probe_conditions": [
+          "Operator configures a per-consumer key outside the prompt",
+          "Run A1-A7, B1-B9 and C1-C8 in read and validation mode",
+          "D1-D3 only with explicit operator authorization",
+          "D4 blocked until BRIDGE_COMMAND_EXECUTION_ENABLED=true and authorized",
+          "E1-E2 as capability inventory only, without invoking writes",
+          "Record plan and host with every result",
+          "No secret values in output"
+        ]
+      }
+    ],
+    "registry_note": "Positions 1 to 3 have no prior entries in this version. They are assigned once their host and plan are confirmed."
   }
 }

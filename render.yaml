@@ -38,3 +38,13 @@ services:
         sync: false
       - key: BRIDGE_ADMIN_PASSWORD
         sync: false
+      - key: TCA1_BRIDGE_BASE_URL
+        sync: false
+      - key: TCA1_BRIDGE_KEY
+        sync: false
+      - key: TCA1_ACCESS_MODE
+        value: read
+      - key: TCA1_HTTP_TIMEOUT_MS
+        value: "10000"
+      - key: TCA1_FUNCTION_GATEWAY_TOKEN
+        sync: false

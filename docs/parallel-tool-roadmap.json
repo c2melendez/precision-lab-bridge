@@ -5,7 +5,7 @@
   "as_of": "2026-10-31",
   "language": "es",
   "status": "m1_pass_scoped_m2_in_progress",
-  "summary": "M1 PASS_SCOPED. M2 IN_PROGRESS. Bridge current HEAD 50978189950cd36cdae6ea4e19f87006ce1aa1d5 passed full CI+DB validation. Lite current-head Runner safety-contract, Playwright E2E and cross-browser passed; normal CI is blocked solely by npm audit (11 findings: 3 low, 8 moderate, 0 high/critical), including upstream deepmerge@4.3.1 with no patched npm release. Plus current-head normal CI passed; Playwright E2E is still in progress. All PRs remain Draft; no deploy, merge, live dispatch or mathematical certification. User-authored mechanism review is preserved. M6 acceptance is extended to include the A–F consumer connectivity/security battery and CB1–CB10 LLM capability benchmark; credentials must be runtime-injected and never exposed to models. TCA v1.0.0 is documented only: TCA-1 host injection, TCA-2 isolated canary lab, and future OAuth/OIDC Credential Broker. None is deployed or enabled; no credential was created. TCA-1A (temporary 5–1440 minute key issuance) and TCA-1B (server-side provider-neutral tool adapter) have code candidates in the working branch; exact-head CI, H7 staging and provider-specific host binding remain pending. Battery updated to v2.2.0 (H1–H8). TCA-1A/TCA-1B code candidate CI PASS on Bridge SHA 77510b58 (run 41246866999): 166 app tests passed, 19 skipped; lint/build, disposable Supabase migration/RPC/security/database tests and schema lint SUCCESS. Live staging H7, actual key issuance and host-specific MCP/Function Calling binding remain pending.",
+  "summary": "M1 PASS_SCOPED. M2 IN_PROGRESS. Bridge current HEAD 50978189950cd36cdae6ea4e19f87006ce1aa1d5 passed full CI+DB validation. Lite current-head Runner safety-contract, Playwright E2E and cross-browser passed; normal CI is blocked solely by npm audit (11 findings: 3 low, 8 moderate, 0 high/critical), including upstream deepmerge@4.3.1 with no patched npm release. Plus current-head normal CI passed; Playwright E2E is still in progress. All PRs remain Draft; no deploy, merge, live dispatch or mathematical certification. User-authored mechanism review is preserved. M6 acceptance is extended to include the A–F consumer connectivity/security battery and CB1–CB10 LLM capability benchmark; credentials must be runtime-injected and never exposed to models. TCA v1.0.0 is documented only: TCA-1 host injection, TCA-2 isolated canary lab, and future OAuth/OIDC Credential Broker. None is deployed or enabled; no credential was created. TCA-1A (temporary 5–1440 minute key issuance) and TCA-1B (server-side provider-neutral tool adapter) have code candidates in the working branch; exact-head CI, H7 staging and provider-specific host binding remain pending. Battery updated to v2.2.0 (H1–H8). TCA-1A/TCA-1B code candidate CI PASS on Bridge SHA 77510b58 (run 41246866999): 166 app tests passed, 19 skipped; lint/build, disposable Supabase migration/RPC/security/database tests and schema lint SUCCESS. Live staging H7, actual key issuance and host-specific MCP/Function Calling binding remain pending. TCA-1C Function Calling gateway and OpenAI Responses API read-only harness are implemented and full CI passed on Bridge SHA ca00130a28bde659ea2fab673eaa8c09dcc2d3b3 (run 41248360574): 174 app tests passed, 19 skipped; lint/build and disposable DB migrations/security/idempotency/schema validation passed (19 DB tests). Actual LLM invocation, staging deployment and H7/H9 remain blocked/pending; no credentials issued, no deployment or live API call.",
   "canonical_markdown": {
     "repo": "c2melendez/precision-lab-bridge",
     "branch": "hardening/secure-status-independent-runtime",
@@ -388,15 +388,15 @@
     {
       "id": "M4",
       "title": "Deliver P0/P1 agent adapters",
-      "status": "pending",
-      "active": false,
+      "status": "in_progress",
+      "active": true,
       "blocked_by": [
         "M1",
         "M3"
       ],
       "steps": [
         "REST/HTTPS and OpenAPI contract for Observer/Bridge.",
-        "Function Calling tool schemas with host-side HTTP execution.",
+        "Function Calling tool schemas plus server-side gateway; OpenAI Responses API read-only harness code + CI PASS on SHA ca00130a28bde659ea2fab673eaa8c09dcc2d3b3 (run 41248360574); real LLM staging invocation/H9 pending.",
         "GPT Actions for clients that support OpenAPI Actions.",
         "MCP remote Streamable HTTP and local stdio adapter; both call the same API core."
       ],
@@ -1784,12 +1784,12 @@
     }
   },
   "consumer_probe_battery": {
-    "version": "2.2.1",
+    "version": "2.2.2",
     "markdown_path": "docs/parallel-tool-consumer-probe-battery.md",
     "connectivity_security_tests": 33,
     "capability_benchmark_tests": 10,
     "credential_exposure_lab_tests": 5,
-    "tca1_certification_tests": 8,
+    "tca1_certification_tests": 9,
     "test_groups": [
       "A",
       "B",
@@ -1827,18 +1827,20 @@
       "H5",
       "H6",
       "H7",
-      "H8"
+      "H8",
+      "H9"
     ]
   },
   "tca_design": {
-    "version": "1.1.1",
+    "version": "1.2.0",
     "document": "docs/temporary-credential-access-design.md",
     "design_status": "documented",
     "implementation_status": {
       "TCA_1A": "code_and_CI_pass_exact_sha_77510b58_pending_staging_H7_and_live_issue",
       "TCA_1B": "code_and_CI_pass_exact_sha_77510b58_pending_provider_host_binding_and_live_non_exposure_check",
       "TCA_2_credential_lab": "not_implemented",
-      "credential_broker": "not_implemented"
+      "credential_broker": "not_implemented",
+      "TCA_1C": "read_only_function_calling_gateway_and_openai_responses_harness_code_full_CI_pass_exact_sha_ca00130a28bde659ea2fab673eaa8c09dcc2d3b3_run_41248360574;_live_llm_and_staging_H9_pending"
     },
     "TCA_1": "host-injected Bridge credential; secret not visible to model; provisional operational mode",
     "TCA_2": "separate synthetic canary lab; no Bridge/repository/production access",
@@ -1858,9 +1860,10 @@
       "H5",
       "H6",
       "H7",
-      "H8"
+      "H8",
+      "H9"
     ],
-    "host_binding_status": "provider-specific MCP/Function Calling registration remains pending; do not claim live host integration",
+    "host_binding_status": "Function Calling gateway code and CI pass on SHA ca00130a28bde659ea2fab673eaa8c09dcc2d3b3 (run 41248360574); actual OpenAI LLM invocation, exact-SHA staging deployment, H7 expiry/revocation and H9 live non-exposure checks remain pending. No ChatGPT UI connector or MCP remote server is claimed.",
     "certification_status": {
       "ci_run": 41246866999,
       "ci_url": "https://github.com/c2melendez/precision-lab-bridge/actions/runs/41246866999",
@@ -1892,35 +1895,68 @@
       "H6": "pass_ci",
       "H7": "blocked_staging_not_deployed",
       "H8": "pass_automated_redaction_redirect_controls_live_host_audit_pending"
+    },
+    "TCA_1C": "Server-side OpenAI Responses API Function Calling gateway at GET/POST /api/tca1/functions plus a Node harness; gateway token is distinct from TCA1_BRIDGE_KEY, which stays server-side and is injected only as X-Bridge-Key; first probe exposes read-only capabilities and context status.",
+    "function_calling_ci": {
+      "run_id": 41248360574,
+      "url": "https://github.com/c2melendez/precision-lab-bridge/actions/runs/41248360574",
+      "code_sha": "ca00130a28bde659ea2fab673eaa8c09dcc2d3b3",
+      "conclusion": "success",
+      "app_tests": {
+        "passed": 174,
+        "skipped": 19
+      },
+      "database_tests": {
+        "passed": 19
+      },
+      "jobs": [
+        "unit/regression tests",
+        "ESLint",
+        "Node production build",
+        "disposable migration replay",
+        "RPC security/RLS/grants",
+        "legacy and M1/M2 SQL contracts",
+        "DB idempotency/Command API integration",
+        "schema lint"
+      ],
+      "H9": "blocked_pending_staging_and_real_openai_function_calling_invocation",
+      "live_model_invocation": "not_executed"
     }
   },
   "certification_spec": {
     "master_document": "docs/parallel-tool-implementation-master.md",
     "consumer_battery": {
       "document": "docs/parallel-tool-consumer-probe-battery.md",
-      "version": "2.2.1"
+      "version": "2.2.2"
     },
     "tca_design": {
       "document": "docs/temporary-credential-access-design.md",
-      "version": "1.1.1"
+      "version": "1.2.0"
     },
     "command_contract": "docs/parallel-tool-command-openapi.v1.yaml",
     "required_tracks": [
       "A-F connectivity/security",
-      "H1-H8 TCA-1A/TCA-1B",
+      "H1-H9 TCA-1A/TCA-1B/TCA-1C",
       "CB1-CB10 capability benchmark",
       "two-model/two-transport E2E"
     ],
     "optional_tracks": [
       "G1-G5 TCA-2 controlled credential exposure lab"
     ],
-    "staging_gate": "H7 requires exact deployed SHA, isolated staging and a real short-lived key; no production credential or write.",
+    "staging_gate": "H7 and H9 require exact tested SHA deployed to isolated staging; H7 verifies 200 then 401 on expiry/revocation; H9 requires a real OpenAI Function Calling loop using read-only tools. No production credential or write.",
     "tca1_ci": {
       "run_id": 41246866999,
       "url": "https://github.com/c2melendez/precision-lab-bridge/actions/runs/41246866999",
       "sha": "77510b58ca2e1d50e83754e722659fa3e8d10ef8",
       "conclusion": "success",
       "staging_H7": "blocked_pending_deployed_staging"
+    },
+    "TCA1C_ci": {
+      "run_id": 41248360574,
+      "url": "https://github.com/c2melendez/precision-lab-bridge/actions/runs/41248360574",
+      "sha": "ca00130a28bde659ea2fab673eaa8c09dcc2d3b3",
+      "conclusion": "success",
+      "staging_H9": "blocked_pending_deployed_staging_and_real_model_invocation"
     }
   }
 }

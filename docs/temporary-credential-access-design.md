@@ -1,10 +1,10 @@
 # Temporary Credential Access (TCA) — diseño de acceso temporal a credenciales
 
-**Versión:** 1.1.1  
+**Versión:** 1.2.0  
 **Fecha:** 2026-10-31  
-**Estado:** TCA-1A/TCA-1B — CI PASS en SHA `77510b58ca2e1d50e83754e722659fa3e8d10ef8`; H7/staging y binding específico de host pendientes; no desplegado ni habilitado  
+**Estado:** TCA-1A/TCA-1B — CI PASS en SHA `77510b58ca2e1d50e83754e722659fa3e8d10ef8`; TCA-1C Function Calling gateway + harness — CI PASS en SHA `ca00130a28bde659ea2fab673eaa8c09dcc2d3b3` (run 41248360574); H7/H9 live staging pendientes; no desplegado ni habilitado  
 **Ámbito:** Precision Lab Parallel Tool / Bridge / Observer / futuros adaptadores MCP y Function Calling.  
-**Relacionado:** `parallel-tool-consumer-probe-battery.md` v2.2.1, `parallel-tool-implementation-master.md` y `parallel-tool-roadmap.md`.
+**Relacionado:** `parallel-tool-consumer-probe-battery.md` v2.2.2, `parallel-tool-implementation-master.md` y `parallel-tool-roadmap.md`.
 
 ---
 
@@ -30,11 +30,13 @@ La rama de trabajo contiene estos elementos verificados en código:
 - TCA-1A limita TTL a 5–1440 minutos, etiqueta `tca1-...` y perfiles cerrados: read = `context:read`; submit = `context:read` + `command:submit` + `command:read`. No permite scopes legacy `read` ni `dispatch`.
 - `checkKey` valida hash, expiración y revocación en `src/lib/bridge/core.server.ts`; el esquema actual de DB ya soporta timestamps con precisión suficiente, sin migración.
 - TCA-1B añade `src/lib/tca/bridge-client.server.ts` y `src/lib/tca/tca1-tool-adapter.server.ts`: cliente HTTP server-side y catálogo neutral de herramientas/handlers, con `TCA1_BRIDGE_BASE_URL`, `TCA1_BRIDGE_KEY`, `TCA1_ACCESS_MODE` y `TCA1_HTTP_TIMEOUT_MS`.
+- TCA-1C añade `src/lib/tca/tca1-function-gateway.server.ts` y `src/routes/api/tca1.functions.ts`: `GET/POST /api/tca1/functions` publica herramientas Function Calling y ejecuta handlers permitidos. `TCA1_FUNCTION_GATEWAY_TOKEN` autentica al host y es una credencial independiente de `TCA1_BRIDGE_KEY`; el modelo no recibe ninguna de las dos. El gateway exige bearer auth, no acepta query params, limita tamaño de JSON y aplica `Cache-Control: no-store`.
+- `scripts/tca1-openai-e2e.mjs` orquesta OpenAI Responses API Function Calling desde un host Node local. En la primera cualificación exige `TCA1_ACCESS_MODE=read`, fuerza `capabilities` y `context_status` y falla si cualquiera de las respuestas no es exitosa.
 - Las rutas v1 autentican con `X-Bridge-Key`; las rutas observadas rechazan credenciales en query string.
 - El alcance `context:read` autoriza lectura de capacidades/contexto; `command:submit` permite intake de comandos tipados. El antiguo `dispatch` es un scope distinto y no debe confundirse con `command:submit`.
 - El panel administrativo utiliza `BRIDGE_ADMIN_PASSWORD`; esa contraseña no es una clave de consumidor.
 
-**Límites actuales del candidato:** TCA-1A permite TTL de minutos y perfiles de scopes restringidos, pero el valor se muestra una vez al operador; el host debe almacenarlo y el operador debe revocarlo al concluir si no espera al TTL. TCA-1B aporta un cliente y handler registry provider-neutral; todavía no es un MCP server ni una integración específica desplegada en ChatGPT/Claude/otro host. TCA-2 Credential Lab y Credential Broker siguen sin implementar. No hay migración de DB ni despliegue live incluidos en este cambio.
+**Límites actuales del candidato:** TCA-1A permite TTL de minutos y perfiles de scopes restringidos, pero el valor se muestra una vez al operador; el host debe almacenarlo y el operador debe revocarlo al concluir si no espera al TTL. TCA-1B aporta un cliente y handler registry provider-neutral. TCA-1C añade un gateway Function Calling y un harness para OpenAI Responses API, pero la llamada real del LLM y la no-exposición live siguen pendientes de staging/H9; no es un servidor MCP ni una integración en ChatGPT UI. El gateway y la Bridge key se provisionan en el lado servidor, nunca en el prompt. TCA-2 Credential Lab y Credential Broker siguen sin implementar. No hay migración de DB ni despliegue live incluidos en este cambio.
 
 Antes de utilizar el panel o crear claves se debe verificar que el SHA desplegado contiene el código esperado. La existencia de código en una rama o PR no demuestra que esté desplegado.
 
@@ -99,6 +101,7 @@ El LLM y cualquier contenido que lea (issues, README, código, logs, resultados)
 | MCP propio/local | El host registra `createTca1ToolAdapterFromEnv()`; el proceso server-side carga `TCA1_BRIDGE_KEY` desde su secret store y los handlers usan `bridge-client.server.ts` |
 | MCP remoto | Autenticación soportada por el host; preferir OAuth para cliente remoto. No asumir que el host permite cabeceras arbitrarias |
 | Function Calling / Tool Use | Registrar `adapter.tools` y `adapter.handlers`; el host ejecuta los handlers server-side. La clave no forma parte de argumentos JSON |
+| OpenAI Responses API Function Calling (TCA-1C) | El host usa `scripts/tca1-openai-e2e.mjs`; el gateway `/api/tca1/functions` publica el catálogo y ejecuta handlers server-side. `TCA1_FUNCTION_GATEWAY_TOKEN` autentica al host; `TCA1_BRIDGE_KEY` permanece solo en Bridge y se inyecta como `X-Bridge-Key` |
 | GPT Actions | Campo de autenticación protegido, si el cliente lo admite; no incluir la clave en OpenAPI ni prompt |
 | Cliente MCP de ChatGPT | Usar el flujo de autenticación soportado por el cliente, normalmente OAuth para MCP remoto; no presuponer que acepta una X-Bridge-Key arbitraria |
 | SDK/CLI | Secret manager o almacén seguro del usuario; evitar argumentos de línea de comandos y logs de entorno |
@@ -110,6 +113,8 @@ Si un host no puede inyectar el secreto sin revelarlo al modelo, TCA-1 queda `BL
 - CI [41246866999](https://github.com/c2melendez/precision-lab-bridge/actions/runs/41246866999) SUCCESS en SHA `77510b58ca2e1d50e83754e722659fa3e8d10ef8`: tests, lint, build y migración/contratos Supabase desechables.
 - H1/H3–H6: pruebas de política, configuración, inyección y adaptadores pasan en CI. H2 tiene test unitario del contrato hash-only/one-time, pero todavía no una emisión end-to-end contra staging. H8 pasa las pruebas automatizadas de redacción/configuración de redirects; el barrido live de host/logs sigue pendiente.
 - H7 permanece BLOCKED hasta desplegar el SHA exacto en staging, crear una clave temporal de prueba y observar 200 antes y 401 tras expirar/revocar.
+- TCA-1C gateway y harness tienen CI completo SUCCESS en SHA `ca00130a28bde659ea2fab673eaa8c09dcc2d3b3` (run [41248360574](https://github.com/c2melendez/precision-lab-bridge/actions/runs/41248360574)): 174 tests de aplicación pasaron, 19 se omitieron; ESLint/build PASS; job DB PASS con 19 pruebas DB, migraciones y assertions RPC/RLS/grants. Esta es evidencia de código, no de invocación live.
+- H9 permanece BLOCKED hasta desplegar exactamente ese SHA en staging, provisionar `TCA1_BRIDGE_KEY` y `TCA1_FUNCTION_GATEWAY_TOKEN` como valores distintos en el lado servidor, usar `OPENAI_API_KEY` solo en el host confiable y observar ambas llamadas read-only satisfactorias. Nunca enviar los valores al chat.
 - Clave creada por flujo TCA-1A para consumidor individual, TTL 5–1440 minutos y perfil exacto read/submit.
 - Cabecera autenticada adjuntada por el runtime; el valor no aparece en prompt, historial, argumentos, salida, logs o artefactos.
 - Requests permitidos responden según contrato; requests sin scope responden 403.
@@ -248,6 +253,7 @@ Respuesta: detener la campaña, bloquear/revocar el canary, preservar evidencia 
 | TCA-D0 | Diseño y threat model | Este documento revisado; no hay secretos creados ni servicios habilitados |
 | TCA-1A | Emisión temporal de claves TCA | Código y CI PASS en SHA `77510b58`; TTL 5–1440 min, perfiles cerrados y hash-only; pendiente H7 staging y emisión E2E |
 | TCA-1B | Cliente HTTP + tool handler registry server-side | Código, tests y build PASS en SHA `77510b58`; binding provider-specific, prueba real de no-exposición y H7 pendientes |
+| TCA-1C | Gateway Function Calling + harness OpenAI Responses API read-only | Código y CI PASS en SHA `ca00130a28bde659ea2fab673eaa8c09dcc2d3b3`; H9 real-LLM/staging y H7 siguen pendientes |
 | TCA-2A | Credential Lab aislado | Red, BD, endpoint, canary, expiración, rate limit y logging redactado verificados |
 | TCA-2B | G1–G5 | Resultados reproducibles para modelo/host; canary revocado |
 | TCA-B1 | Broker prototype | OAuth/OIDC, identidad, tokens cortos, scopes, revocación y JWKS/introspection |
@@ -267,4 +273,4 @@ El presente diseño no autoriza:
 
 Antes de TCA-1A se verifica el despliegue y se designa host/consumidor. Antes de TCA-2A se verifica el aislamiento de red y la ausencia de credenciales reales. Antes de TCA-B1 se versiona el contrato OAuth/OIDC y las pruebas de amenaza.
 
-**Estado al publicar este diseño:** TCA-D0 documentado; TCA-1A y TCA-1B tienen código candidato y CI completo SUCCESS en SHA `77510b58ca2e1d50e83754e722659fa3e8d10ef8` (run 41246866999). H7 staging, emisión end-to-end y binding específico a hosts siguen pendientes; no están desplegados ni habilitados. TCA-2 Credential Lab y Credential Broker no implementados. No se han creado claves ni cambiado secretos. M0–M7 conservan sus estados previos.
+**Estado al publicar este diseño:** TCA-D0 documentado; TCA-1A/TCA-1B tienen código y CI PASS en SHA `77510b58ca2e1d50e83754e722659fa3e8d10ef8` (run 41246866999); TCA-1C Function Calling gateway/harness tiene código y CI PASS en SHA `ca00130a28bde659ea2fab673eaa8c09dcc2d3b3` (run 41248360574). H7 (expiración/revocación live) y H9 (llamada real de LLM en staging) siguen BLOCKED; no hay despliegue ni emisión de claves. TCA-2 Credential Lab y Credential Broker no implementados. No se han creado claves ni cambiado secretos. M0–M7 conservan sus estados salvo M4 IN_PROGRESS por la implementación del primer adaptador Function Calling.

@@ -110,6 +110,7 @@ describe("TCA-1 Bridge client", () => {
   });
 
   it("rejects redirect responses without exposing Location, body, or credential", async () => {
+    // Synthetic redirect canary only: this stub never performs outbound network I/O.
     const redirectLocation = `https://untrusted.example/redirect?credential=${API_KEY}`;
     fetcher.mockResolvedValueOnce(new Response(JSON.stringify({
       error: "redirect_response",

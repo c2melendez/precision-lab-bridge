@@ -13,7 +13,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "start": "node .output/server/index.mjs",
-    "tca1:e2e:openai": "node scripts/tca1-openai-e2e.mjs"
+    "tca1:e2e:openai": "node scripts/tca1-openai-e2e.mjs",
+    "llm:benchmark": "node scripts/llm-capability-benchmark/cli.mjs",
+    "llm:benchmark:test": "vitest run scripts/llm-capability-benchmark/benchmark.test.mjs"
   },
   "overrides": {
     "rolldown": "1.2.1"

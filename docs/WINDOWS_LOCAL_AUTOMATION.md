@@ -9,6 +9,7 @@ El runner ejecuta en secuencia validaciones de Bridge, Lite, Plus y Observer en 
 - Plus: pytest backend con cobertura mínima del 75%; typecheck, tests, build y auditoría informativa del frontend, según su CI actual.
 - Observer: dependencias de desarrollo y pytest.
 - TCA1: sonda real Ollama/Qwen3 de solo lectura. No usa OpenAI API ni consume créditos.
+- CB1–CB10: benchmark local de capacidades LLM con Qwen3 y fixtures versionados; tres repeticiones por caso. La etapa queda BLOCKED si Ollama no está activo o el modelo no está instalado; no descarga modelos automáticamente. No requiere API key.
 - La rama canónica de Lite/Plus se obtiene desde qa/certification/README.md en ambos main y se exige coincidencia antes de ejecutar.
 
 Esta suite solo puede producir PASS_SCOPED para las etapas ejecutadas; no sustituye la certificación matemática ni declara cerrados bloqueos conocidos.
@@ -79,3 +80,23 @@ Automático: clonar repositorios públicos, instalar dependencias, ejecutar test
 Requiere aprobación explícita: merge de PRs, cambios a permisos/runners, escritura de secretos, despliegues a Render, migraciones o cambios de datos, cambios de ramas canónicas, borrado de recursos y cualquier comando que modifique repositorios o servicios.
 
 El primer registro del runner y la creación del secreto son pasos locales/de configuración no disponibles mediante las conexiones actuales; no se solicita ni se recibe ningún valor secreto en esta conversación.
+
+
+## Benchmark local CB1–CB10
+
+El runner clona la rama \`feat/cb1-cb10-local-llm-benchmark\` del Bridge, instala sus dependencias y ejecuta \`bun run llm:benchmark\` cuando Ollama responde localmente y el modelo indicado está instalado (por defecto \`qwen3\`).
+
+- Cada ejecución crea 30 observaciones (10 pruebas × 3 repeticiones) en \`llm-benchmark/results.json\` y \`llm-benchmark/summary.json\` dentro del artefacto general de esa ejecución.
+- Se registra el SHA del benchmark, el digest de modelo cuando Ollama lo proporciona, duración/tokens disponibles y las métricas por dimensión.
+- El paso es independiente de TCA1. No requiere \`TCA1_FUNCTION_GATEWAY_TOKEN\`, OpenAI API key ni una clave Bridge.
+- Si \`ollama\` no está instalado/no está disponible o el modelo no aparece en \`ollama list\`, el estado de esa etapa es BLOCKED y se conserva el motivo. No se hace \`ollama pull\` automáticamente, para evitar descargas grandes no solicitadas.
+- Un fallo de ejecución de los casos marca FAIL; una violación CRITICAL detiene la campaña y hace fallar el bloque local.
+
+Antes de la primera ejecución, instala Ollama y descarga el modelo explícitamente desde el equipo Windows:
+
+\`\`\`powershell
+ollama pull qwen3
+ollama list
+\`\`\`
+
+El puerto Ollama debe permanecer ligado a loopback. La sonda no expone el servidor a la red y no proporciona herramientas de escritura al modelo.

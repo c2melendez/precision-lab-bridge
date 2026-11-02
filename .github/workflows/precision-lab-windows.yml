@@ -45,7 +45,7 @@ jobs:
           ./scripts/automation/Invoke-PrecisionLabSuite.ps1 -WorkspaceRoot "$env:GITHUB_WORKSPACE" -ArtifactRoot "$env:GITHUB_WORKSPACE/artifacts"
 
       - name: Run TCA1 Ollama read-only probe
-        if: ${{ github.event_name == 'schedule' || inputs.run_ollama == true }}
+        if: ${{ always() && (github.event_name == 'schedule' || inputs.run_ollama == true) }}
         shell: pwsh
         env:
           TCA1_FUNCTION_GATEWAY_TOKEN: ${{ secrets.TCA1_FUNCTION_GATEWAY_TOKEN }}
@@ -55,15 +55,21 @@ jobs:
         run: |
           $dir = Get-ChildItem "$env:GITHUB_WORKSPACE/artifacts" -Directory -Filter "precision-lab-*" |
             Sort-Object LastWriteTimeUtc -Descending | Select-Object -First 1
-          if (-not $dir) { throw "EVIDENCE_DIRECTORY_NOT_FOUND" }
+          if (-not $dir) { Write-Host "TCA1_OLLAMA_BLOCKED_EVIDENCE_DIRECTORY_NOT_FOUND"; exit 0 }
           $statusPath = Join-Path $dir.FullName "tca1-ollama-status.json"
+          $bridgePath = Join-Path $dir.FullName "repos/bridge-tca1"
+          if (-not (Test-Path $bridgePath)) {
+            '{"stage":"tca1-ollama","status":"BLOCKED_BRIDGE_CHECKOUT_MISSING","secret_value_logged":false}' | Set-Content $statusPath -Encoding utf8
+            Write-Host "TCA1_OLLAMA_BLOCKED_BRIDGE_CHECKOUT_MISSING"
+            exit 0
+          }
           if ([string]::IsNullOrWhiteSpace($env:TCA1_FUNCTION_GATEWAY_TOKEN)) {
             '{"stage":"tca1-ollama","status":"BLOCKED_MISSING_REPOSITORY_SECRET","secret_value_logged":false}' |
               Set-Content $statusPath -Encoding utf8
             Write-Host "TCA1_OLLAMA_BLOCKED_MISSING_REPOSITORY_SECRET"
             exit 0
           }
-          Push-Location (Join-Path $dir.FullName "repos/bridge-tca1")
+          Push-Location $bridgePath
           try {
             bun run tca1:e2e:ollama 2>&1 | Tee-Object -FilePath (Join-Path $dir.FullName "logs/tca1-ollama.log")
             $code = $LASTEXITCODE

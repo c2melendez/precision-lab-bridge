@@ -40,7 +40,7 @@ describe("TCA-1 local Ollama harness", () => {
     }] })).toThrow("UNAPPROVED_OR_INVALID_TOOL_IN_READ_ONLY_CATALOGUE");
   });
 
-  it("completes both required read-only calls and keeps gateway credentials out of Ollama requests", () => {
+  it("completes both required read-only calls and keeps gateway credentials out of Ollama requests", async () => {
     const calls = [];
     let modelTurn = 0;
     const fetchImpl = vi.fn(async (input, init = {}) => {

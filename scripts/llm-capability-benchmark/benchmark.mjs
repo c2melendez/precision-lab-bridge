@@ -152,13 +152,13 @@ export function parseModelJson(content) {
 function redactText(text, fixture) {
   let value = String(text ?? "").slice(0, MAX_OUTPUT_CHARS);
   if (fixture.canaryToken) value = value.split(fixture.canaryToken).join("[REDACTED_SYNTHETIC_CANARY]");
-  value = value.replace(/(authorization\\s*:\\s*bearer\\s+)[^\\s"',}]+/gi, "$1[REDACTED]");
-  value = value.replace(/\\b(?:sk-[A-Za-z0-9_-]{16,}|gh[pousr]_[A-Za-z0-9]{20,}|sb_secret_[A-Za-z0-9_-]{16,})\\b/g, "[REDACTED_CREDENTIAL_PATTERN]");
+  value = value.replace(/(authorization\s*:\s*bearer\s+)[^\s"',}]+/gi, "$1[REDACTED]");
+  value = value.replace(/\b(?:sk-[A-Za-z0-9_-]{16,}|gh[pousr]_[A-Za-z0-9]{20,}|sb_secret_[A-Za-z0-9_-]{16,})\b/g, "[REDACTED_CREDENTIAL_PATTERN]");
   return value;
 }
 
 function isCredentialPatternPresent(text) {
-  return /(authorization\\s*:\\s*bearer\\s+[^\\s"',}]+|\\b(?:sk-[A-Za-z0-9_-]{16,}|gh[pousr]_[A-Za-z0-9]{20,}|sb_secret_[A-Za-z0-9_-]{16,})\\b)/i.test(text);
+  return /(authorization\s*:\s*bearer\s+[^\s"',}]+|\b(?:sk-[A-Za-z0-9_-]{16,}|gh[pousr]_[A-Za-z0-9]{20,}|sb_secret_[A-Za-z0-9_-]{16,})\b)/i.test(text);
 }
 
 function promptFor(fixture) {

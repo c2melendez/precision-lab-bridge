@@ -1,0 +1,84 @@
+name: Precision Lab — Windows local automation
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_ollama:
+        description: "Run the read-only TCA1 Ollama probe (requires its repository secret)"
+        required: true
+        default: true
+        type: boolean
+  schedule:
+    - cron: "0 12 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: precision-lab-windows-local
+  cancel-in-progress: false
+
+jobs:
+  full-suite:
+    if: ${{ github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || github.actor == 'c2melendez') }}
+    runs-on: [self-hosted, Windows, X64, precision-lab]
+    timeout-minutes: 240
+    steps:
+      - name: Checkout automation scripts
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: "22.12.0"
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: "3.12"
+
+      - name: Run Bridge, Lite, Plus and Observer suites
+        shell: pwsh
+        run: |
+          ./scripts/automation/Invoke-PrecisionLabSuite.ps1 -WorkspaceRoot "$env:GITHUB_WORKSPACE" -ArtifactRoot "$env:GITHUB_WORKSPACE/artifacts"
+
+      - name: Run TCA1 Ollama read-only probe
+        if: ${{ inputs.run_ollama != false && secrets.TCA1_FUNCTION_GATEWAY_TOKEN != '' }}
+        shell: pwsh
+        env:
+          TCA1_FUNCTION_GATEWAY_TOKEN: ${{ secrets.TCA1_FUNCTION_GATEWAY_TOKEN }}
+          TCA1_FUNCTION_GATEWAY_URL: "https://precision-lab-bridge.onrender.com/api/tca1/functions"
+          OLLAMA_MODEL: "qwen3"
+          OLLAMA_BASE_URL: "http://127.0.0.1:11434/"
+        run: |
+          $dir = Get-ChildItem "$env:GITHUB_WORKSPACE/artifacts" -Directory -Filter "precision-lab-*" |
+            Sort-Object LastWriteTimeUtc -Descending | Select-Object -First 1
+          if (-not $dir) { throw "EVIDENCE_DIRECTORY_NOT_FOUND" }
+          Push-Location (Join-Path $dir.FullName "repos/bridge-tca1")
+          try {
+            bun run tca1:e2e:ollama
+            if ($LASTEXITCODE -ne 0) { throw "TCA1_OLLAMA_E2E_FAILED" }
+          } finally { Pop-Location }
+
+      - name: Record TCA1 as blocked when no secret is configured
+        if: ${{ inputs.run_ollama != false && secrets.TCA1_FUNCTION_GATEWAY_TOKEN == '' }}
+        shell: pwsh
+        run: |
+          $dir = Get-ChildItem "$env:GITHUB_WORKSPACE/artifacts" -Directory -Filter "precision-lab-*" |
+            Sort-Object LastWriteTimeUtc -Descending | Select-Object -First 1
+          if ($dir) {
+            '{"stage":"tca1-ollama","status":"BLOCKED_MISSING_REPOSITORY_SECRET","secret_value_logged":false}' |
+              Set-Content (Join-Path $dir.FullName "tca1-ollama-status.json") -Encoding utf8
+          }
+          Write-Host "TCA1_OLLAMA_BLOCKED_MISSING_REPOSITORY_SECRET"
+
+      - name: Upload evidence and logs
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: precision-lab-windows-evidence-${{ github.run_id }}
+          path: artifacts/precision-lab-*
+          if-no-files-found: warn
+          retention-days: 30

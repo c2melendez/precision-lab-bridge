@@ -29,6 +29,11 @@ describe("TCA-1 local Ollama harness", () => {
     expect(validateGatewayUrl(GATEWAY).pathname).toBe("/api/tca1/functions");
   });
 
+  it("requires both mandatory read-only tools in the catalogue", () => {
+    expect(() => buildOllamaTools({ ...CATALOGUE, tools: [CATALOGUE.tools[0]] }))
+      .toThrow("REQUIRED_READ_TOOL_MISSING:precision_lab_bridge_context_status");
+  });
+
   it("rejects any write tool in a supposedly read-only catalogue", () => {
     expect(() => buildOllamaTools({ ...CATALOGUE, tools: [...CATALOGUE.tools, {
       type: "function", name: "precision_lab_bridge_submit_command", description: "write", parameters: { type: "object", properties: {} },

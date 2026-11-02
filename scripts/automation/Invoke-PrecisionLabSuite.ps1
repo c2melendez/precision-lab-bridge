@@ -204,5 +204,5 @@ $summaryPath = Join-Path $runDir "evidence.json"
 $summary | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $summaryPath -Encoding utf8
 Write-Host "EVIDENCE_FILE=$summaryPath"
 Write-Host "SUITE_OUTCOME=$($summary.outcome)"
-if ($script:Fatal -or $failed) { exit 1 }
+if ($script:Fatal -or $failed -or $critical) { exit 1 }
 exit 0

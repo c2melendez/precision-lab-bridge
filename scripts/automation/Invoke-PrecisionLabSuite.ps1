@@ -100,13 +100,92 @@ try {
 
   Invoke-LoggedCommand -Name "observer-install" -WorkingDirectory $observer -Executable "python" -Arguments @("-m","pip","install","-r","requirements-dev.txt") | Out-Null
   Invoke-LoggedCommand -Name "observer-tests" -WorkingDirectory $observer -Executable "python" -Arguments @("-m","pytest","-q") | Out-Null
+  $benchmarkBridge = Clone-Repo -Name "bridge-cb-benchmark" -Repository "c2melendez/precision-lab-bridge" -Branch "feat/cb1-cb10-local-llm-benchmark"
+  Invoke-LoggedCommand -Name "bridge-cb-benchmark-install" -WorkingDirectory $benchmarkBridge -Executable "bun" -Arguments @("install","--frozen-lockfile") | Out-Null
+
+  $benchmarkStarted = (Get-Date).ToUniversalTime().ToString("o")
+  $benchmarkStatus = "BLOCKED"
+  $benchmarkReason = $null
+  $benchmarkExitCode = $null
+  $benchmarkModel = if ([string]::IsNullOrWhiteSpace($env:OLLAMA_MODEL)) { "qwen3" } else { $env:OLLAMA_MODEL }
+  $benchmarkOutput = Join-Path $runDir "llm-benchmark"
+  $benchmarkStatusPath = Join-Path $runDir "llm-benchmark-status.json"
+  $benchmarkLogPath = Join-Path $logDir "llm-capability-cb1-cb10.log"
+  $ollamaCommand = Get-Command "ollama" -ErrorAction SilentlyContinue
+
+  if (-not $ollamaCommand) {
+    $benchmarkReason = "OLLAMA_NOT_INSTALLED"
+  } else {
+    $ollamaList = @(& ollama list 2>&1)
+    $ollamaListExit = if ($null -ne $LASTEXITCODE) { [int]$LASTEXITCODE } else { 0 }
+    if ($ollamaListExit -ne 0) {
+      $benchmarkReason = "OLLAMA_NOT_RUNNING_OR_UNAVAILABLE"
+      $ollamaList | Out-File -FilePath (Join-Path $logDir "ollama-list.log") -Encoding utf8
+    } else {
+      $escapedModel = [regex]::Escape($benchmarkModel)
+      $modelPattern = if ($benchmarkModel.Contains(":")) {
+        "^\s*$escapedModel\s"
+      } else {
+        "^\s*$escapedModel(?::\S+)?\s"
+      }
+      $modelInstalled = @($ollamaList | Where-Object { $_ -match $modelPattern }).Count -gt 0
+      if (-not $modelInstalled) { $benchmarkReason = "OLLAMA_MODEL_NOT_INSTALLED:$benchmarkModel" }
+    }
+  }
+
+  if (-not $benchmarkReason) {
+    $previousOutputDir = $env:LLM_BENCHMARK_OUTPUT_DIR
+    $previousSourceSha = $env:SOURCE_SHA
+    $previousModel = $env:OLLAMA_MODEL
+    try {
+      $env:LLM_BENCHMARK_OUTPUT_DIR = $benchmarkOutput
+      $env:SOURCE_SHA = $script:Repos["bridge-cb-benchmark"].sha
+      $env:OLLAMA_MODEL = $benchmarkModel
+      Push-Location $benchmarkBridge
+      try {
+        & bun run llm:benchmark 2>&1 | Out-File -FilePath $benchmarkLogPath -Encoding utf8
+        $benchmarkExitCode = if ($null -ne $LASTEXITCODE) { [int]$LASTEXITCODE } else { 0 }
+      } finally { Pop-Location }
+      $benchmarkStatus = if ($benchmarkExitCode -eq 0) { "PASS" } elseif ($benchmarkExitCode -eq 2) { "CRITICAL" } else { "FAIL" }
+    } catch {
+      $_.Exception.Message | Out-File -FilePath $benchmarkLogPath -Append -Encoding utf8
+      $benchmarkStatus = "FAIL"
+      $benchmarkExitCode = 9009
+    } finally {
+      if ($null -eq $previousOutputDir) { Remove-Item Env:LLM_BENCHMARK_OUTPUT_DIR -ErrorAction SilentlyContinue } else { $env:LLM_BENCHMARK_OUTPUT_DIR = $previousOutputDir }
+      if ($null -eq $previousSourceSha) { Remove-Item Env:SOURCE_SHA -ErrorAction SilentlyContinue } else { $env:SOURCE_SHA = $previousSourceSha }
+      if ($null -eq $previousModel) { Remove-Item Env:OLLAMA_MODEL -ErrorAction SilentlyContinue } else { $env:OLLAMA_MODEL = $previousModel }
+    }
+  }
+
+  $script:Results.Add([ordered]@{
+    stage="llm-capability-cb1-cb10"
+    status=$benchmarkStatus
+    exit_code=$benchmarkExitCode
+    blocking_reason=$benchmarkReason
+    model=$benchmarkModel
+    repetitions=3
+    started_at=$benchmarkStarted
+    completed_at=(Get-Date).ToUniversalTime().ToString("o")
+    evidence="llm-benchmark/results.json; llm-benchmark/summary.json"
+    log="logs/llm-capability-cb1-cb10.log"
+  })
   $script:Repos["bridge_tca1_harness_path"] = $bridge
+  $script:Repos["bridge_cb_benchmark"] = [ordered]@{
+    repository="c2melendez/precision-lab-bridge"
+    branch="feat/cb1-cb10-local-llm-benchmark"
+    sha=$script:Repos["bridge-cb-benchmark"].sha
+  }
+  @{stage="llm-capability-cb1-cb10";status=$benchmarkStatus;model=$benchmarkModel;exit_code=$benchmarkExitCode;blocking_reason=$benchmarkReason;secret_value_logged=$false} |
+    ConvertTo-Json | Set-Content -LiteralPath $benchmarkStatusPath -Encoding utf8
+  Write-Host "[$benchmarkStatus] llm-capability-cb1-cb10 (model=$benchmarkModel)"
+
 } catch {
   $script:Fatal = $_.Exception.Message
   Write-Host "PRECISION_LAB_SUITE_BLOCKED_OR_FAILED:$script:Fatal" -ForegroundColor Red
 }
 
-$failed = @($script:Results | Where-Object { $_.status -eq "FAIL" }).Count -gt 0
+$failed = @($script:Results | Where-Object { $_.status -in @("FAIL","CRITICAL") }).Count -gt 0
 $summary = [ordered]@{
   schema_version=1
   suite="precision-lab-windows-local"

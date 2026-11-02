@@ -70,7 +70,7 @@ Este cambio se entrega como PR borrador. Tras revisar y fusionar el PR, registra
 1. En Actions → Precision Lab — Windows local automation → Run workflow, selecciona main y deja activada la sonda Ollama.
 2. Espera a que el runner pase de Idle a In progress.
 3. Descarga precision-lab-windows-evidence-* y conserva JSON y logs con el SHA exacto.
-4. La ejecución programada corre diariamente a las 06:00 hora de Honduras (12:00 UTC), siempre que el equipo esté encendido y el runner conectado.
+4. La suite corre al actualizar código en Bridge main (no en cambios solo documentales), por ejecución manual y diariamente a las 06:00 hora de Honduras (12:00 UTC). Para Lite/Plus/Observer, los cambios se detectan en el ciclo diario; los repositorios externos no están conectados por webhook a Bridge.
 
 ## Límites y aprobación
 

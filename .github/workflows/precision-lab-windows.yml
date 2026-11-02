@@ -10,6 +10,11 @@ on:
         type: boolean
   schedule:
     - cron: "0 12 * * *"
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
 
 permissions:
   contents: read
@@ -45,7 +50,7 @@ jobs:
           ./scripts/automation/Invoke-PrecisionLabSuite.ps1 -WorkspaceRoot "$env:GITHUB_WORKSPACE" -ArtifactRoot "$env:GITHUB_WORKSPACE/artifacts"
 
       - name: Run TCA1 Ollama read-only probe
-        if: ${{ always() && (github.event_name == 'schedule' || inputs.run_ollama == true) }}
+        if: ${{ always() && (github.event_name != 'workflow_dispatch' || inputs.run_ollama == true) }}
         shell: pwsh
         env:
           TCA1_FUNCTION_GATEWAY_TOKEN: ${{ secrets.TCA1_FUNCTION_GATEWAY_TOKEN }}

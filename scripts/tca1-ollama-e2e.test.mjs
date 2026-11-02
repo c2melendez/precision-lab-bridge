@@ -7,7 +7,7 @@ import {
 } from "./tca1-ollama-e2e.mjs";
 
 const TOKEN = "a-test-gateway-token-that-is-long-enough-123456";
-const GATEWAY = "https://bridge.example.test/api/tca1/functions";
+const GATEWAY = "https://precision-lab-bridge.onrender.com/api/tca1/functions";
 const CATALOGUE = {
   access_mode: "read",
   tools: [
@@ -25,7 +25,9 @@ describe("TCA-1 local Ollama harness", () => {
   it("restricts Ollama to loopback and validates the exact HTTPS gateway route", () => {
     expect(validateOllamaBaseUrl("http://127.0.0.1:11434/")).toBe("http://127.0.0.1:11434");
     expect(() => validateOllamaBaseUrl("https://ollama.example.test/")).toThrow("UNSAFE_OLLAMA_BASE_URL_LOCALHOST_ONLY");
-    expect(() => validateGatewayUrl("https://bridge.example.test/api/tca1/functions?key=x")).toThrow("UNSAFE_TCA1_FUNCTION_GATEWAY_URL");
+    expect(() => validateGatewayUrl("https://precision-lab-bridge.onrender.com/api/tca1/functions?key=x")).toThrow("UNSAFE_TCA1_FUNCTION_GATEWAY_URL");
+    expect(() => validateGatewayUrl("https://attacker.example/api/tca1/functions")).toThrow("UNSAFE_TCA1_FUNCTION_GATEWAY_URL");
+    expect(validateGatewayUrl(GATEWAY).hostname).toBe("precision-lab-bridge.onrender.com");
     expect(validateGatewayUrl(GATEWAY).pathname).toBe("/api/tca1/functions");
   });
 

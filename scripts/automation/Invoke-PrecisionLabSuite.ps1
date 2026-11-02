@@ -118,7 +118,7 @@ $summary = [ordered]@{
   repositories=$script:Repos
   stages=@($script:Results)
   fatal_error_code=$script:Fatal
-  outcome=if ($script:Fatal) {"BLOCKED"} elseif ($failed) {"FAIL"} else {"PASS_SCOPED"}
+  outcome=$(if ($script:Fatal) {"BLOCKED"} elseif ($failed) {"FAIL"} else {"PASS_SCOPED"})
 }
 $summaryPath = Join-Path $runDir "evidence.json"
 $summary | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $summaryPath -Encoding utf8

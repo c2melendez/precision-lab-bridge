@@ -19,7 +19,7 @@ No llama submit, patch, validate, receipt, command dispatch ni Actions. No cambi
 1. Node.js 22.12 o superior.
 2. Ollama instalado y ejecutandose en el mismo equipo.
 3. Un modelo con soporte de tools/function calling. La configuracion por defecto es `qwen3`; validar que el modelo descargado aparezca en `ollama list`.
-4. Gateway de staging HTTPS operativo y credencial `TCA1_FUNCTION_GATEWAY_TOKEN` provisionada localmente, distinta de `TCA1_BRIDGE_KEY`.
+4. Gateway de staging HTTPS operativo en el host exacto `precision-lab-bridge.onrender.com` y credencial `TCA1_FUNCTION_GATEWAY_TOKEN` provisionada localmente, distinta de `TCA1_BRIDGE_KEY`.
 5. La clave del gateway debe tener al menos 32 caracteres y permanecer en el entorno local. Nunca copiarla al prompt, argumento visible, issue, commit o conversacion.
 
 Instalacion del modelo de referencia:

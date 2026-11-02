@@ -109,6 +109,43 @@ describe("TCA-1 Bridge client", () => {
     }
   });
 
+  it("rejects redirect responses without exposing Location, body, or credential", async () => {
+    const redirectLocation = `https://untrusted.example/redirect?credential=${API_KEY}`;
+    fetcher.mockResolvedValueOnce(new Response(JSON.stringify({
+      error: "redirect_response",
+      debug: API_KEY,
+      location: redirectLocation,
+    }), {
+      status: 302,
+      headers: {
+        "content-type": "application/json",
+        location: redirectLocation,
+      },
+    }));
+
+    const client = createTca1BridgeClient(config, { fetcher: fetcher as Tca1Fetch });
+    let observedError: unknown;
+    try {
+      await client.getCapabilities();
+      throw new Error("expected redirect response to fail");
+    } catch (error) {
+      observedError = error;
+    }
+
+    expect(observedError).toMatchObject({
+      httpStatus: 302,
+      code: "BRIDGE_HTTP_302",
+    });
+    expect(String(observedError)).not.toContain(API_KEY);
+    expect(String(observedError)).not.toContain("untrusted.example");
+    expect(JSON.stringify(observedError)).not.toContain(API_KEY);
+    expect(JSON.stringify(observedError)).not.toContain("untrusted.example");
+
+    const [, init] = fetcher.mock.calls[0] as unknown as [URL, RequestInit];
+    expect(init.redirect).toBe("error");
+    expect(init.cache).toBe("no-store");
+  });
+
   it("fails closed on network errors without echoing request metadata", async () => {
     fetcher.mockRejectedValueOnce(new Error(`failed request with ${API_KEY}`));
     const client = createTca1BridgeClient(config, { fetcher: fetcher as Tca1Fetch });

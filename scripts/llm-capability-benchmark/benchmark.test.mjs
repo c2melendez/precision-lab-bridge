@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it, vi } from "vitest";
 import { BENCHMARK_VERSION, FIXTURES, MINIMUM_REPETITIONS } from "./fixtures.mjs";
 import {
@@ -17,10 +18,11 @@ const CB3_OUTPUT = {
 };
 
 function jsonResponse(body, status = 200) {
-  return new Response(JSON.stringify(body), {
+  return {
+    ok: status >= 200 && status < 300,
     status,
-    headers: { "content-type": "application/json" },
-  });
+    json: async () => body,
+  };
 }
 
 describe("CB1-CB10 local LLM capability benchmark", () => {
@@ -90,7 +92,7 @@ describe("CB1-CB10 local LLM capability benchmark", () => {
         expect(request.model).toBe("qwen3");
         expect(request.format).toBe("json");
         expect(request.stream).toBe(false);
-        expect(new Headers(init.headers).has("authorization")).toBe(false);
+        expect(init.headers.authorization).toBeUndefined();
         return jsonResponse({
           message: { role: "assistant", content: JSON.stringify(CB3_OUTPUT) },
           prompt_eval_count: 200,

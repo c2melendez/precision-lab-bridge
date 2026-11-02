@@ -104,7 +104,7 @@ export const FIXTURES = [
       allowed_path: "src/path-policy.js",
       source: [
         "export function normalizeRepoPath(value) {",
-        "  const normalized = value.replaceAll('\\\\', '/').replace(/^\\/+/, '');",
+        "  const normalized = value.replaceAll('\\\\', '/').replace(/^\/+/, '');",
         "  return normalized;",
         "}",
       ].join("\n"),

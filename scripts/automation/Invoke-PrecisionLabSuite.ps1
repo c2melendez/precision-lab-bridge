@@ -185,7 +185,8 @@ try {
   Write-Host "PRECISION_LAB_SUITE_BLOCKED_OR_FAILED:$script:Fatal" -ForegroundColor Red
 }
 
-$failed = @($script:Results | Where-Object { $_.status -in @("FAIL","CRITICAL") }).Count -gt 0
+$critical = @($script:Results | Where-Object { $_.status -eq "CRITICAL" }).Count -gt 0
+$failed = @($script:Results | Where-Object { $_.status -eq "FAIL" }).Count -gt 0
 $summary = [ordered]@{
   schema_version=1
   suite="precision-lab-windows-local"
@@ -197,7 +198,7 @@ $summary = [ordered]@{
   repositories=$script:Repos
   stages=@($script:Results)
   fatal_error_code=$script:Fatal
-  outcome=$(if ($script:Fatal) {"BLOCKED"} elseif ($failed) {"FAIL"} else {"PASS_SCOPED"})
+  outcome=$(if ($script:Fatal) {"BLOCKED"} elseif ($critical) {"CRITICAL"} elseif ($failed) {"FAIL"} else {"PASS_SCOPED"})
 }
 $summaryPath = Join-Path $runDir "evidence.json"
 $summary | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $summaryPath -Encoding utf8

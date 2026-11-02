@@ -46,8 +46,9 @@ export function validateGatewayUrl(value) {
   } catch {
     throw new Error("INVALID_TCA1_FUNCTION_GATEWAY_URL");
   }
-  if (url.protocol !== "https:" || url.pathname !== "/api/tca1/functions" ||
-      url.username || url.password || url.search || url.hash) {
+  if (url.protocol !== "https:" || url.hostname !== "precision-lab-bridge.onrender.com" ||
+      url.pathname !== "/api/tca1/functions" || url.username || url.password ||
+      url.search || url.hash) {
     throw new Error("UNSAFE_TCA1_FUNCTION_GATEWAY_URL");
   }
   return url;

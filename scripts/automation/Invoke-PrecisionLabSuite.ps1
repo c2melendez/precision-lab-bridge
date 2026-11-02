@@ -103,7 +103,7 @@ try {
   $script:Repos["bridge_tca1_harness_path"] = $bridge
 } catch {
   $script:Fatal = $_.Exception.Message
-  Write-Error "PRECISION_LAB_SUITE_BLOCKED_OR_FAILED:$script:Fatal"
+  Write-Host "PRECISION_LAB_SUITE_BLOCKED_OR_FAILED:$script:Fatal" -ForegroundColor Red
 }
 
 $failed = @($script:Results | Where-Object { $_.status -eq "FAIL" }).Count -gt 0

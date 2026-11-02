@@ -59,7 +59,7 @@ El endpoint queda fijado al host y ruta que valida el harness. El workflow no co
 
 ## Seguridad del runner
 
-Los cuatro repositorios consultados son públicos. Por ello, el workflow deliberadamente no escucha pull_request ni pull_request_target; solo admite workflow_dispatch desde main por la cuenta propietaria y un horario diario. No ejecutes código de PRs no revisados en este runner. Mantén el runner limitado al repositorio Bridge y evita etiquetas genéricas compartidas.
+Los cuatro repositorios consultados son públicos. Por ello, el workflow deliberadamente no escucha pull_request ni pull_request_target; admite workflow_dispatch desde main por la cuenta propietaria, push de código a main por la cuenta propietaria y un horario diario. No ejecutes código de PRs no revisados en este runner. Mantén el runner limitado al repositorio Bridge y evita etiquetas genéricas compartidas.
 
 No se concede contents: write ni actions: write al GITHUB_TOKEN. El workflow no hace commits, no fusiona PRs, no modifica ramas, no despacha otros workflows ni despliega servicios.
 

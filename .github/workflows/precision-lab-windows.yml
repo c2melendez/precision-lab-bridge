@@ -45,7 +45,7 @@ jobs:
           ./scripts/automation/Invoke-PrecisionLabSuite.ps1 -WorkspaceRoot "$env:GITHUB_WORKSPACE" -ArtifactRoot "$env:GITHUB_WORKSPACE/artifacts"
 
       - name: Run TCA1 Ollama read-only probe
-        if: ${{ inputs.run_ollama != false && secrets.TCA1_FUNCTION_GATEWAY_TOKEN != '' }}
+        if: ${{ github.event_name == 'schedule' || inputs.run_ollama == true }}
         shell: pwsh
         env:
           TCA1_FUNCTION_GATEWAY_TOKEN: ${{ secrets.TCA1_FUNCTION_GATEWAY_TOKEN }}
@@ -56,23 +56,21 @@ jobs:
           $dir = Get-ChildItem "$env:GITHUB_WORKSPACE/artifacts" -Directory -Filter "precision-lab-*" |
             Sort-Object LastWriteTimeUtc -Descending | Select-Object -First 1
           if (-not $dir) { throw "EVIDENCE_DIRECTORY_NOT_FOUND" }
+          $statusPath = Join-Path $dir.FullName "tca1-ollama-status.json"
+          if ([string]::IsNullOrWhiteSpace($env:TCA1_FUNCTION_GATEWAY_TOKEN)) {
+            '{"stage":"tca1-ollama","status":"BLOCKED_MISSING_REPOSITORY_SECRET","secret_value_logged":false}' |
+              Set-Content $statusPath -Encoding utf8
+            Write-Host "TCA1_OLLAMA_BLOCKED_MISSING_REPOSITORY_SECRET"
+            exit 0
+          }
           Push-Location (Join-Path $dir.FullName "repos/bridge-tca1")
           try {
-            bun run tca1:e2e:ollama
-            if ($LASTEXITCODE -ne 0) { throw "TCA1_OLLAMA_E2E_FAILED" }
+            bun run tca1:e2e:ollama 2>&1 | Tee-Object -FilePath (Join-Path $dir.FullName "logs/tca1-ollama.log")
+            $code = $LASTEXITCODE
+            @{stage="tca1-ollama";status=$(if ($code -eq 0) {"PASS"} else {"FAIL"});exit_code=$code;secret_value_logged=$false} |
+              ConvertTo-Json | Set-Content $statusPath -Encoding utf8
+            if ($code -ne 0) { throw "TCA1_OLLAMA_E2E_FAILED" }
           } finally { Pop-Location }
-
-      - name: Record TCA1 as blocked when no secret is configured
-        if: ${{ inputs.run_ollama != false && secrets.TCA1_FUNCTION_GATEWAY_TOKEN == '' }}
-        shell: pwsh
-        run: |
-          $dir = Get-ChildItem "$env:GITHUB_WORKSPACE/artifacts" -Directory -Filter "precision-lab-*" |
-            Sort-Object LastWriteTimeUtc -Descending | Select-Object -First 1
-          if ($dir) {
-            '{"stage":"tca1-ollama","status":"BLOCKED_MISSING_REPOSITORY_SECRET","secret_value_logged":false}' |
-              Set-Content (Join-Path $dir.FullName "tca1-ollama-status.json") -Encoding utf8
-          }
-          Write-Host "TCA1_OLLAMA_BLOCKED_MISSING_REPOSITORY_SECRET"
 
       - name: Upload evidence and logs
         if: always()

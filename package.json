@@ -16,7 +16,8 @@
     "tca1:e2e:openai": "node scripts/tca1-openai-e2e.mjs",
     "llm:benchmark": "node scripts/llm-capability-benchmark/cli.mjs",
     "llm:benchmark:compare": "node scripts/llm-capability-benchmark/compare.mjs",
-    "llm:benchmark:test": "vitest run scripts/llm-capability-benchmark/*.test.mjs"
+    "llm:benchmark:test": "vitest run scripts/llm-capability-benchmark/*.test.mjs",
+    "tca1:e2e:groq": "node scripts/tca1-groq-e2e.mjs"
   },
   "overrides": {
     "rolldown": "1.2.1"

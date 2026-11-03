@@ -58,8 +58,30 @@ async function observerGet(path: string): Promise<unknown> {
     throw new ObserverError("OBSERVER_REDIRECT_REJECTED", 502);
   }
   if (!response.ok) {
-    throw new ObserverError(response.status === 401 || response.status === 403
-      ? "OBSERVER_AUTH_FAILED" : "OBSERVER_UPSTREAM_ERROR", 502);
+    if (response.status === 401 || response.status === 403) {
+      throw new ObserverError("OBSERVER_AUTH_FAILED", 502);
+    }
+    const payload: unknown = await response.json().catch(() => null);
+    const detail = isRecord(payload) && typeof payload.detail === "string"
+      ? payload.detail
+      : "";
+    const safeCodes: Record<string, string> = {
+      "GITHUB_READ_TOKEN is not configured": "OBSERVER_GITHUB_TOKEN_MISSING",
+      "GitHub read credential was rejected": "OBSERVER_GITHUB_TOKEN_REJECTED",
+      "GitHub API rate limit reached": "OBSERVER_GITHUB_API_RATE_LIMIT",
+      "GitHub read credential lacks permission or the request is forbidden": "OBSERVER_GITHUB_TOKEN_FORBIDDEN",
+      "GitHub request timed out": "OBSERVER_GITHUB_REQUEST_TIMEOUT",
+      "Could not connect to GitHub": "OBSERVER_GITHUB_NETWORK_ERROR",
+      "GitHub API is temporarily unavailable": "OBSERVER_GITHUB_API_UNAVAILABLE",
+      "GitHub returned an invalid JSON response": "OBSERVER_GITHUB_INVALID_JSON",
+      "The default-branch certification README has no canonical-branch pointer": "OBSERVER_CANONICAL_POINTER_MISSING",
+    };
+    if (isRecord(payload) && payload.error === "state_reconciliation_required") {
+      throw new ObserverError("OBSERVER_STATE_RECONCILIATION_REQUIRED", 502);
+    }
+    const safeCode = safeCodes[detail];
+    if (safeCode) throw new ObserverError(safeCode, 502);
+    throw new ObserverError(`OBSERVER_UPSTREAM_HTTP_${response.status}`, 502);
   }
   if (!(response.headers.get("content-type") ?? "").toLowerCase().includes("application/json")) {
     throw new ObserverError("OBSERVER_INVALID_RESPONSE", 502);

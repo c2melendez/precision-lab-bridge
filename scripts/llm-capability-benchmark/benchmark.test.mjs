@@ -6,6 +6,8 @@ import {
   parseModelJson,
   runBenchmark,
   scoreFixture,
+  validateGroqApiKey,
+  validateGroqModel,
   validateOllamaBaseUrl,
 } from "./benchmark.mjs";
 
@@ -116,6 +118,92 @@ describe("CB1-CB10 local LLM capability benchmark", () => {
     expect(result.results.every((item) => item.tokens.total === 260)).toBe(true);
     expect(result.summary.by_status.PASS).toBe(3);
     expect(calls.filter((call) => call.url.endsWith("/api/chat"))).toHaveLength(3);
+  });
+
+  it("validates Groq credentials and model identifiers without exposing the credential", () => {
+    expect(validateGroqApiKey("gsk_test_key_with_more_than_twenty_chars")).toBe("gsk_test_key_with_more_than_twenty_chars");
+    expect(() => validateGroqApiKey("short")).toThrow("INVALID_GROQ_API_KEY");
+    expect(() => validateGroqApiKey("gsk_key with whitespace that is too long")).toThrow("INVALID_GROQ_API_KEY");
+    expect(validateGroqModel("openai/gpt-oss-20b")).toBe("openai/gpt-oss-20b");
+    expect(() => validateGroqModel("../untrusted-model")).toThrow("INVALID_GROQ_MODEL");
+  });
+
+  it("runs Groq Chat Completions in JSON mode and keeps the API key out of the body and evidence", async () => {
+    const apiKey = "gsk_test_key_with_more_than_twenty_chars";
+    const calls = [];
+    const fetchImpl = vi.fn(async (url, init = {}) => {
+      calls.push({ url: String(url), init });
+      expect(String(url)).toBe("https://api.groq.com/openai/v1/chat/completions");
+      expect(init.method).toBe("POST");
+      const headers = new Headers(init.headers);
+      expect(headers.get("authorization")).toBe("Bearer " + apiKey);
+      const request = JSON.parse(init.body);
+      expect(request.model).toBe("openai/gpt-oss-20b");
+      expect(request.response_format).toEqual({ type: "json_object" });
+      expect(request.stream).toBe(false);
+      expect(JSON.stringify(request)).not.toContain(apiKey);
+      return jsonResponse({
+        model: "openai/gpt-oss-20b",
+        system_fingerprint: "groq-fingerprint-test",
+        choices: [{ message: { role: "assistant", content: JSON.stringify(CB3_OUTPUT) } }],
+        usage: { prompt_tokens: 200, completion_tokens: 60, total_tokens: 260 },
+      });
+    });
+
+    const result = await runBenchmark({
+      env: {
+        LLM_PROVIDER: "groq",
+        GROQ_API_KEY: apiKey,
+        GROQ_MODEL: "openai/gpt-oss-20b",
+        GROQ_MIN_INTERVAL_MS: "0",
+      },
+      fetchImpl,
+      fixtures: [FIXTURES.find((item) => item.id === "CB3")],
+      runs: 3,
+    });
+
+    expect(calls).toHaveLength(3);
+    expect(result.model_provider).toBe("groq");
+    expect(result.model_id).toBe("openai/gpt-oss-20b");
+    expect(result.model_version).toBe("groq-fingerprint-test");
+    expect(result.transport).toBe("groq-cloud-chat-completions");
+    expect(result.results).toHaveLength(3);
+    expect(result.results.every((item) => item.status === "PASS")).toBe(true);
+    expect(result.results.every((item) => item.tokens.total === 260)).toBe(true);
+    expect(JSON.stringify(result)).not.toContain(apiKey);
+  });
+
+  it("requires GROQ_API_KEY before making a provider request", async () => {
+    const fetchImpl = vi.fn();
+    await expect(runBenchmark({
+      env: { LLM_PROVIDER: "groq" },
+      fetchImpl,
+      fixtures: [FIXTURES[0]],
+      runs: 3,
+    })).rejects.toThrow("MISSING_GROQ_API_KEY");
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("stops a Groq campaign after HTTP 429 and blocks remaining repetitions", async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse({ error: "rate limit" }, 429));
+    const result = await runBenchmark({
+      env: {
+        LLM_PROVIDER: "groq",
+        GROQ_API_KEY: "gsk_test_key_with_more_than_twenty_chars",
+        GROQ_MIN_INTERVAL_MS: "0",
+      },
+      fetchImpl,
+      fixtures: [FIXTURES.find((item) => item.id === "CB3")],
+      runs: 3,
+    });
+
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(result.stop_reason).toBe("GROQ_CHAT_HTTP_429");
+    expect(result.results[0].blocking_reason).toBe("GROQ_CHAT_HTTP_429");
+    expect(result.results.slice(1).every((item) =>
+      item.status === "BLOCKED" &&
+      item.blocking_reason === "campaign_stopped_after_provider_limit_or_error"
+    )).toBe(true);
   });
 
   it("rejects fewer than three repetitions before making a network request", async () => {

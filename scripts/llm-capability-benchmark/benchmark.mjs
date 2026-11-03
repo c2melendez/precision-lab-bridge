@@ -481,7 +481,7 @@ export async function runBenchmark({
           dimension_scores: Object.fromEntries(REQUIRED_DIMENSIONS.map((item) => [item, null])),
           blocking_reason: code,
           http_status: (() => {
-            const match = code.match(/_HTTP_(\\d{3})/);
+            const match = code.match(/_HTTP_([0-9]{3})/);
             return match ? Number(match[1]) : null;
           })(),
           command_id: null,

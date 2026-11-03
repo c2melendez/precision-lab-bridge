@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   qwen3-campaign:
-    name: Qwen3 4B via Ollama — CB1-CB10 (3 repetitions)
+    name: Qwen3 4B via Ollama — CB1-CB10 paired at source SHA (3 repetitions)
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:

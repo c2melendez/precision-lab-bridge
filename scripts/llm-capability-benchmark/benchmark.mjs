@@ -55,7 +55,7 @@ async function fetchJson(fetchImpl, url, init = {}, code = "OLLAMA_REQUEST_FAILE
 
 export function validateGroqApiKey(value) {
   if (typeof value !== "string" || value.length < 20 || value.length > 512 ||
-      value !== value.trim() || /\s/.test(value)) {
+      value !== value.trim() || /[\u0000-\u0020\u007f]/.test(value)) {
     throw new Error("INVALID_GROQ_API_KEY");
   }
   return value;
@@ -350,13 +350,14 @@ export async function runBenchmark({
       }
 
       let response;
-      const startedAt = Date.now();
+      let startedAt = Date.now();
       try {
         if (provider === "groq" && lastRequestAt !== null) {
           const waitMs = requestIntervalMs - (Date.now() - lastRequestAt);
           if (waitMs > 0) await new Promise((resolve) => setTimeout(resolve, waitMs));
         }
         lastRequestAt = Date.now();
+        startedAt = lastRequestAt;
 
         const messages = [
           {
@@ -401,7 +402,11 @@ export async function runBenchmark({
       } catch (error) {
         const code = error instanceof Error && /^[A-Z0-9_:-]+$/.test(error.message) ?
           error.message : provider.toUpperCase() + "_CHAT_FAILED";
-        if (provider === "groq" && /^GROQ_CHAT_HTTP_(401|403|404|429)$/.test(code)) {
+        if (provider === "groq" && (
+          code.startsWith("GROQ_CHAT_HTTP_") ||
+          code === "GROQ_CHAT_NETWORK_OR_REDIRECT" ||
+          code === "GROQ_CHAT_INVALID_JSON"
+        )) {
           stopReason = code;
         }
         results.push({
@@ -466,7 +471,9 @@ export async function runBenchmark({
         (Number.isInteger(response.prompt_eval_count) ? response.prompt_eval_count : null) :
         (Number.isInteger(response.usage?.prompt_tokens) ? response.usage.prompt_tokens : null);
       const elapsedModel = provider === "ollama" && Number.isFinite(response.total_duration) ?
-        Number((response.total_duration / 1e9).toFixed(3)) : durationSeconds;
+        Number((response.total_duration / 1e9).toFixed(3)) :
+        provider === "groq" && Number.isFinite(response.usage?.total_time) ?
+          Number(response.usage.total_time.toFixed(3)) : durationSeconds;
       const dimensionScores = { ...scored.dimension_scores };
       dimensionScores.efficiency = tokens === null ? null :
         tokens <= MAX_OUTPUT_TOKENS && elapsedModel <= (REQUEST_TIMEOUT_MS / 1000) ? 4 : 2;

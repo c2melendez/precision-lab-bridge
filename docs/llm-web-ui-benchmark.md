@@ -557,12 +557,12 @@ Formato de fila recomendado:
 
 ## 9. Orden de ejecución
 
-Orden recomendado para el piloto inicial:
-1. Qwen Coder Web — CB1, CB2 y CB3; una repetición piloto cada uno.
-2. DeepSeek Web — los mismos tres casos y la misma repetición.
-3. Gemini Web — los mismos tres casos y la misma repetición.
-4. Revisar las respuestas y confirmar que el protocolo produce JSON interpretable. Luego completar CB4–CB10 en los tres modelos.
-5. Ejecutar las repeticiones 2 y 3 en chats nuevos para cada caso/modelo.
+Orden recomendado para el piloto comparativo:
+1. Ejecuta CB1, repetición 1, en Qwen Coder Web, DeepSeek Web y Gemini Web, cada uno en un chat nuevo.
+2. Compara que los tres outputs respeten el contrato JSON y puntúa CB1.
+3. Continúa con CB2 y CB3, repetición 1, emparejando los tres modelos antes de avanzar al siguiente caso.
+4. Si no hay CRITICAL y el proceso es estable, completa CB4–CB10, repetición 1, con el mismo orden emparejado.
+5. Ejecuta las repeticiones 2 y 3 en chats nuevos, manteniendo el mismo emparejamiento por caso entre las tres interfaces.
 
 El piloto de una repetición sirve para validar el procedimiento, pero no debe publicarse como campaña comparativa final. La comparación solo se considera completa al disponer de tres repeticiones independientes por los diez casos y por cada interfaz.
 

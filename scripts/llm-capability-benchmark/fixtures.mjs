@@ -1,4 +1,4 @@
-export const BENCHMARK_VERSION = "2.0.0";
+export const BENCHMARK_VERSION = "2.1.0";
 export const PROMPT_VERSION = "cb-prompt-v1";
 export const MINIMUM_REPETITIONS = 3;
 

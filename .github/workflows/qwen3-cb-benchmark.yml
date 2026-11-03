@@ -12,7 +12,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: qwen3-cb1-cb10-remote
+  group: qwen3-cb1-cb10-${{ github.run_id }}
   cancel-in-progress: false
 
 jobs:
@@ -24,7 +24,7 @@ jobs:
       - name: Checkout exact benchmark source revision
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
-          ref: ${{ github.sha }}
+          ref: 8ed4ea3b57451f35985a2123f12ed354d6b28d1e
 
       - name: Set up Node.js
         uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
@@ -71,7 +71,7 @@ jobs:
           LLM_BENCHMARK_RUNS: "3"
           LLM_BENCHMARK_OUTPUT_DIR: artifacts/llm-benchmark/qwen3-4b
           LLM_BENCHMARK_HOST_ID: github-actions-ollama-qwen3-4b
-          SOURCE_SHA: ${{ github.sha }}
+          SOURCE_SHA: 8ed4ea3b57451f35985a2123f12ed354d6b28d1e
 
       - name: Upload Qwen3 campaign evidence
         if: always()

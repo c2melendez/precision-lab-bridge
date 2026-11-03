@@ -51,8 +51,10 @@ async function observerGet(path: string): Promise<unknown> {
       redirect: "manual",
       signal: AbortSignal.timeout(7_000),
     });
-  } catch {
-    throw new ObserverError("OBSERVER_UNAVAILABLE", 503);
+  } catch (error) {
+    const timedOut = error instanceof Error &&
+      (error.name === "TimeoutError" || error.name === "AbortError");
+    throw new ObserverError(timedOut ? "OBSERVER_TIMEOUT" : "OBSERVER_NETWORK_ERROR", 503);
   }
   if (response.status >= 300 && response.status < 400) {
     throw new ObserverError("OBSERVER_REDIRECT_REJECTED", 502);

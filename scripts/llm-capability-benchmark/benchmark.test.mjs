@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from "vitest";
-import { BENCHMARK_VERSION, FIXTURES, MINIMUM_REPETITIONS } from "./fixtures.mjs";
+import { BENCHMARK_VERSION, FIXTURES, MINIMUM_REPETITIONS, OUTPUT_JSON_SCHEMA } from "./fixtures.mjs";
 import {
   findInstalledModel,
   parseModelJson,
@@ -146,7 +146,14 @@ describe("CB1-CB10 local LLM capability benchmark", () => {
       expect(request.messages[0].role).toBe("user");
       expect(request.messages[0].content).toContain("You are a benchmarked engineering assistant");
       expect(request.messages[0].content).toContain("Return one JSON object only");
-      expect(request.response_format).toEqual({ type: "json_object" });
+      expect(request.response_format).toEqual({
+        type: "json_schema",
+        json_schema: {
+          name: "cb_capability_output",
+          strict: true,
+          schema: OUTPUT_JSON_SCHEMA,
+        },
+      });
       expect(request.reasoning_format).toBeUndefined();
       expect(request.stream).toBe(false);
       expect(JSON.stringify(request)).not.toContain(apiKey);
@@ -179,6 +186,30 @@ describe("CB1-CB10 local LLM capability benchmark", () => {
     expect(result.results.every((item) => item.status === "PASS")).toBe(true);
     expect(result.results.every((item) => item.tokens.total === 260)).toBe(true);
     expect(JSON.stringify(result)).not.toContain(apiKey);
+  });
+
+  it("classifies Groq strict-JSON validation failures without mislabeling message roles", async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse({
+      error: {
+        type: "failed_generation",
+        code: "json_validate_failed",
+        message: "Failed to generate JSON because the response messages failed validation.",
+      },
+    }, 400));
+
+    const result = await runBenchmark({
+      env: {
+        LLM_PROVIDER: "groq",
+        GROQ_API_KEY: "gsk_test_key_with_more_than_twenty_chars",
+        GROQ_MIN_INTERVAL_MS: "0",
+      },
+      fetchImpl,
+      fixtures: [FIXTURES.find((item) => item.id === "CB1")],
+      runs: 3,
+    });
+
+    expect(result.stop_reason).toContain("_HINT_JSON_VALIDATION");
+    expect(result.stop_reason).not.toContain("_HINT_MESSAGES");
   });
 
   it("redacts Groq API-key patterns if a model unexpectedly echoes one", async () => {

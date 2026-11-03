@@ -6,6 +6,7 @@ import {
   FIXTURES,
   MINIMUM_REPETITIONS,
   OUTPUT_CONTRACT,
+  OUTPUT_JSON_SCHEMA,
   PROMPT_VERSION,
   REQUIRED_DIMENSIONS,
 } from "./fixtures.mjs";
@@ -83,8 +84,12 @@ async function fetchJson(fetchImpl, url, init = {}, code = "OLLAMA_REQUEST_FAILE
         [/model.*(not found|unavailable|unsupported)|unsupported.*model/, "MODEL"],
         [/rate limit|quota/, "RATE_OR_QUOTA"],
       ];
-      const matchedHint = hints.find(([pattern]) => pattern.test(message));
-      if (matchedHint) messageClass = "_HINT_" + matchedHint[1];
+      if (providerCode === "json_validate_failed" || /json.*validat|validat.*json/.test(message)) {
+        messageClass = "_HINT_JSON_VALIDATION";
+      } else {
+        const matchedHint = hints.find(([pattern]) => pattern.test(message));
+        if (matchedHint) messageClass = "_HINT_" + matchedHint[1];
+      }
     } catch {
       bodyShape = "NON_JSON_OR_EMPTY";
     }
@@ -443,7 +448,14 @@ export async function runBenchmark({
             body: JSON.stringify({
               model,
               messages,
-              response_format: { type: "json_object" },
+              response_format: {
+                type: "json_schema",
+                json_schema: {
+                  name: "cb_capability_output",
+                  strict: true,
+                  schema: OUTPUT_JSON_SCHEMA,
+                },
+              },
               temperature: 0,
               max_completion_tokens: MAX_OUTPUT_TOKENS,
               stream: false,

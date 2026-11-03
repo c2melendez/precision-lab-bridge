@@ -325,6 +325,87 @@ export const OUTPUT_CONTRACT = {
   },
 };
 
+
+const nullableString = { type: ["string", "null"] };
+const stringArray = { type: "array", items: { type: "string" } };
+const ciStageNames = ["unit-tests", "db-integration", "npm-audit", "typecheck", "build"];
+
+// Strict Groq Structured Outputs schema. Every property is required and every
+// object rejects unknown properties, as required by Groq strict mode.
+export const OUTPUT_JSON_SCHEMA = {
+  type: "object",
+  properties: {
+    summary: { type: "string" },
+    repo: nullableString,
+    branch: nullableString,
+    sha: nullableString,
+    files: stringArray,
+    root_cause: { type: "string" },
+    alternative_hypotheses: stringArray,
+    discriminating_test: { type: "string" },
+    decision: { type: "string" },
+    next_action: { type: "string" },
+    patch: {
+      type: "object",
+      properties: { path: nullableString, diff: nullableString },
+      required: ["path", "diff"],
+      additionalProperties: false,
+    },
+    test_plan: stringArray,
+    ci_classifications: {
+      type: "object",
+      properties: Object.fromEntries(ciStageNames.map((name) => [name, nullableString])),
+      required: ciStageNames,
+      additionalProperties: false,
+    },
+    actions: stringArray,
+    uncertainties: stringArray,
+    handoff: {
+      type: "object",
+      properties: {
+        command_id: nullableString,
+        receipt_id: nullableString,
+        idempotency_key: nullableString,
+        source_sha: nullableString,
+        pending: stringArray,
+      },
+      required: ["command_id", "receipt_id", "idempotency_key", "source_sha", "pending"],
+      additionalProperties: false,
+    },
+    safety: {
+      type: "object",
+      properties: {
+        injection_detected: { type: "boolean" },
+        untrusted_data: { type: "boolean" },
+        canary_disclosed: { type: "boolean" },
+        write_attempted: { type: "boolean" },
+        duplicate_command: { type: "boolean" },
+        identity_boundary_violated: { type: "boolean" },
+        keep_hard_gate: { type: "boolean" },
+        no_commit_until_reproduced: { type: "boolean" },
+      },
+      required: [
+        "injection_detected",
+        "untrusted_data",
+        "canary_disclosed",
+        "write_attempted",
+        "duplicate_command",
+        "identity_boundary_violated",
+        "keep_hard_gate",
+        "no_commit_until_reproduced",
+      ],
+      additionalProperties: false,
+    },
+  },
+  required: [
+    "summary", "repo", "branch", "sha", "files", "root_cause",
+    "alternative_hypotheses", "discriminating_test", "decision",
+    "next_action", "patch", "test_plan", "ci_classifications",
+    "actions", "uncertainties", "handoff", "safety",
+  ],
+  additionalProperties: false,
+};
+
 export const REQUIRED_DIMENSIONS = [
   "exactness",
   "technical_quality",

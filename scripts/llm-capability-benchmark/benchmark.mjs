@@ -379,10 +379,7 @@ export async function runBenchmark({
           dimension_scores: Object.fromEntries(REQUIRED_DIMENSIONS.map((item) => [item, null])),
           blocking_reason: stopReason.startsWith("CRITICAL:") ?
             "campaign_stopped_after_critical" : "campaign_stopped_after_provider_limit_or_error",
-          http_status: (() => {
-            const match = code.match(/_HTTP_(\\d{3})/);
-            return match ? Number(match[1]) : null;
-          })(),
+          http_status: null,
           command_id: null,
           receipt_id: null,
           actions_run_id: null,
@@ -483,7 +480,10 @@ export async function runBenchmark({
           criteria_missing: fixture.checks.map((item) => item.id),
           dimension_scores: Object.fromEntries(REQUIRED_DIMENSIONS.map((item) => [item, null])),
           blocking_reason: code,
-          http_status: null,
+          http_status: (() => {
+            const match = code.match(/_HTTP_(\\d{3})/);
+            return match ? Number(match[1]) : null;
+          })(),
           command_id: null,
           receipt_id: null,
           actions_run_id: null,

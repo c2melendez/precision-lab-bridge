@@ -227,8 +227,9 @@ describe("CB1-CB10 local LLM capability benchmark", () => {
     });
 
     expect(fetchImpl).toHaveBeenCalledTimes(1);
-    expect(result.stop_reason).toBe("GROQ_CHAT_HTTP_429");
-    expect(result.results[0].blocking_reason).toBe("GROQ_CHAT_HTTP_429");
+    expect(result.stop_reason).toBe("GROQ_CHAT_HTTP_429_CT_APPLICATION_JSON_BODY_ERROR");
+    expect(result.results[0].blocking_reason).toBe(result.stop_reason);
+    expect(result.results[0].http_status).toBe(429);
     expect(result.results.slice(1).every((item) =>
       item.status === "BLOCKED" &&
       item.blocking_reason === "campaign_stopped_after_provider_limit_or_error"

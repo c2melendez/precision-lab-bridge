@@ -1,3 +1,4 @@
+import { pathToFileURL } from "node:url";
 import { readFile, mkdir, writeFile } from "node:fs/promises";
 import { basename, resolve } from "node:path";
 
@@ -173,7 +174,7 @@ async function main() {
   }, null, 2) + "\n");
 }
 
-if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   main().catch((error) => {
     const code = error instanceof Error && /^[A-Z0-9_:-]+$/.test(error.message) ?
       error.message : "LLM_COMPARISON_FAILED";

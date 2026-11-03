@@ -295,7 +295,7 @@ export async function runBenchmark({
   const requestIntervalMs = provider === "groq" ? configuredInterval : 0;
   let lastRequestAt = null;
   const fixtureDigest = createHash("sha256")
-    .update(JSON.stringify(fixtures.map(({ id, context, checks }) => ({ id, context, checks }))))
+    .update(JSON.stringify(fixtures))
     .digest("hex");
   const now = new Date();
   const campaignId = "pl-llm-" + now.toISOString().replace(/[-:.TZ]/g, "").slice(0, 14) +
@@ -392,6 +392,7 @@ export async function runBenchmark({
               model,
               messages,
               response_format: { type: "json_object" },
+              reasoning_format: "hidden",
               temperature: 0,
               max_completion_tokens: MAX_OUTPUT_TOKENS,
               stream: false,

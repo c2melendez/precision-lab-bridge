@@ -28,6 +28,7 @@ afterEach(() => {
 
 describe("Bridge internal Observer client", () => {
   it("uses only the configured HTTPS origin and server-side API key", async () => {
+    const timeoutSpy = vi.spyOn(AbortSignal, "timeout");
     const request = vi.fn(async () => Response.json(validStatus));
     vi.stubGlobal("fetch", request);
     const result = await fetchObserverStatus("lite");
@@ -41,6 +42,7 @@ describe("Bridge internal Observer client", () => {
     expect(String(url)).toBe("https://precision-lab-readonly-api.onrender.com/v1/status?repo=lite");
     expect(new Headers(init?.headers).get("X-API-Key")).toBe("server-only-test-secret");
     expect(init).toMatchObject({ method: "GET", redirect: "manual", cache: "no-store" });
+    expect(timeoutSpy).toHaveBeenCalledWith(30_000);
   });
 
   it("fails closed when the Observer key is missing", async () => {

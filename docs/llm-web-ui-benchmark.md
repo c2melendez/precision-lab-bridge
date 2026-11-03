@@ -124,6 +124,14 @@ Copia este bloque al comienzo de cada prueba. Después añade la tarea y el cont
 
 Do not omit fields. Use the case-specific exact values only where the fixture supports them. Do not invent current repository state.
 
+**Mandatory prompt assembly rule:** for every model and every repetition, open a new chat and submit one single, complete message composed of (1) all instructions in this section, including the entire JSON output contract, followed by (2) exactly one task and its complete fixture from section 5. Never submit only the task/fixture block. The task/fixture block alone does not specify JSON output and may legitimately receive a prose answer; such an execution is invalid for comparison and must be repeated with the complete prompt. Do not send the common block and task in separate messages because a new chat may not retain the intended instructions in a stable way.
+
+Append this exact final instruction after the fixture in every composed prompt:
+
+    FINAL OUTPUT REQUIREMENT: After trimming leading/trailing whitespace, your entire response must be exactly one JSON object beginning with { and ending with }. No introduction, explanation, conclusion, Markdown fence, or text outside the JSON. If uncertain, still return the complete JSON object and place uncertainty in the "uncertainties" array.
+
+If a model returns prose or fenced JSON despite receiving the complete assembled prompt, preserve the response as evidence and score it according to the JSON-format rule. If the complete prompt was not sent, mark the run INVALID_RUN (not FAIL) and repeat with the full prompt.
+
 ## 5. Casos CB1–CB10
 
 Each case below contains the versioned task and fixture context. Use the common instruction + one case. Do not disclose the scoring rubric to the model during the test.

@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { BENCHMARK_VERSION, FIXTURES, MINIMUM_REPETITIONS, OUTPUT_JSON_SCHEMA } from "./fixtures.mjs";
 import {
   findInstalledModel,
+  isRetryableGroqSchemaGenerationError,
   parseModelJson,
   runBenchmark,
   scoreFixture,
@@ -131,7 +132,7 @@ describe("CB1-CB10 local LLM capability benchmark", () => {
     expect(() => validateGroqModel("../untrusted-model")).toThrow("INVALID_GROQ_MODEL");
   });
 
-  it("runs Groq Chat Completions in JSON mode and keeps the API key out of the body and evidence", async () => {
+  it("runs Groq Chat Completions with strict Structured Outputs and keeps the API key out of evidence", async () => {
     const apiKey = "gsk_test_key_with_more_than_twenty_chars";
     const calls = [];
     const fetchImpl = vi.fn(async (url, init = {}) => {
@@ -186,10 +187,20 @@ describe("CB1-CB10 local LLM capability benchmark", () => {
     expect(result.results).toHaveLength(3);
     expect(result.results.every((item) => item.status === "PASS")).toBe(true);
     expect(result.results.every((item) => item.tokens.total === 260)).toBe(true);
+    expect(result.results.every((item) => item.request_attempts === 1)).toBe(true);
     expect(JSON.stringify(result)).not.toContain(apiKey);
   });
 
   it("classifies Groq strict-JSON validation failures without mislabeling message roles", async () => {
+    const failedGeneration = new Error(
+      "GROQ_CHAT_HTTP_400_CT_APPLICATION_JSON_BODY_ERROR_CODE_FAILED_GENERATION_MESSAGE_TYPE_INVALID_REQUEST_ERROR_CODE_JSON_VALIDATE_FAILED_HINT_JSON_VALIDATION"
+    );
+    expect(isRetryableGroqSchemaGenerationError(failedGeneration)).toBe(true);
+    expect(isRetryableGroqSchemaGenerationError("GROQ_CHAT_HTTP_429_CT_APPLICATION_JSON_BODY_ERROR")).toBe(false);
+    expect(isRetryableGroqSchemaGenerationError(
+      "GROQ_CHAT_HTTP_400_CT_APPLICATION_JSON_BODY_ERROR_CODE_INVALID_VALUE_HINT_RESPONSE_FORMAT"
+    )).toBe(false);
+
     const fetchImpl = vi.fn(async () => jsonResponse({
       error: {
         type: "failed_generation",
@@ -211,6 +222,46 @@ describe("CB1-CB10 local LLM capability benchmark", () => {
 
     expect(result.stop_reason).toContain("_HINT_JSON_VALIDATION");
     expect(result.stop_reason).not.toContain("_HINT_MESSAGES");
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(result.results[0].request_attempts).toBe(2);
+  });
+
+  it("retries only one Groq failed-generation JSON validation error and records the attempt count", async () => {
+    let calls = 0;
+    const fetchImpl = vi.fn(async () => {
+      calls += 1;
+      if (calls === 1) {
+        return jsonResponse({
+          error: {
+            type: "failed_generation",
+            code: "json_validate_failed",
+            message: "Failed to generate JSON because the generated content failed validation.",
+          },
+        }, 400);
+      }
+      return jsonResponse({
+        model: "openai/gpt-oss-20b",
+        system_fingerprint: "groq-fingerprint-retry",
+        choices: [{ message: { role: "assistant", content: JSON.stringify(CB3_OUTPUT) } }],
+        usage: { prompt_tokens: 200, completion_tokens: 60, total_tokens: 260 },
+      });
+    });
+
+    const result = await runBenchmark({
+      env: {
+        LLM_PROVIDER: "groq",
+        GROQ_API_KEY: "gsk_test_key_with_more_than_twenty_chars",
+        GROQ_MIN_INTERVAL_MS: "0",
+      },
+      fetchImpl,
+      fixtures: [FIXTURES.find((item) => item.id === "CB3")],
+      runs: 3,
+    });
+
+    expect(fetchImpl).toHaveBeenCalledTimes(4);
+    expect(result.stop_reason).toBeNull();
+    expect(result.results.map((item) => item.request_attempts)).toEqual([2, 1, 1]);
+    expect(result.results.every((item) => item.status === "PASS")).toBe(true);
   });
 
   it("redacts Groq API-key patterns if a model unexpectedly echoes one", async () => {

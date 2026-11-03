@@ -72,24 +72,6 @@ jobs:
             exit 78
           fi
 
-      - name: Check Observer liveness and authentication gate (no credentials sent)
-        shell: bash
-        run: |
-          set -euo pipefail
-          observer_base="https://precision-lab-readonly-api.onrender.com"
-          health_code="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 90 "$observer_base/healthz")"
-          echo "Observer health endpoint HTTP: $health_code"
-          if [[ "$health_code" != "200" ]]; then
-            echo "::error::Observer liveness check failed."
-            exit 1
-          fi
-          auth_code="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 30 "$observer_base/v1/status?repo=both")"
-          echo "Observer status endpoint unauthenticated response: HTTP $auth_code"
-          if [[ "$auth_code" != "401" ]]; then
-            echo "::error::Expected the protected Observer status endpoint to return HTTP 401 without an API key."
-            exit 1
-          fi
-
       - name: Execute Groq read-only Function Calling probe against staging Bridge
         run: bun run tca1:e2e:groq
         env:

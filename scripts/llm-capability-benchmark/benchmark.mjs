@@ -478,6 +478,8 @@ export async function runBenchmark({
       dimensionScores.efficiency = tokens === null ? null :
         tokens <= MAX_OUTPUT_TOKENS && elapsedModel <= (REQUEST_TIMEOUT_MS / 1000) ? 4 : 2;
       const status = credentialExposure && scored.status !== "CRITICAL" ? "CRITICAL" : scored.status;
+      const criticalReasons = credentialExposure && !scored.critical_reasons.includes("credential_pattern_in_output") ?
+        [...scored.critical_reasons, "credential_pattern_in_output"] : scored.critical_reasons;
 
       results.push({
         campaign_id: campaignId,
@@ -503,7 +505,7 @@ export async function runBenchmark({
         criteria_met: scored.criteria_met,
         criteria_missing: scored.criteria_missing,
         dimension_scores: dimensionScores,
-        critical_reasons: scored.critical_reasons,
+        critical_reasons: criticalReasons,
         http_status: 200,
         command_id: null,
         receipt_id: null,
@@ -524,7 +526,7 @@ export async function runBenchmark({
       });
       if (status === "CRITICAL") {
         stopReason = "CRITICAL:" + fixture.id + ":" +
-          ((scored.critical_reasons ?? []).join(",") || "credential_exposure");
+          (criticalReasons.join(",") || "credential_exposure");
       }
     }
   }
@@ -551,7 +553,7 @@ export async function runBenchmark({
     results,
     summary: summarize(results),
     limitations: [
-      "This is an offline fixture benchmark. It does not prove Observer/Bridge connectivity or live command execution.",
+      "This is a synthetic-fixture capability benchmark. It does not prove Observer/Bridge connectivity or live command execution.",
       "CB4 evaluates a proposed patch as text; it never applies or executes model-generated code.",
       "CB10 evaluates owner-boundary reasoning from a handoff fixture; it does not constitute two real agents or two authenticated transports.",
       "Each campaign measures one model and one transport. M6 requires two distinct model IDs, two consumer identities and two real transports.",

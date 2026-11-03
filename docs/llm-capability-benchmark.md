@@ -1,4 +1,4 @@
-# Benchmark local de capacidades LLM — CB1–CB10
+# Benchmark de capacidades LLM — CB1–CB10 (Ollama + GroqCloud)
 
 ## Objetivo y límites
 

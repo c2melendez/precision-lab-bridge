@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   nextGroqToolChoice,
   parseGroqAssistantMessage,
+  toGroqInitialMessages,
   toGroqTools,
 } from "./tca1-groq-adapter.mjs";
 
@@ -30,7 +31,19 @@ describe("Groq Chat Completions adapter", () => {
         },
       },
     }]);
-    expect(converted[0].function).not.toHaveProperty("strict", true);
+    expect(converted[0].function).not.toHaveProperty("strict");
+  });
+
+  it("places GPT-OSS instructions and request in one user message", () => {
+    const messages = toGroqInitialMessages([
+      { role: "system", content: "Never submit or dispatch commands." },
+      { role: "user", content: "Read capabilities and status." },
+    ]);
+
+    expect(messages).toHaveLength(1);
+    expect(messages[0].role).toBe("user");
+    expect(messages[0].content).toContain("Never submit or dispatch commands.");
+    expect(messages[0].content).toContain("Read capabilities and status.");
   });
 
   it("forces required read tools one at a time and disables tools after completion", () => {
@@ -77,7 +90,8 @@ describe("Groq Chat Completions adapter", () => {
     })).toThrow("GROQ_PARALLEL_TOOL_CALLS_NOT_ALLOWED");
   });
 
-  it("rejects malformed tool definitions", () => {
+  it("rejects malformed tool definitions or initial messages", () => {
     expect(() => toGroqTools([{ type: "function", name: "bad" }])).toThrow("INVALID_GROQ_TOOL_DEFINITION");
+    expect(() => toGroqInitialMessages([{ role: "user", content: "Hi" }])).toThrow("INVALID_GROQ_INITIAL_MESSAGES");
   });
 });

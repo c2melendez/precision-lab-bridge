@@ -16,7 +16,7 @@ export type ObserverStatus = {
   warnings?: string[];
 };
 
-const OBSERVER_REQUEST_TIMEOUT_MS = 30_000;
+const OBSERVER_REQUEST_TIMEOUT_MS = 25_000;
 
 export class ObserverError extends Error {
   constructor(public readonly code: string, public readonly httpStatus: number) {

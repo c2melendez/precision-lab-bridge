@@ -125,8 +125,8 @@ export function isRetryableGroqSchemaGenerationError(error) {
   const code = typeof error === "string" ? error :
     error instanceof Error ? error.message : "";
   return code.startsWith("GROQ_CHAT_HTTP_400_") &&
-    code.includes("_CODE_FAILED_GENERATION_") &&
-    code.includes("_CODE_JSON_VALIDATE_FAILED");
+    code.includes("FAILED_GENERATION") &&
+    code.includes("JSON_VALIDATE_FAILED");
 }
 
 export function findInstalledModel(models, requested) {

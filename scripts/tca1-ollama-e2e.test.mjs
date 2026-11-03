@@ -42,6 +42,37 @@ describe("TCA-1 local Ollama harness", () => {
     }] })).toThrow("UNAPPROVED_OR_INVALID_TOOL_IN_READ_ONLY_CATALOGUE");
   });
 
+  it("reports a sanitized upstream error code when a read tool fails", async () => {
+    let modelTurn = 0;
+    let gatewayPost = 0;
+    const fetchImpl = vi.fn(async (input, init = {}) => {
+      const url = String(input);
+      if (url === GATEWAY && init.method === "GET") return jsonResponse(CATALOGUE);
+      if (url === GATEWAY && init.method === "POST") {
+        gatewayPost += 1;
+        if (gatewayPost === 1) return jsonResponse({ ok: true, result: { capabilities: true } });
+        return jsonResponse({ ok: false, error: "OBSERVER_UPSTREAM_ERROR" });
+      }
+      if (url === "http://127.0.0.1:11434/api/chat") {
+        modelTurn += 1;
+        if (modelTurn === 1) return jsonResponse({ message: { role: "assistant", content: "", tool_calls: [{ function: { name: "precision_lab_bridge_capabilities", arguments: {} } }] } });
+        return jsonResponse({ message: { role: "assistant", content: "", tool_calls: [{ function: { name: "precision_lab_bridge_context_status", arguments: { repo: "both" } }] } });
+      }
+      throw new Error("unexpected mocked request");
+    });
+
+    await expect(runOllamaProbe({
+      env: {
+        OLLAMA_MODEL: "qwen3",
+        OLLAMA_BASE_URL: "http://127.0.0.1:11434/",
+        TCA1_FUNCTION_GATEWAY_TOKEN: TOKEN,
+        TCA1_FUNCTION_GATEWAY_URL: GATEWAY,
+      },
+      fetchImpl,
+    })).rejects.toThrow("TCA1_TOOL_CALL_RETURNED_ERROR:OBSERVER_UPSTREAM_ERROR");
+    expect(gatewayPost).toBe(2);
+  });
+
   it("completes both required read-only calls and keeps gateway credentials out of Ollama requests", async () => {
     const calls = [];
     let modelTurn = 0;

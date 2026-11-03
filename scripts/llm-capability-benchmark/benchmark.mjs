@@ -19,6 +19,7 @@ const GROQ_MIN_INTERVAL_MS = 20_000;
 const REQUEST_TIMEOUT_MS = 240_000;
 const MAX_OUTPUT_CHARS = 12_000;
 const MAX_OUTPUT_TOKENS = 1_200;
+const GROQ_MAX_COMPLETION_TOKENS = 4_096;
 
 export function validateOllamaBaseUrl(value) {
   let url;
@@ -457,7 +458,9 @@ export async function runBenchmark({
                 },
               },
               temperature: 0,
-              max_completion_tokens: MAX_OUTPUT_TOKENS,
+              reasoning_effort: "low",
+              include_reasoning: false,
+              max_completion_tokens: GROQ_MAX_COMPLETION_TOKENS,
               stream: false,
             }),
           }, "GROQ_CHAT");

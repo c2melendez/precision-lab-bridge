@@ -96,7 +96,10 @@ describe("CB1-CB10 local LLM capability benchmark", () => {
         expect(request.model).toBe("qwen3");
         expect(request.messages.map((message) => message.role)).toEqual(["system", "user"]);
         expect(request.format).toBe("json");
-        expect(request.stream).toBe(false);
+        expect(request.reasoning_effort).toBe("low");
+      expect(request.include_reasoning).toBe(false);
+      expect(request.max_completion_tokens).toBe(4096);
+      expect(request.stream).toBe(false);
         expect(init.headers.authorization).toBeUndefined();
         return jsonResponse({
           message: { role: "assistant", content: JSON.stringify(CB3_OUTPUT) },

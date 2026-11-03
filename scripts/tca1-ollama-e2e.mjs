@@ -226,7 +226,11 @@ export async function runOllamaProbe({ env = process.env, fetchImpl = fetch } = 
         throw new Error("TCA1_TOOL_OUTPUT_TOO_LARGE");
       }
       if (!isRecord(result) || result.ok !== true || !Object.hasOwn(result, "result")) {
-        throw new Error("TCA1_TOOL_CALL_RETURNED_ERROR");
+        const upstreamCode = isRecord(result) && typeof result.error === "string" &&
+          /^[A-Z][A-Z0-9_]{0,79}$/.test(result.error) ? result.error : null;
+        throw new Error(upstreamCode
+          ? `TCA1_TOOL_CALL_RETURNED_ERROR:${upstreamCode}`
+          : "TCA1_TOOL_CALL_RETURNED_ERROR");
       }
       invoked.push({ name, ok: true });
       messages.push({

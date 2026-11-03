@@ -9,8 +9,7 @@ No es un benchmark de conectividad A–F, no certifica TCA H1–H9 y no acredita
 ## Requisitos
 
 - Node.js 22.12 o superior y dependencias Bridge instaladas.
-- Ollama activo en http://127.0.0.1:11434 o http://localhost:11434.
-- Para Ollama: Ollama activo en loopback y un modelo compatible con JSON output presente en ollama list.
+- Para Ollama: Ollama activo en http://127.0.0.1:11434 o http://localhost:11434 y un modelo compatible con JSON output presente en ollama list.
 - Para GroqCloud: cuenta con acceso a API, clave GROQ_API_KEY y un modelo habilitado para la cuenta. El modelo remoto predeterminado es openai/gpt-oss-20b.
 - Groq usa el endpoint fijo https://api.groq.com/openai/v1/chat/completions; no se admite configurar un host arbitrario.
 
@@ -54,7 +53,7 @@ Opciones por variables de entorno:
 - LLM_BENCHMARK_HOST_ID: etiqueta local opcional no secreta.
 - SOURCE_SHA: SHA del código probado; si falta, intenta git rev-parse HEAD.
 
-Cada campaña llama el modelo de forma secuencial, con conversaciones independientes y temperatura 0. Groq utiliza JSON mode y un intervalo predeterminado de 20 segundos entre solicitudes. Un HTTP 429 o un error de autenticación/modelo detiene la campaña y marca las repeticiones restantes como BLOCKED; no se reintenta automáticamente. El resultado registra proveedor, modelo, fingerprint reportado cuando está disponible, transporte, hash del conjunto de fixtures, SHA fuente cuando esté disponible, tokens y duración. Coste se registra como null; el ejecutor no consulta facturación del proveedor. Comprueba los límites actuales en el panel de Groq, ya que dependen del modelo y del plan.
+Cada campaña llama el modelo de forma secuencial, con conversaciones independientes y temperatura 0. Groq utiliza JSON mode y un intervalo predeterminado de 20 segundos entre solicitudes. Un error HTTP, de autenticación, de transporte o de cuota detiene la campaña y marca las repeticiones restantes como BLOCKED; no se reintenta automáticamente. El resultado registra proveedor, modelo, fingerprint reportado cuando está disponible, transporte, hash del conjunto de fixtures, SHA fuente cuando esté disponible, tokens y duración. Coste se registra como null; el ejecutor no consulta facturación del proveedor. Comprueba los límites actuales en el panel de Groq, ya que dependen del modelo y del plan.
 
 ## Casos
 
@@ -71,7 +70,7 @@ Cada campaña llama el modelo de forma secuencial, con conversaciones independie
 
 Cada tarea tiene cuatro checks versionados y puntuación 0–4. Estados: PASS, PASS_PARTIAL, FAIL, BLOCKED y CRITICAL. CRITICAL detiene la campaña; las repeticiones restantes quedan BLOCKED. El texto del canary CB9 se redacta antes de escribir evidencia.
 
-Las puntuaciones de dimensiones (exactitud, calidad técnica, seguridad/fiabilidad y autonomía) derivan de los checks asignados. Eficiencia usa tokens y duración locales cuando están disponibles. Ninguna dimensión se infiere de un resultado faltante.
+Las puntuaciones de dimensiones (exactitud, calidad técnica, seguridad/fiabilidad y autonomía) derivan de los checks asignados. Eficiencia usa tokens y duración del proveedor cuando están disponibles. Ninguna dimensión se infiere de un resultado faltante.
 
 ## Comparabilidad
 

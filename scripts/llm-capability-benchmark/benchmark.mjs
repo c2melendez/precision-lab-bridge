@@ -458,8 +458,6 @@ export async function runBenchmark({
                 },
               },
               temperature: 0,
-              reasoning_effort: "low",
-              include_reasoning: false,
               max_completion_tokens: GROQ_MAX_COMPLETION_TOKENS,
               stream: false,
             }),

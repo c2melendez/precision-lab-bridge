@@ -74,6 +74,9 @@ async function invokeGatewayTool({ gatewayUrl, gatewayHeaders, call }) {
   if (!args || typeof args !== "object" || Array.isArray(args)) {
     throw new Error("MODEL_FUNCTION_ARGUMENTS_MUST_BE_OBJECT");
   }
+  if (call.name === "precision_lab_bridge_context_status" && args.repo !== "both") {
+    throw new Error("TCA1_CONTEXT_STATUS_MUST_TARGET_BOTH_REPOSITORIES");
+  }
 
   const result = await fetchJson(
     gatewayUrl,
@@ -275,6 +278,7 @@ async function main() {
 
   const completed = [...REQUIRED_TOOLS].every((name) => invoked.some((item) => item.name === name));
   if (!completed) throw new Error("REAL_LLM_PROBE_DID_NOT_CALL_BOTH_REQUIRED_TOOLS");
+  if (!finalText.trim()) throw new Error("REAL_LLM_PROBE_FINAL_SUMMARY_MISSING");
 
   process.stdout.write(`${JSON.stringify({
     verified: true,

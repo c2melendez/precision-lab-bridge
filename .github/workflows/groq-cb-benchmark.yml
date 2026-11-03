@@ -1,0 +1,78 @@
+name: Groq CB1-CB10 live campaign
+
+on:
+  push:
+    branches:
+      - feat/cb1-cb10-groq-provider
+    paths:
+      - .github/workflows/groq-cb-benchmark.yml
+      - scripts/llm-capability-benchmark/**
+      - package.json
+      - bun.lock
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: groq-cb1-cb10-live
+  cancel-in-progress: false
+
+jobs:
+  groq-campaign:
+    name: Groq GPT-OSS 20B — CB1-CB10 (3 repetitions)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout benchmark revision
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - name: Set up Node.js
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
+        with:
+          node-version: "22.12.0"
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
+        with:
+          bun-version-file: .bun-version
+
+      - name: Install locked dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Run Groq adapter and comparator unit tests
+        run: bun run llm:benchmark:test
+
+      - name: Verify Groq credential is configured (without printing it)
+        shell: bash
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: |
+          if [[ -z "$GROQ_API_KEY" ]]; then
+            echo "::error::GROQ_API_KEY repository secret is not configured."
+            exit 78
+          fi
+          echo "GROQ_API_KEY is configured; its value will not be displayed."
+
+      - name: Run isolated live Groq CB1-CB10 campaign
+        run: bun run llm:benchmark
+        env:
+          LLM_PROVIDER: groq
+          GROQ_MODEL: openai/gpt-oss-20b
+          GROQ_MIN_INTERVAL_MS: "30000"
+          LLM_BENCHMARK_RUNS: "3"
+          LLM_BENCHMARK_OUTPUT_DIR: artifacts/llm-benchmark/groq-gpt-oss-20b
+          # The benchmark code under test is still this exact revision; only this
+          # workflow wrapper is added in the triggering commit. This preserves
+          # pairing with the Qwen3 run already started from the same code SHA.
+          SOURCE_SHA: 2a38fb95c06d85cf4c3d65f5d1586ad5e5bb5b80
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+
+      - name: Upload Groq campaign evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: groq-cb1-cb10-${{ github.run_id }}
+          path: artifacts/llm-benchmark/groq-gpt-oss-20b/
+          if-no-files-found: ignore
+          retention-days: 14

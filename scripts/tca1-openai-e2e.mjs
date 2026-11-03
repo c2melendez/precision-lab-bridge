@@ -95,7 +95,11 @@ async function invokeGatewayTool({ gatewayUrl, gatewayHeaders, call }) {
     throw new Error("TCA1_TOOL_OUTPUT_TOO_LARGE");
   }
   if (result.ok !== true) {
-    throw new Error("TCA1_TOOL_CALL_RETURNED_ERROR");
+    const safeCode = typeof result.error === "string" &&
+      /^[A-Z0-9_:-]{1,128}$/.test(result.error)
+      ? result.error
+      : "UNKNOWN";
+    throw new Error(`TCA1_TOOL_CALL_RETURNED_ERROR:${call.name}:${safeCode}`);
   }
   return serialized;
 }

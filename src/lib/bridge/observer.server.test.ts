@@ -42,7 +42,7 @@ describe("Bridge internal Observer client", () => {
     expect(String(url)).toBe("https://precision-lab-readonly-api.onrender.com/v1/status?repo=lite");
     expect(new Headers(init?.headers).get("X-API-Key")).toBe("server-only-test-secret");
     expect(init).toMatchObject({ method: "GET", redirect: "manual", cache: "no-store" });
-    expect(timeoutSpy).toHaveBeenCalledWith(30_000);
+    expect(timeoutSpy).toHaveBeenCalledWith(25_000);
   });
 
   it("fails closed when the Observer key is missing", async () => {

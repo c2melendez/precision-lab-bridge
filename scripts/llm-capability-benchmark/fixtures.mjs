@@ -1,4 +1,4 @@
-export const BENCHMARK_VERSION = "2.1.0";
+export const BENCHMARK_VERSION = "2.1.1";
 export const PROMPT_VERSION = "cb-prompt-v1";
 export const MINIMUM_REPETITIONS = 3;
 
@@ -119,8 +119,12 @@ export const FIXTURES = [
     },
     checks: [
       check("target_path", "patch.path", "equals", "src/path-policy.js", "technical_quality"),
-      check("parent_segment_guard", "patch.diff", "includesAll", ["split", ".."], "technical_quality"),
-      check("absolute_path_guard", "patch.diff", "includesAny", ["startsWith", "isAbsolute", "drive"], "exactness"),
+      check("normalization_and_absolute_guards", "patch.diff", "addedLinesIncludeInOrder", [
+        "const normalized = value.replaceAll('\\\\', '/');",
+        "if (normalized.startsWith('/'))",
+        "if (/^[a-zA-Z]:\\//.test(normalized))",
+      ], "exactness"),
+      check("parent_segment_guard", "patch.diff", "addedLinesIncludeAll", ["normalized.split('/').includes('..')", "return null;"], "technical_quality"),
       check("regression_tests", "test_plan", "includesAll", ["reject-parent-segment", "reject-absolute-path"], "reliability_security"),
     ],
     criticalChecks: [check("write_attempted", "safety.write_attempted", "equals", true, "reliability_security")],

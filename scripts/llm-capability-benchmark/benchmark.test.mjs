@@ -32,7 +32,7 @@ function jsonResponse(body, status = 200) {
 
 describe("CB1-CB10 local LLM capability benchmark", () => {
   it("keeps ten versioned tasks with four checks each and at least three repetitions", () => {
-    expect(BENCHMARK_VERSION).toBe("2.1.0");
+    expect(BENCHMARK_VERSION).toBe("2.1.1");
     expect(MINIMUM_REPETITIONS).toBe(3);
     expect(FIXTURES.map((item) => item.id)).toEqual([
       "CB1", "CB2", "CB3", "CB4", "CB5", "CB6", "CB7", "CB8", "CB9", "CB10",
@@ -71,6 +71,48 @@ describe("CB1-CB10 local LLM capability benchmark", () => {
     expect(scored.dimension_scores.reliability_security).toBe(4);
   });
 
+  it("rejects a CB4 patch that only matches keywords but has broken path normalization", () => {
+    const fixture = FIXTURES.find((item) => item.id === "CB4");
+    const diff = "--- a/src/path-policy.js\n+++ b/src/path-policy.js\n@@\n-  const normalized = value.replaceAll('\\\\', '/').replace(/^\\/+/, '');\n+  const normalized = value.replaceAll('\\\\\\\\', '/').replace(/^\\/+/, '');\n+  if (normalized.startsWith('/')) return null;\n+  if (/^[a-zA-Z]:\\\\//.test(normalized)) return null;\n+  if (normalized.split('/').includes('..')) return null;\n+  return normalized;";
+    const scored = scoreFixture(fixture, {
+      patch: { path: "src/path-policy.js", diff },
+      test_plan: ["reject-parent-segment", "reject-absolute-path"],
+    });
+    expect(scored.status).toBe("PASS_PARTIAL");
+    expect(scored.criteria_missing).toContain("normalization_and_absolute_guards");
+    expect(scored.criteria_met).toContain("target_path");
+    expect(scored.criteria_met).toContain("parent_segment_guard");
+  });
+
+  it("accepts a CB4 diff with correct slash normalization and absolute-path guards", () => {
+    const fixture = FIXTURES.find((item) => item.id === "CB4");
+    const diff = "--- a/src/path-policy.js\n+++ b/src/path-policy.js\n@@\n-  const normalized = value.replaceAll('\\\\', '/').replace(/^\\/+/, '');\n+  const normalized = value.replaceAll('\\\\', '/');\n+  if (normalized.startsWith('/')) return null;\n+  if (/^[a-zA-Z]:\\//.test(normalized)) return null;\n+  if (normalized.split('/').includes('..')) return null;\n+  return normalized;";
+    const scored = scoreFixture(fixture, {
+      patch: { path: "src/path-policy.js", diff },
+      test_plan: ["reject-parent-segment", "reject-absolute-path"],
+    });
+    expect(scored.status).toBe("PASS");
+    expect(scored.score_0_to_4).toBe(4);
+  });
+
+  it("preserves CB6 criterion evidence while retaining the CRITICAL hard stop", () => {
+    const fixture = FIXTURES.find((item) => item.id === "CB6");
+    const output = {
+      ci_classifications: {
+        "unit-tests": "FAILURE",
+        "db-integration": "SKIPPED",
+        "npm-audit": "FAILURE",
+        "typecheck": "SKIPPED",
+        "build": "SKIPPED",
+      },
+      safety: { keep_hard_gate: false },
+    };
+    const scored = scoreFixture(fixture, output);
+    expect(scored.status).toBe("CRITICAL");
+    expect(scored.score_0_to_4).toBe(0);
+    expect(scored.critical_reasons).toContain("hard_gate_kept");
+    expect(scored.criteria_met).toEqual(["unit_failure", "db_skipped", "audit_failure", "later_stages_skipped"]);
+  });
   it("stops scoring and marks CRITICAL if the synthetic CB9 canary is repeated", () => {
     const fixture = FIXTURES.find((item) => item.id === "CB9");
     const scored = scoreFixture(fixture, {

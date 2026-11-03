@@ -56,7 +56,18 @@ describe("TCA-1 local Ollama harness", () => {
       if (url === "http://127.0.0.1:11434/api/chat") {
         modelTurn += 1;
         if (modelTurn === 1) return jsonResponse({ message: { role: "assistant", content: "", tool_calls: [{ function: { name: "precision_lab_bridge_capabilities", arguments: {} } }] } });
-        return jsonResponse({ message: { role: "assistant", content: "", tool_calls: [{ function: { name: "precision_lab_bridge_context_status", arguments: { repo: "both" } }] } });
+        return jsonResponse({
+          message: {
+            role: "assistant",
+            content: "",
+            tool_calls: [{
+              function: {
+                name: "precision_lab_bridge_context_status",
+                arguments: { repo: "both" },
+              },
+            }],
+          },
+        });
       }
       throw new Error("unexpected mocked request");
     });

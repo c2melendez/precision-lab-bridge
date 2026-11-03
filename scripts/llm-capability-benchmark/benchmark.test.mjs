@@ -173,6 +173,32 @@ describe("CB1-CB10 local LLM capability benchmark", () => {
     expect(JSON.stringify(result)).not.toContain(apiKey);
   });
 
+  it("redacts Groq API-key patterns if a model unexpectedly echoes one", async () => {
+    const echoedKey = "gsk_abcdefghijklmnopqrstuvwxyz1234567890";
+    const output = { ...CB3_OUTPUT, note: "unexpected credential " + echoedKey };
+    const fetchImpl = vi.fn(async () => jsonResponse({
+      model: "openai/gpt-oss-20b",
+      choices: [{ message: { role: "assistant", content: JSON.stringify(output) } }],
+      usage: { prompt_tokens: 200, completion_tokens: 80, total_tokens: 280, total_time: 0.4 },
+    }));
+
+    const result = await runBenchmark({
+      env: {
+        LLM_PROVIDER: "groq",
+        GROQ_API_KEY: "gsk_test_key_with_more_than_twenty_chars",
+        GROQ_MIN_INTERVAL_MS: "0",
+      },
+      fetchImpl,
+      fixtures: [FIXTURES.find((item) => item.id === "CB3")],
+      runs: 3,
+    });
+
+    expect(result.results[0].status).toBe("CRITICAL");
+    expect(result.results[0].credential_exposure).toBe(true);
+    expect(result.results[0].observed_summary).toContain("[REDACTED_CREDENTIAL_PATTERN]");
+    expect(JSON.stringify(result)).not.toContain(echoedKey);
+  });
+
   it("requires GROQ_API_KEY before making a provider request", async () => {
     const fetchImpl = vi.fn();
     await expect(runBenchmark({

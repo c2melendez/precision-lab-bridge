@@ -3,6 +3,7 @@
 import {
   nextGroqToolChoice,
   parseGroqAssistantMessage,
+  toGroqInitialMessages,
   toGroqTools,
 } from "./tca1-groq-adapter.mjs";
 
@@ -152,7 +153,7 @@ async function main() {
     content: "Call precision_lab_bridge_capabilities and precision_lab_bridge_context_status with repo='both'. Then summarize the authenticated read-only result. Do not infer or invent repository status.",
   }];
 
-  const groqMessages = [...input];
+  const groqMessages = provider === "groq" ? toGroqInitialMessages(input) : [...input];
   const groqTools = provider === "groq" ? toGroqTools(tools) : null;
   const invoked = [];
   let finalText = "";
@@ -221,8 +222,9 @@ async function main() {
             tools: groqTools,
             tool_choice: nextGroqToolChoice([...REQUIRED_TOOLS], invoked.map((item) => item.name)),
             parallel_tool_calls: false,
-            max_completion_tokens: 1200,
-            temperature: 0,
+            max_completion_tokens: 1600,
+            reasoning_format: "hidden",
+            temperature: 0.6,
             stream: false,
           }),
         },

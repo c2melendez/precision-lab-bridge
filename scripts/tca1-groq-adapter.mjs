@@ -27,6 +27,26 @@ export function toGroqTools(catalogueTools) {
   });
 }
 
+export function toGroqInitialMessages(input) {
+  if (!Array.isArray(input) || input.length < 2) {
+    throw new Error("INVALID_GROQ_INITIAL_MESSAGES");
+  }
+  const systemInstruction = input.find((item) => item?.role === "system")?.content;
+  const userRequest = input.find((item) => item?.role === "user")?.content;
+  if (typeof systemInstruction !== "string" || typeof userRequest !== "string") {
+    throw new Error("INVALID_GROQ_INITIAL_MESSAGES");
+  }
+  return [{
+    role: "user",
+    content: [
+      "Instructions:",
+      systemInstruction,
+      "Request:",
+      userRequest,
+    ].join("\n\n"),
+  }];
+}
+
 export function nextGroqToolChoice(requiredTools, invokedTools) {
   const invoked = new Set(invokedTools);
   const next = requiredTools.find((name) => !invoked.has(name));

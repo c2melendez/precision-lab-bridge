@@ -1,7 +1,14 @@
 name: Groq CB1-CB10 live campaign
 
-# Temporarily manual-only while the Groq retry handling is updated.
 on:
+  push:
+    branches:
+      - feat/cb1-cb10-groq-provider
+    paths:
+      - .github/workflows/groq-cb-benchmark.yml
+      - scripts/llm-capability-benchmark/**
+      - package.json
+      - bun.lock
   workflow_dispatch:
 
 permissions:

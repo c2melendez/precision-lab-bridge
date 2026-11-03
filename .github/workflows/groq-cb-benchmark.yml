@@ -9,6 +9,9 @@ on:
       - scripts/llm-capability-benchmark/**
       - package.json
       - bun.lock
+      - scripts/llm-capability-benchmark/**
+      - package.json
+      - bun.lock
   workflow_dispatch:
 
 permissions:

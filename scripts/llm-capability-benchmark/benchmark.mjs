@@ -45,24 +45,7 @@ async function fetchJson(fetchImpl, url, init = {}, code = "OLLAMA_REQUEST_FAILE
   } catch {
     throw new Error(code + "_NETWORK_OR_REDIRECT");
   }
-  if (!response.ok) {
-    let errorType = "";
-    let errorParam = "";
-    try {
-      const errorBody = await response.json();
-      const type = errorBody?.error?.type;
-      const param = errorBody?.error?.param;
-      if (typeof type === "string" && /^[A-Za-z0-9_.-]{1,64}$/.test(type)) {
-        errorType = "_" + type.toUpperCase().replace(/[^A-Z0-9]+/g, "_");
-      }
-      if (typeof param === "string" && /^[A-Za-z0-9_.\[\]-]{1,96}$/.test(param)) {
-        errorParam = "_PARAM_" + param.toUpperCase().replace(/[^A-Z0-9]+/g, "_");
-      }
-    } catch {
-      // Keep provider error handling deterministic when the body is not JSON.
-    }
-    throw new Error(code + "_HTTP_" + response.status + errorType + errorParam);
-  }
+  if (!response.ok) throw new Error(code + "_HTTP_" + response.status);
   try {
     return await response.json();
   } catch {
@@ -409,6 +392,7 @@ export async function runBenchmark({
               model,
               messages,
               response_format: { type: "json_object" },
+              reasoning_format: "hidden",
               temperature: 0,
               max_completion_tokens: MAX_OUTPUT_TOKENS,
               stream: false,

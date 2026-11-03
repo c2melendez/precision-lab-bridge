@@ -233,6 +233,33 @@ describe("CB1-CB10 local LLM capability benchmark", () => {
     )).toBe(true);
   });
 
+  it("fingerprints every fixture field including task instructions and critical checks", async () => {
+    const fixture = FIXTURES.find((item) => item.id === "CB3");
+    const fetchImpl = vi.fn(async (url) => {
+      if (String(url) === "http://127.0.0.1:11434/api/tags") {
+        return jsonResponse({ models: [{ name: "qwen3:latest", digest: "sha256:test" }] });
+      }
+      if (String(url) === "http://127.0.0.1:11434/api/chat") {
+        return jsonResponse({
+          message: { role: "assistant", content: JSON.stringify(CB3_OUTPUT) },
+          eval_count: 60,
+          prompt_eval_count: 200,
+          total_duration: 1_000_000_000,
+        });
+      }
+      throw new Error("unexpected request");
+    });
+    const env = { LLM_PROVIDER: "ollama", OLLAMA_MODEL: "qwen3:latest" };
+    const original = await runBenchmark({ env, fetchImpl, fixtures: [fixture], runs: 3 });
+    const modified = await runBenchmark({
+      env,
+      fetchImpl,
+      fixtures: [{ ...fixture, task: fixture.task + " Additional versioned instruction." }],
+      runs: 3,
+    });
+    expect(original.fixture_sha256).not.toBe(modified.fixture_sha256);
+  });
+
   it("rejects fewer than three repetitions before making a network request", async () => {
     const fetchImpl = vi.fn();
     await expect(runBenchmark({

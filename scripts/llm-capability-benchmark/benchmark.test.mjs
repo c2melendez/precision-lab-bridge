@@ -23,6 +23,8 @@ function jsonResponse(body, status = 200) {
   return {
     ok: status >= 200 && status < 300,
     status,
+    headers: new Headers({ "content-type": "application/json" }),
+    text: async () => JSON.stringify(body),
     json: async () => body,
   };
 }
@@ -140,7 +142,7 @@ describe("CB1-CB10 local LLM capability benchmark", () => {
       const request = JSON.parse(init.body);
       expect(request.model).toBe("openai/gpt-oss-20b");
       expect(request.response_format).toEqual({ type: "json_object" });
-      expect(request.reasoning_format).toBe("hidden");
+      expect(request.reasoning_format).toBeUndefined();
       expect(request.stream).toBe(false);
       expect(JSON.stringify(request)).not.toContain(apiKey);
       return jsonResponse({
@@ -231,6 +233,39 @@ describe("CB1-CB10 local LLM capability benchmark", () => {
       item.status === "BLOCKED" &&
       item.blocking_reason === "campaign_stopped_after_provider_limit_or_error"
     )).toBe(true);
+  });
+
+  it("classifies Groq 400 responses safely without retaining their message or credentials", async () => {
+    const apiKey = "gsk_test_key_with_more_than_twenty_chars";
+    const providerMessage = "Unsupported parameter include_reasoning; bearer " + apiKey;
+    const fetchImpl = vi.fn(async () => jsonResponse({
+      error: {
+        type: "invalid_request_error",
+        param: "include_reasoning",
+        code: "invalid_value",
+        message: providerMessage,
+      },
+    }, 400));
+
+    const result = await runBenchmark({
+      env: {
+        LLM_PROVIDER: "groq",
+        GROQ_API_KEY: apiKey,
+        GROQ_MIN_INTERVAL_MS: "0",
+      },
+      fetchImpl,
+      fixtures: [FIXTURES.find((item) => item.id === "CB4")],
+      runs: 3,
+    });
+
+    expect(result.stop_reason).toBe(
+      "GROQ_CHAT_HTTP_400_CT_APPLICATION_JSON_BODY_ERROR_CODE_MESSAGE_PARAM_TYPE_INVALID_REQUEST_ERROR_PARAM_INCLUDE_REASONING_CODE_INVALID_VALUE_HINT_REASONING"
+    );
+    expect(result.results[0].http_status).toBe(400);
+    expect(result.results[0].blocking_reason).toBe(result.stop_reason);
+    expect(JSON.stringify(result)).not.toContain(apiKey);
+    expect(JSON.stringify(result)).not.toContain(providerMessage);
+    expect(result.results.slice(1).every((item) => item.status === "BLOCKED")).toBe(true);
   });
 
   it("fingerprints every fixture field including task instructions and critical checks", async () => {

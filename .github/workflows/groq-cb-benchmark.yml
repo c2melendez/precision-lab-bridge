@@ -68,7 +68,7 @@ jobs:
           # The benchmark code under test is still this exact revision; only this
           # workflow wrapper is added in the triggering commit. This preserves
           # pairing with the Qwen3 run already started from the same code SHA.
-          SOURCE_SHA: 2a38fb95c06d85cf4c3d65f5d1586ad5e5bb5b80
+          SOURCE_SHA: ${{ github.sha }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
 
       - name: Upload Groq campaign evidence

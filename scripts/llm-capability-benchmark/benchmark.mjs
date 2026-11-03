@@ -45,7 +45,54 @@ async function fetchJson(fetchImpl, url, init = {}, code = "OLLAMA_REQUEST_FAILE
   } catch {
     throw new Error(code + "_NETWORK_OR_REDIRECT");
   }
-  if (!response.ok) throw new Error(code + "_HTTP_" + response.status);
+  if (!response.ok) {
+    let errorType = "";
+    let errorParam = "";
+    let errorCode = "";
+    let bodyShape = "";
+    let messageClass = "";
+    const contentType = response.headers?.get?.("content-type") || "";
+    try {
+      const rawBody = await response.text();
+      const errorBody = JSON.parse(rawBody);
+      const payload = errorBody?.error;
+      const type = payload?.type;
+      const param = payload?.param;
+      const providerCode = payload?.code;
+      const topKeys = Object.keys(errorBody).filter((key) => /^[A-Za-z0-9_]{1,48}$/.test(key));
+      const errorKeys = payload && typeof payload === "object" ?
+        Object.keys(payload).filter((key) => /^[A-Za-z0-9_]{1,48}$/.test(key)) : [];
+      bodyShape = [...topKeys.sort(), ...errorKeys.sort()].join("_").toUpperCase() || "JSON_EMPTY";
+      if (typeof type === "string" && /^[A-Za-z0-9_.-]{1,64}$/.test(type)) {
+        errorType = "_" + type.toUpperCase().replace(/[^A-Z0-9]+/g, "_");
+      }
+      if (typeof param === "string" && /^[A-Za-z0-9_.\[\]-]{1,96}$/.test(param)) {
+        errorParam = "_PARAM_" + param.toUpperCase().replace(/[^A-Z0-9]+/g, "_");
+      }
+      if (typeof providerCode === "string" && /^[A-Za-z0-9_.-]{1,64}$/.test(providerCode)) {
+        errorCode = "_CODE_" + providerCode.toUpperCase().replace(/[^A-Z0-9]+/g, "_");
+      }
+      const message = typeof payload?.message === "string" ? payload.message.toLowerCase() : "";
+      const hints = [
+        [/reasoning|include_reasoning/, "REASONING"],
+        [/response_format|json.?mode|structured output/, "RESPONSE_FORMAT"],
+        [/temperature/, "TEMPERATURE"],
+        [/max_completion_tokens|max_tokens|token limit/, "TOKEN_LIMIT"],
+        [/context length|context window|too many tokens/, "CONTEXT_LIMIT"],
+        [/messages|role|prompt/, "MESSAGES"],
+        [/model.*(not found|unavailable|unsupported)|unsupported.*model/, "MODEL"],
+        [/rate limit|quota/, "RATE_OR_QUOTA"],
+      ];
+      const matchedHint = hints.find(([pattern]) => pattern.test(message));
+      if (matchedHint) messageClass = "_HINT_" + matchedHint[1];
+    } catch {
+      bodyShape = "NON_JSON_OR_EMPTY";
+    }
+    const contentTypeClass = contentType.toLowerCase().split(";")[0]
+      .replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").toUpperCase() || "UNKNOWN";
+    throw new Error(code + "_HTTP_" + response.status + "_CT_" + contentTypeClass +
+      "_BODY_" + bodyShape + errorType + errorParam + errorCode + messageClass);
+  }
   try {
     return await response.json();
   } catch {
@@ -332,7 +379,10 @@ export async function runBenchmark({
           dimension_scores: Object.fromEntries(REQUIRED_DIMENSIONS.map((item) => [item, null])),
           blocking_reason: stopReason.startsWith("CRITICAL:") ?
             "campaign_stopped_after_critical" : "campaign_stopped_after_provider_limit_or_error",
-          http_status: null,
+          http_status: (() => {
+            const match = code.match(/_HTTP_(\\d{3})/);
+            return match ? Number(match[1]) : null;
+          })(),
           command_id: null,
           receipt_id: null,
           actions_run_id: null,
@@ -392,7 +442,6 @@ export async function runBenchmark({
               model,
               messages,
               response_format: { type: "json_object" },
-              reasoning_format: "hidden",
               temperature: 0,
               max_completion_tokens: MAX_OUTPUT_TOKENS,
               stream: false,

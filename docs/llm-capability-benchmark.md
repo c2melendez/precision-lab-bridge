@@ -2,7 +2,7 @@
 
 ## Objetivo y límites
 
-Este ejecutor implementa la pista de competencia técnica CB1–CB10 de la batería v2.2.2. Admite Ollama local por HTTP en loopback y GroqCloud mediante Chat Completions compatible con OpenAI. Groq requiere una clave API propia; no requiere créditos de OpenAI, claves Bridge, claves GitHub, acceso a Observer ni acceso a Supabase.
+Este ejecutor implementa la pista de competencia técnica CB1–CB10 de la batería versionada en el repositorio (benchmark 2.1.0). Admite Ollama local por HTTP en loopback y GroqCloud mediante Chat Completions compatible con OpenAI. Groq requiere una clave API propia; no requiere créditos de OpenAI, claves Bridge, claves GitHub, acceso a Observer ni acceso a Supabase.
 
 No es un benchmark de conectividad A–F, no certifica TCA H1–H9 y no acredita por sí solo M6. CB4 evalúa un diff como texto y nunca aplica ni ejecuta código producido por el modelo. CB10 evalúa razonamiento sobre límites de propietario mediante un handoff sintético; no sustituye la prueba de dos agentes/identidades/transportes reales.
 
@@ -53,7 +53,34 @@ Opciones por variables de entorno:
 - LLM_BENCHMARK_HOST_ID: etiqueta local opcional no secreta.
 - SOURCE_SHA: SHA del código probado; si falta, intenta git rev-parse HEAD.
 
-Cada campaña llama el modelo de forma secuencial, con conversaciones independientes y temperatura 0. Groq utiliza JSON mode y un intervalo predeterminado de 20 segundos entre solicitudes. Un error HTTP, de autenticación, de transporte o de cuota detiene la campaña y marca las repeticiones restantes como BLOCKED; no se reintenta automáticamente. El resultado registra proveedor, modelo, fingerprint reportado cuando está disponible, transporte, hash del conjunto de fixtures, SHA fuente cuando esté disponible, tokens y duración. Coste se registra como null; el ejecutor no consulta facturación del proveedor. Comprueba los límites actuales en el panel de Groq, ya que dependen del modelo y del plan.
+### Comparación reproducible: Qwen3 local vs Groq
+
+Ejecuta las dos campañas desde el mismo worktree, commit y sesión, sin modificar código ni fixtures entre ellas. Así se conservan iguales el SHA fuente, benchmark, prompt y fixtures.
+
+Primero Ollama:
+
+    $env:LLM_PROVIDER = "ollama"
+    $env:OLLAMA_MODEL = "qwen3:latest"
+    $env:LLM_BENCHMARK_RUNS = "3"
+    $env:LLM_BENCHMARK_OUTPUT_DIR = "artifacts/llm-benchmark/qwen3-local"
+    bun run llm:benchmark
+
+Después Groq, desde el mismo checkout:
+
+    $env:LLM_PROVIDER = "groq"
+    $env:GROQ_MODEL = "openai/gpt-oss-20b"
+    $env:LLM_BENCHMARK_OUTPUT_DIR = "artifacts/llm-benchmark/groq-gpt-oss-20b"
+    bun run llm:benchmark
+
+Carga GROQ_API_KEY mediante el bloque seguro de PowerShell de arriba. La documentación de límites de Groq lista openai/gpt-oss-20b; los límites exactos pueden variar por organización y deben confirmarse en la página Limits antes de ejecutar. El cliente aplica una pausa predeterminada de 20 segundos y no reintenta automáticamente errores HTTP. <https://console.groq.com/docs/rate-limits>
+
+Genera el informe comparativo:
+
+    bun run llm:benchmark:compare -- artifacts/llm-benchmark/qwen3-local/summary.json artifacts/llm-benchmark/groq-gpt-oss-20b/summary.json
+
+El comparador escribe comparison.json y comparison.md. Rechaza campañas incompletas o diferencias en benchmark, prompt, digest completo de fixtures, SHA de código, cantidad de repeticiones o conjunto de casos.
+
+Cada campaña llama el modelo de forma secuencial, con conversaciones independientes y temperatura 0. El digest SHA-256 cubre el objeto completo de cada fixture, incluidas instrucciones, contexto, checks y criterios críticos; se versiona el benchmark cuando cambia el contrato de comparabilidad. Groq utiliza JSON mode y un intervalo predeterminado de 20 segundos entre solicitudes. Un error HTTP, de autenticación, de transporte o de cuota detiene la campaña y marca las repeticiones restantes como BLOCKED; no se reintenta automáticamente. El resultado registra proveedor, modelo, fingerprint reportado cuando está disponible, transporte, hash del conjunto de fixtures, SHA fuente cuando esté disponible, tokens y duración. Coste se registra como null; el ejecutor no consulta facturación del proveedor. Comprueba los límites actuales en el panel de Groq, ya que dependen del modelo y del plan.
 
 ## Casos
 

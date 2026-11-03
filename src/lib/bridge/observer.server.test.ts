@@ -82,6 +82,24 @@ describe("Bridge internal Observer client", () => {
     });
   });
 
+  it("maps transport timeouts to a safe timeout diagnostic", async () => {
+    const timeoutError = new Error("private timeout detail");
+    timeoutError.name = "TimeoutError";
+    vi.stubGlobal("fetch", vi.fn(async () => { throw timeoutError; }));
+    await expect(fetchObserverStatus("lite")).rejects.toMatchObject({
+      code: "OBSERVER_TIMEOUT",
+      httpStatus: 503,
+    });
+  });
+
+  it("maps network failures to a safe transport diagnostic", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("private network detail"); }));
+    await expect(fetchObserverStatus("lite")).rejects.toMatchObject({
+      code: "OBSERVER_NETWORK_ERROR",
+      httpStatus: 503,
+    });
+  });
+
   it("maps missing upstream GitHub read credentials to a safe diagnostic code", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => Response.json({
       error: "upstream_error",

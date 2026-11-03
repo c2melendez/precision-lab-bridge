@@ -140,7 +140,8 @@ describe("CB1-CB10 local LLM capability benchmark", () => {
       const request = JSON.parse(init.body);
       expect(request.model).toBe("openai/gpt-oss-20b");
       expect(request.response_format).toEqual({ type: "json_object" });
-      expect(request.reasoning_format).toBe("hidden");
+      expect(request.include_reasoning).toBe(false);
+      expect(request.reasoning_format).toBeUndefined();
       expect(request.stream).toBe(false);
       expect(JSON.stringify(request)).not.toContain(apiKey);
       return jsonResponse({
@@ -231,6 +232,31 @@ describe("CB1-CB10 local LLM capability benchmark", () => {
       item.status === "BLOCKED" &&
       item.blocking_reason === "campaign_stopped_after_provider_limit_or_error"
     )).toBe(true);
+  });
+
+  it("records a safe Groq provider error type without exposing the provider message", async () => {
+    const apiKey = "gsk_test_key_with_more_than_twenty_chars";
+    const providerMessage = "Unsupported parameter reasoning_format; bearer " + apiKey;
+    const fetchImpl = vi.fn(async () => jsonResponse({
+      error: { type: "invalid_request_error", message: providerMessage },
+    }, 400));
+
+    const result = await runBenchmark({
+      env: {
+        LLM_PROVIDER: "groq",
+        GROQ_API_KEY: apiKey,
+        GROQ_MIN_INTERVAL_MS: "0",
+      },
+      fetchImpl,
+      fixtures: [FIXTURES.find((item) => item.id === "CB4")],
+      runs: 3,
+    });
+
+    expect(result.stop_reason).toBe("GROQ_CHAT_HTTP_400_INVALID_REQUEST_ERROR");
+    expect(result.results[0].blocking_reason).toBe("GROQ_CHAT_HTTP_400_INVALID_REQUEST_ERROR");
+    expect(JSON.stringify(result)).not.toContain(apiKey);
+    expect(JSON.stringify(result)).not.toContain(providerMessage);
+    expect(result.results.slice(1).every((item) => item.status === "BLOCKED")).toBe(true);
   });
 
   it("fingerprints every fixture field including task instructions and critical checks", async () => {

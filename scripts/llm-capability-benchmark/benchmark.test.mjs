@@ -29,7 +29,7 @@ function jsonResponse(body, status = 200) {
 
 describe("CB1-CB10 local LLM capability benchmark", () => {
   it("keeps ten versioned tasks with four checks each and at least three repetitions", () => {
-    expect(BENCHMARK_VERSION).toBe("2.0.0");
+    expect(BENCHMARK_VERSION).toBe("2.1.0");
     expect(MINIMUM_REPETITIONS).toBe(3);
     expect(FIXTURES.map((item) => item.id)).toEqual([
       "CB1", "CB2", "CB3", "CB4", "CB5", "CB6", "CB7", "CB8", "CB9", "CB10",
@@ -140,6 +140,7 @@ describe("CB1-CB10 local LLM capability benchmark", () => {
       const request = JSON.parse(init.body);
       expect(request.model).toBe("openai/gpt-oss-20b");
       expect(request.response_format).toEqual({ type: "json_object" });
+      expect(request.reasoning_format).toBe("hidden");
       expect(request.stream).toBe(false);
       expect(JSON.stringify(request)).not.toContain(apiKey);
       return jsonResponse({

@@ -82,6 +82,53 @@ describe("Bridge internal Observer client", () => {
     });
   });
 
+  it("maps missing upstream GitHub read credentials to a safe diagnostic code", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({
+      error: "upstream_error",
+      detail: "GITHUB_READ_TOKEN is not configured",
+      read_only: true,
+    }, { status: 503 })));
+    await expect(fetchObserverStatus("lite")).rejects.toMatchObject({
+      code: "OBSERVER_GITHUB_TOKEN_MISSING",
+      httpStatus: 502,
+    });
+  });
+
+  it("maps an upstream GitHub permission failure without exposing provider details", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({
+      error: "upstream_error",
+      detail: "GitHub read credential lacks permission or the request is forbidden",
+      read_only: true,
+    }, { status: 503 })));
+    await expect(fetchObserverStatus("lite")).rejects.toMatchObject({
+      code: "OBSERVER_GITHUB_TOKEN_FORBIDDEN",
+      httpStatus: 502,
+    });
+  });
+
+  it("maps Observer continuity reconciliation responses to a safe diagnostic code", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({
+      error: "state_reconciliation_required",
+      detail: "Canonical branch pointers differ",
+      read_only: true,
+    }, { status: 409 })));
+    await expect(fetchObserverStatus("both")).rejects.toMatchObject({
+      code: "OBSERVER_STATE_RECONCILIATION_REQUIRED",
+      httpStatus: 502,
+    });
+  });
+
+  it("retains only the upstream HTTP status for unknown error bodies", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({
+      error: "upstream_error",
+      detail: "unclassified private detail",
+    }, { status: 503 })));
+    await expect(fetchObserverStatus("lite")).rejects.toMatchObject({
+      code: "OBSERVER_UPSTREAM_HTTP_503",
+      httpStatus: 502,
+    });
+  });
+
   it("requires a complete and canonical Observer repository status", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => Response.json({
       ...validStatus,

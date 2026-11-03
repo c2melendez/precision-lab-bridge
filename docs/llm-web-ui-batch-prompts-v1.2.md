@@ -473,7 +473,7 @@ Reconstruct the repository snapshot accurately. Report the repository, canonical
 
 Diagnose the reproducible defect without changing code. State the root cause, at least two plausible alternatives, one discriminating regression test, and the safest next action. Do not claim a test was run.
 
-**Fixture correction for web campaign v1.1:** The same explicit `shared_defaults` object is passed to both calls. This avoids a JavaScript semantics ambiguity: a default-parameter object literal is evaluated for each call when the second argument is omitted, so the original two-call sequence without a shared object would not, by itself, demonstrate cross-call persistence. CB2 now tests mutation of a caller-owned defaults object that is deliberately reused.
+**Fixture correction for web campaign v1.2:** The same explicit `shared_defaults` object is passed to both calls. This avoids a JavaScript semantics ambiguity: a default-parameter object literal is evaluated for each call when the second argument is omitted, so the original two-call sequence without a shared object would not, by itself, demonstrate cross-call persistence. CB2 now tests mutation of a caller-owned defaults object that is deliberately reused.
 
 **Fixture context**
 

@@ -1,0 +1,82 @@
+name: TCA1 Groq online read-only probe
+
+on:
+  push:
+    branches:
+      - feat/cb1-cb10-groq-provider
+    paths:
+      - .github/workflows/tca1-groq-online.yml
+      - scripts/tca1-openai-e2e.mjs
+      - scripts/tca1-groq-e2e.mjs
+      - scripts/tca1-groq-adapter.mjs
+      - package.json
+  pull_request:
+    branches:
+      - feat/cb1-cb10-local-llm-benchmark
+    paths:
+      - .github/workflows/tca1-groq-online.yml
+      - scripts/tca1-openai-e2e.mjs
+      - scripts/tca1-groq-e2e.mjs
+      - scripts/tca1-groq-adapter.mjs
+      - package.json
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tca1-groq-online-readonly-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  read-only-probe:
+    name: Groq GPT-OSS 20B -> TCA1 -> Bridge (read-only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact branch revision
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - name: Set up Node.js
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903
+        with:
+          node-version: "22.12.0"
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
+        with:
+          bun-version-file: .bun-version
+
+      - name: Verify online credentials are configured (values never printed)
+        shell: bash
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          TCA1_FUNCTION_GATEWAY_TOKEN: ${{ secrets.TCA1_FUNCTION_GATEWAY_TOKEN }}
+        run: |
+          set +x
+          missing=0
+          if [[ -z "$GROQ_API_KEY" ]]; then
+            echo "::error::Missing GitHub Actions secret GROQ_API_KEY."
+            missing=1
+          else
+            echo "GROQ_API_KEY: configured."
+          fi
+          if [[ -z "$TCA1_FUNCTION_GATEWAY_TOKEN" ]]; then
+            echo "::error::Missing GitHub Actions secret TCA1_FUNCTION_GATEWAY_TOKEN."
+            missing=1
+          else
+            echo "TCA1_FUNCTION_GATEWAY_TOKEN: configured."
+          fi
+          if [[ "$missing" -ne 0 ]]; then
+            echo "::error::Online TCA1 probe cannot start until the listed secret is configured."
+            exit 78
+          fi
+
+      - name: Execute Groq read-only Function Calling probe against staging Bridge
+        run: bun run tca1:e2e:groq
+        env:
+          TCA1_LLM_PROVIDER: groq
+          GROQ_MODEL: openai/gpt-oss-20b
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          TCA1_FUNCTION_GATEWAY_URL: https://precision-lab-bridge.onrender.com/api/tca1/functions
+          TCA1_FUNCTION_GATEWAY_TOKEN: ${{ secrets.TCA1_FUNCTION_GATEWAY_TOKEN }}

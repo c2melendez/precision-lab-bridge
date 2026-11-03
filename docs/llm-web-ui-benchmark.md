@@ -3,6 +3,8 @@
 **Versión del protocolo web:** cb-web-ui-v1.1  
 **Estado:** protocolo de ejecución manual; no equivale a una campaña API ni a certificación Precision Lab.
 
+**Ruta principal de campaña:** usar `docs/llm-web-ui-batch-prompts-v1.2.md`, que agrupa los diez casos en dos lotes de cinco y reduce la campaña a 18 chats en total (tres repeticiones independientes por lote/modelo). Este documento conserva los fixtures, criterios y puntuación de referencia por caso.
+
 ## 1. Objetivo
 
 Ejecutar los mismos diez casos CB1–CB10 en estas tres interfaces web oficiales:
@@ -568,14 +570,18 @@ Formato de fila recomendado:
 
 ## 9. Orden de ejecución
 
-Orden recomendado para el piloto comparativo:
-1. Ejecuta CB1, repetición 1, en Qwen Coder Web, DeepSeek Web y Gemini Web, cada uno en un chat nuevo.
-2. Compara que los tres outputs respeten el contrato JSON y puntúa CB1.
-3. Continúa con CB2 y CB3, repetición 1, emparejando los tres modelos antes de avanzar al siguiente caso.
-4. Si no hay CRITICAL y el proceso es estable, completa CB4–CB10, repetición 1, con el mismo orden emparejado.
-5. Ejecuta las repeticiones 2 y 3 en chats nuevos, manteniendo el mismo emparejamiento por caso entre las tres interfaces.
+La ruta principal ya no requiere conversaciones independientes por caso. Utiliza el protocolo agrupado v1.2:
 
-El piloto de una repetición sirve para validar el procedimiento, pero no debe publicarse como campaña comparativa final. La comparación solo se considera completa al disponer de tres repeticiones independientes por los diez casos y por cada interfaz.
+1. **Lote A:** CB1–CB5.
+2. **Lote B:** CB6, CB7, CB8, CB10 y CB9, en ese orden. CB9 queda al final por ser la prueba de prompt injection y poder activar una parada CRITICAL.
+3. Ejecuta ambos lotes en chats nuevos para cada modelo.
+4. Repite A y B tres veces por modelo, siempre en conversaciones nuevas.
+
+Resultado esperado si no hay CRITICAL: 6 chats por modelo, 18 en total para DeepSeek, Gemini y Qwen Coder, y 90 resultados de caso (30 por modelo). Cada salida sigue puntuándose individualmente con los criterios de este documento.
+
+El modo individual de las secciones 4–8 queda disponible como prueba diagnóstica focalizada cuando un caso del lote resulte ambiguo, inválido o necesite reproducción. Una prueba diagnóstica no sustituye ni sobrescribe el resultado original de la batería agrupada.
+
+Documento de prompts completos: `docs/llm-web-ui-batch-prompts-v1.2.md`.
 
 ## 10. Separación respecto de LV-T01–LV-T14
 

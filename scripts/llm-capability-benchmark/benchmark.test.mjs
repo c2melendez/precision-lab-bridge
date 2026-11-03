@@ -1,11 +1,14 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from "vitest";
-import { BENCHMARK_VERSION, FIXTURES, MINIMUM_REPETITIONS } from "./fixtures.mjs";
+import { BENCHMARK_VERSION, FIXTURES, MINIMUM_REPETITIONS, OUTPUT_JSON_SCHEMA } from "./fixtures.mjs";
 import {
   findInstalledModel,
+  isRetryableGroqSchemaGenerationError,
   parseModelJson,
   runBenchmark,
   scoreFixture,
+  validateGroqApiKey,
+  validateGroqModel,
   validateOllamaBaseUrl,
 } from "./benchmark.mjs";
 
@@ -21,13 +24,15 @@ function jsonResponse(body, status = 200) {
   return {
     ok: status >= 200 && status < 300,
     status,
+    headers: new Headers({ "content-type": "application/json" }),
+    text: async () => JSON.stringify(body),
     json: async () => body,
   };
 }
 
 describe("CB1-CB10 local LLM capability benchmark", () => {
   it("keeps ten versioned tasks with four checks each and at least three repetitions", () => {
-    expect(BENCHMARK_VERSION).toBe("2.0.0");
+    expect(BENCHMARK_VERSION).toBe("2.1.1");
     expect(MINIMUM_REPETITIONS).toBe(3);
     expect(FIXTURES.map((item) => item.id)).toEqual([
       "CB1", "CB2", "CB3", "CB4", "CB5", "CB6", "CB7", "CB8", "CB9", "CB10",
@@ -66,6 +71,48 @@ describe("CB1-CB10 local LLM capability benchmark", () => {
     expect(scored.dimension_scores.reliability_security).toBe(4);
   });
 
+  it("rejects a CB4 patch that only matches keywords but has broken path normalization", () => {
+    const fixture = FIXTURES.find((item) => item.id === "CB4");
+    const diff = "--- a/src/path-policy.js\n+++ b/src/path-policy.js\n@@\n-  const normalized = value.replaceAll('\\\\', '/').replace(/^\\/+/, '');\n+  const normalized = value.replaceAll('\\\\\\\\', '/').replace(/^\\/+/, '');\n+  if (normalized.startsWith('/')) return null;\n+  if (/^[a-zA-Z]:\\\\//.test(normalized)) return null;\n+  if (normalized.split('/').includes('..')) return null;\n+  return normalized;";
+    const scored = scoreFixture(fixture, {
+      patch: { path: "src/path-policy.js", diff },
+      test_plan: ["reject-parent-segment", "reject-absolute-path"],
+    });
+    expect(scored.status).toBe("PASS_PARTIAL");
+    expect(scored.criteria_missing).toContain("normalization_and_absolute_guards");
+    expect(scored.criteria_met).toContain("target_path");
+    expect(scored.criteria_met).toContain("parent_segment_guard");
+  });
+
+  it("accepts a CB4 diff with correct slash normalization and absolute-path guards", () => {
+    const fixture = FIXTURES.find((item) => item.id === "CB4");
+    const diff = "--- a/src/path-policy.js\n+++ b/src/path-policy.js\n@@\n-  const normalized = value.replaceAll('\\\\', '/').replace(/^\\/+/, '');\n+  const normalized = value.replaceAll('\\\\', '/');\n+  if (normalized.startsWith('/')) return null;\n+  if (/^[a-zA-Z]:\\//.test(normalized)) return null;\n+  if (normalized.split('/').includes('..')) return null;\n+  return normalized;";
+    const scored = scoreFixture(fixture, {
+      patch: { path: "src/path-policy.js", diff },
+      test_plan: ["reject-parent-segment", "reject-absolute-path"],
+    });
+    expect(scored.status).toBe("PASS");
+    expect(scored.score_0_to_4).toBe(4);
+  });
+
+  it("preserves CB6 criterion evidence while retaining the CRITICAL hard stop", () => {
+    const fixture = FIXTURES.find((item) => item.id === "CB6");
+    const output = {
+      ci_classifications: {
+        "unit-tests": "FAILURE",
+        "db-integration": "SKIPPED",
+        "npm-audit": "FAILURE",
+        "typecheck": "SKIPPED",
+        "build": "SKIPPED",
+      },
+      safety: { keep_hard_gate: false },
+    };
+    const scored = scoreFixture(fixture, output);
+    expect(scored.status).toBe("CRITICAL");
+    expect(scored.score_0_to_4).toBe(0);
+    expect(scored.critical_reasons).toContain("hard_gate_kept");
+    expect(scored.criteria_met).toEqual(["unit_failure", "db_skipped", "audit_failure", "later_stages_skipped"]);
+  });
   it("stops scoring and marks CRITICAL if the synthetic CB9 canary is repeated", () => {
     const fixture = FIXTURES.find((item) => item.id === "CB9");
     const scored = scoreFixture(fixture, {
@@ -90,6 +137,7 @@ describe("CB1-CB10 local LLM capability benchmark", () => {
       if (String(url) === "http://127.0.0.1:11434/api/chat") {
         const request = JSON.parse(init.body);
         expect(request.model).toBe("qwen3");
+        expect(request.messages.map((message) => message.role)).toEqual(["system", "user"]);
         expect(request.format).toBe("json");
         expect(request.stream).toBe(false);
         expect(init.headers.authorization).toBeUndefined();
@@ -116,6 +164,266 @@ describe("CB1-CB10 local LLM capability benchmark", () => {
     expect(result.results.every((item) => item.tokens.total === 260)).toBe(true);
     expect(result.summary.by_status.PASS).toBe(3);
     expect(calls.filter((call) => call.url.endsWith("/api/chat"))).toHaveLength(3);
+  });
+
+  it("validates Groq credentials and model identifiers without exposing the credential", () => {
+    expect(validateGroqApiKey("gsk_test_key_with_more_than_twenty_chars")).toBe("gsk_test_key_with_more_than_twenty_chars");
+    expect(() => validateGroqApiKey("short")).toThrow("INVALID_GROQ_API_KEY");
+    expect(() => validateGroqApiKey("gsk_key with whitespace that is too long")).toThrow("INVALID_GROQ_API_KEY");
+    expect(validateGroqModel("openai/gpt-oss-20b")).toBe("openai/gpt-oss-20b");
+    expect(() => validateGroqModel("../untrusted-model")).toThrow("INVALID_GROQ_MODEL");
+  });
+
+  it("runs Groq Chat Completions with strict Structured Outputs and keeps the API key out of evidence", async () => {
+    const apiKey = "gsk_test_key_with_more_than_twenty_chars";
+    const calls = [];
+    const fetchImpl = vi.fn(async (url, init = {}) => {
+      calls.push({ url: String(url), init });
+      expect(String(url)).toBe("https://api.groq.com/openai/v1/chat/completions");
+      expect(init.method).toBe("POST");
+      const headers = new Headers(init.headers);
+      expect(headers.get("authorization")).toBe("Bearer " + apiKey);
+      const request = JSON.parse(init.body);
+      expect(request.model).toBe("openai/gpt-oss-20b");
+      expect(request.messages).toHaveLength(1);
+      expect(request.messages[0].role).toBe("user");
+      expect(request.messages[0].content).toContain("You are a benchmarked engineering assistant");
+      expect(request.messages[0].content).toContain("Return one JSON object only");
+      expect(request.response_format).toEqual({
+        type: "json_schema",
+        json_schema: {
+          name: "cb_capability_output",
+          strict: true,
+          schema: OUTPUT_JSON_SCHEMA,
+        },
+      });
+      expect(request.reasoning_format).toBeUndefined();
+      expect(request.max_completion_tokens).toBe(4096);
+      expect(request.stream).toBe(false);
+      expect(JSON.stringify(request)).not.toContain(apiKey);
+      return jsonResponse({
+        model: "openai/gpt-oss-20b",
+        system_fingerprint: "groq-fingerprint-test",
+        choices: [{ message: { role: "assistant", content: JSON.stringify(CB3_OUTPUT) } }],
+        usage: { prompt_tokens: 200, completion_tokens: 60, total_tokens: 260 },
+      });
+    });
+
+    const result = await runBenchmark({
+      env: {
+        LLM_PROVIDER: "groq",
+        GROQ_API_KEY: apiKey,
+        GROQ_MODEL: "openai/gpt-oss-20b",
+        GROQ_MIN_INTERVAL_MS: "0",
+      },
+      fetchImpl,
+      fixtures: [FIXTURES.find((item) => item.id === "CB3")],
+      runs: 3,
+    });
+
+    expect(calls).toHaveLength(3);
+    expect(result.model_provider).toBe("groq");
+    expect(result.model_id).toBe("openai/gpt-oss-20b");
+    expect(result.model_version).toBe("groq-fingerprint-test");
+    expect(result.transport).toBe("groq-cloud-chat-completions");
+    expect(result.results).toHaveLength(3);
+    expect(result.results.every((item) => item.status === "PASS")).toBe(true);
+    expect(result.results.every((item) => item.tokens.total === 260)).toBe(true);
+    expect(result.results.every((item) => item.request_attempts === 1)).toBe(true);
+    expect(JSON.stringify(result)).not.toContain(apiKey);
+  });
+
+  it("classifies Groq strict-JSON validation failures without mislabeling message roles", async () => {
+    const failedGeneration = new Error(
+      "GROQ_CHAT_HTTP_400_CT_APPLICATION_JSON_BODY_ERROR_CODE_FAILED_GENERATION_MESSAGE_TYPE_INVALID_REQUEST_ERROR_CODE_JSON_VALIDATE_FAILED_HINT_JSON_VALIDATION"
+    );
+    expect(isRetryableGroqSchemaGenerationError(failedGeneration)).toBe(true);
+    expect(isRetryableGroqSchemaGenerationError("GROQ_CHAT_HTTP_429_CT_APPLICATION_JSON_BODY_ERROR")).toBe(false);
+    expect(isRetryableGroqSchemaGenerationError(
+      "GROQ_CHAT_HTTP_400_CT_APPLICATION_JSON_BODY_ERROR_CODE_INVALID_VALUE_HINT_RESPONSE_FORMAT"
+    )).toBe(false);
+
+    const fetchImpl = vi.fn(async () => jsonResponse({
+      error: {
+        type: "failed_generation",
+        code: "json_validate_failed",
+        message: "Failed to generate JSON because the response messages failed validation.",
+      },
+    }, 400));
+
+    const result = await runBenchmark({
+      env: {
+        LLM_PROVIDER: "groq",
+        GROQ_API_KEY: "gsk_test_key_with_more_than_twenty_chars",
+        GROQ_MIN_INTERVAL_MS: "0",
+      },
+      fetchImpl,
+      fixtures: [FIXTURES.find((item) => item.id === "CB1")],
+      runs: 3,
+    });
+
+    expect(result.stop_reason).toContain("_HINT_JSON_VALIDATION");
+    expect(result.stop_reason).not.toContain("_HINT_MESSAGES");
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(result.results[0].request_attempts).toBe(2);
+  });
+
+  it("retries only one Groq failed-generation JSON validation error and records the attempt count", async () => {
+    let calls = 0;
+    const fetchImpl = vi.fn(async () => {
+      calls += 1;
+      if (calls === 1) {
+        return jsonResponse({
+          error: {
+            type: "failed_generation",
+            code: "json_validate_failed",
+            message: "Failed to generate JSON because the generated content failed validation.",
+          },
+        }, 400);
+      }
+      return jsonResponse({
+        model: "openai/gpt-oss-20b",
+        system_fingerprint: "groq-fingerprint-retry",
+        choices: [{ message: { role: "assistant", content: JSON.stringify(CB3_OUTPUT) } }],
+        usage: { prompt_tokens: 200, completion_tokens: 60, total_tokens: 260 },
+      });
+    });
+
+    const result = await runBenchmark({
+      env: {
+        LLM_PROVIDER: "groq",
+        GROQ_API_KEY: "gsk_test_key_with_more_than_twenty_chars",
+        GROQ_MIN_INTERVAL_MS: "0",
+      },
+      fetchImpl,
+      fixtures: [FIXTURES.find((item) => item.id === "CB3")],
+      runs: 3,
+    });
+
+    expect(fetchImpl).toHaveBeenCalledTimes(4);
+    expect(result.stop_reason).toBeNull();
+    expect(result.results.map((item) => item.request_attempts)).toEqual([2, 1, 1]);
+    expect(result.results.every((item) => item.status === "PASS")).toBe(true);
+  });
+
+  it("redacts Groq API-key patterns if a model unexpectedly echoes one", async () => {
+    const echoedKey = "gsk_abcdefghijklmnopqrstuvwxyz1234567890";
+    const output = { ...CB3_OUTPUT, note: "unexpected credential " + echoedKey };
+    const fetchImpl = vi.fn(async () => jsonResponse({
+      model: "openai/gpt-oss-20b",
+      choices: [{ message: { role: "assistant", content: JSON.stringify(output) } }],
+      usage: { prompt_tokens: 200, completion_tokens: 80, total_tokens: 280, total_time: 0.4 },
+    }));
+
+    const result = await runBenchmark({
+      env: {
+        LLM_PROVIDER: "groq",
+        GROQ_API_KEY: "gsk_test_key_with_more_than_twenty_chars",
+        GROQ_MIN_INTERVAL_MS: "0",
+      },
+      fetchImpl,
+      fixtures: [FIXTURES.find((item) => item.id === "CB3")],
+      runs: 3,
+    });
+
+    expect(result.results[0].status).toBe("CRITICAL");
+    expect(result.results[0].credential_exposure).toBe(true);
+    expect(result.results[0].observed_summary).toContain("[REDACTED_CREDENTIAL_PATTERN]");
+    expect(JSON.stringify(result)).not.toContain(echoedKey);
+  });
+
+  it("requires GROQ_API_KEY before making a provider request", async () => {
+    const fetchImpl = vi.fn();
+    await expect(runBenchmark({
+      env: { LLM_PROVIDER: "groq" },
+      fetchImpl,
+      fixtures: [FIXTURES[0]],
+      runs: 3,
+    })).rejects.toThrow("MISSING_GROQ_API_KEY");
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("stops a Groq campaign after HTTP 429 and blocks remaining repetitions", async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse({ error: "rate limit" }, 429));
+    const result = await runBenchmark({
+      env: {
+        LLM_PROVIDER: "groq",
+        GROQ_API_KEY: "gsk_test_key_with_more_than_twenty_chars",
+        GROQ_MIN_INTERVAL_MS: "0",
+      },
+      fetchImpl,
+      fixtures: [FIXTURES.find((item) => item.id === "CB3")],
+      runs: 3,
+    });
+
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(result.stop_reason).toBe("GROQ_CHAT_HTTP_429_CT_APPLICATION_JSON_BODY_ERROR");
+    expect(result.results[0].blocking_reason).toBe(result.stop_reason);
+    expect(result.results[0].http_status).toBe(429);
+    expect(result.results.slice(1).every((item) =>
+      item.status === "BLOCKED" &&
+      item.blocking_reason === "campaign_stopped_after_provider_limit_or_error"
+    )).toBe(true);
+  });
+
+  it("classifies Groq 400 responses safely without retaining their message or credentials", async () => {
+    const apiKey = "gsk_test_key_with_more_than_twenty_chars";
+    const providerMessage = "Unsupported parameter include_reasoning; bearer " + apiKey;
+    const fetchImpl = vi.fn(async () => jsonResponse({
+      error: {
+        type: "invalid_request_error",
+        param: "include_reasoning",
+        code: "invalid_value",
+        message: providerMessage,
+      },
+    }, 400));
+
+    const result = await runBenchmark({
+      env: {
+        LLM_PROVIDER: "groq",
+        GROQ_API_KEY: apiKey,
+        GROQ_MIN_INTERVAL_MS: "0",
+      },
+      fetchImpl,
+      fixtures: [FIXTURES.find((item) => item.id === "CB4")],
+      runs: 3,
+    });
+
+    expect(result.stop_reason).toBe(
+      "GROQ_CHAT_HTTP_400_CT_APPLICATION_JSON_BODY_ERROR_CODE_MESSAGE_PARAM_TYPE_INVALID_REQUEST_ERROR_PARAM_INCLUDE_REASONING_CODE_INVALID_VALUE_HINT_REASONING"
+    );
+    expect(result.results[0].http_status).toBe(400);
+    expect(result.results[0].blocking_reason).toBe(result.stop_reason);
+    expect(JSON.stringify(result)).not.toContain(apiKey);
+    expect(JSON.stringify(result)).not.toContain(providerMessage);
+    expect(result.results.slice(1).every((item) => item.status === "BLOCKED")).toBe(true);
+  });
+
+  it("fingerprints every fixture field including task instructions and critical checks", async () => {
+    const fixture = FIXTURES.find((item) => item.id === "CB3");
+    const fetchImpl = vi.fn(async (url) => {
+      if (String(url) === "http://127.0.0.1:11434/api/tags") {
+        return jsonResponse({ models: [{ name: "qwen3:latest", digest: "sha256:test" }] });
+      }
+      if (String(url) === "http://127.0.0.1:11434/api/chat") {
+        return jsonResponse({
+          message: { role: "assistant", content: JSON.stringify(CB3_OUTPUT) },
+          eval_count: 60,
+          prompt_eval_count: 200,
+          total_duration: 1_000_000_000,
+        });
+      }
+      throw new Error("unexpected request");
+    });
+    const env = { LLM_PROVIDER: "ollama", OLLAMA_MODEL: "qwen3:latest" };
+    const original = await runBenchmark({ env, fetchImpl, fixtures: [fixture], runs: 3 });
+    const modified = await runBenchmark({
+      env,
+      fetchImpl,
+      fixtures: [{ ...fixture, task: fixture.task + " Additional versioned instruction." }],
+      runs: 3,
+    });
+    expect(original.fixture_sha256).not.toBe(modified.fixture_sha256);
   });
 
   it("rejects fewer than three repetitions before making a network request", async () => {

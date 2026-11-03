@@ -137,3 +137,26 @@ SQL migration definitions are in `drizzle/migrations`. The configuration reads `
 - Keep GitHub and Supabase privileged credentials out of browser bundles and source control.
 - Do not dispatch real workflows, deploy, or modify Precision Lab Lite/Plus as part of ordinary local validation.
 - Tests should mock GitHub dispatch and use isolated fixtures.
+
+## TCA1 read-only LLM probe — OpenAI or Groq
+
+The local TCA1 end-to-end probe can use either OpenAI Responses API or Groq Chat Completions. Both providers call the same Bridge-hosted TCA1 gateway; provider credentials remain in the local process and are never sent to Bridge.
+
+Groq probe (PowerShell):
+
+```powershell
+$env:GROQ_MODEL = "openai/gpt-oss-20b"
+npm.cmd run tca1:e2e:groq
+```
+
+Before running, the current PowerShell session must already contain:
+- `GROQ_API_KEY` — the Groq API key. A GitHub Actions secret is not automatically available to a local shell.
+- `TCA1_FUNCTION_GATEWAY_URL` — the HTTPS URL ending in `/api/tca1/functions`.
+- `TCA1_FUNCTION_GATEWAY_TOKEN` — the server gateway token.
+
+Reuse the existing TCA1 gateway URL/token from the OpenAI probe; do not paste either credential into the command line or chat. The Groq command defaults to `openai/gpt-oss-20b`; `GROQ_MODEL` may select another enabled model.
+
+The initial probe requires the gateway to report `access_mode=read`. It allows only `precision_lab_bridge_capabilities`, `precision_lab_bridge_context_status`, and `precision_lab_bridge_gate_plan`, and forces calls to the first two read tools. It rejects all other tools, disables parallel function calls, and never exposes submit/patch/dispatch operations. Groq uses Chat Completions function calling without Structured Outputs in the same request, because Groq documents those features as mutually unsupported when combined.
+
+Successful output means the model authenticated to Groq, called both required read-only gateway functions, and received successful Bridge responses. It does not certify mathematical gates or enable command execution.
+

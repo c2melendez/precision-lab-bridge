@@ -6,6 +6,10 @@ on:
       - feat/cb1-cb10-groq-provider
     paths:
       - .github/workflows/qwen3-cb-benchmark.yml
+      - scripts/llm-capability-benchmark/**
+      - package.json
+      - bun.lock
+      - .bun-version
   workflow_dispatch:
 
 permissions:

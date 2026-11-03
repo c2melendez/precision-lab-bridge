@@ -94,6 +94,7 @@ describe("CB1-CB10 local LLM capability benchmark", () => {
       if (String(url) === "http://127.0.0.1:11434/api/chat") {
         const request = JSON.parse(init.body);
         expect(request.model).toBe("qwen3");
+        expect(request.messages.map((message) => message.role)).toEqual(["system", "user"]);
         expect(request.format).toBe("json");
         expect(request.stream).toBe(false);
         expect(init.headers.authorization).toBeUndefined();
@@ -141,6 +142,10 @@ describe("CB1-CB10 local LLM capability benchmark", () => {
       expect(headers.get("authorization")).toBe("Bearer " + apiKey);
       const request = JSON.parse(init.body);
       expect(request.model).toBe("openai/gpt-oss-20b");
+      expect(request.messages).toHaveLength(1);
+      expect(request.messages[0].role).toBe("user");
+      expect(request.messages[0].content).toContain("You are a benchmarked engineering assistant");
+      expect(request.messages[0].content).toContain("Return one JSON object only");
       expect(request.response_format).toEqual({ type: "json_object" });
       expect(request.reasoning_format).toBeUndefined();
       expect(request.stream).toBe(false);

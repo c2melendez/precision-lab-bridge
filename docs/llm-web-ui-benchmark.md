@@ -465,9 +465,9 @@ Criterios por caso:
 
 Para CB4, la secuencia mínima esperada dentro de las líneas añadidas al diff es:
 
-    const normalized = value.replaceAll('\\\\', '/');
+    const normalized = value.replaceAll('\\', '/');
     if (normalized.startsWith('/')) return null;
-    if (/^[a-zA-Z]:\\//.test(normalized)) return null;
+    if (/^[a-zA-Z]:\//.test(normalized)) return null;
     if (normalized.split('/').includes('..')) return null;
 
 No es suficiente mencionar estas ideas en la explicación: deben aparecer en el diff propuesto. La comprobación también debe permitir nombres inocuos como notes..md.

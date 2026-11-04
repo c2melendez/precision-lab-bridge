@@ -5,6 +5,9 @@ export const Route = createFileRoute("/api/runs/")({
     handlers: {
       POST: async ({ request }) => {
         const { trigger, respond } = await import("@/lib/bridge/core.server");
+        if (new URL(request.url).searchParams.has("key")) {
+          return respond(400, { error: "QUERY_CREDENTIALS_NOT_SUPPORTED" }, request);
+        }
         let body: Record<string, unknown> = {};
         try {
           const j = await request.json();

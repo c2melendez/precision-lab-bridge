@@ -17,7 +17,7 @@ const nativeFetch = globalThis.fetch;
 const dispatch = vi.fn(async (_url: string) => Response.json({ workflow_run_id: 12345, html_url: "https://github.com/example/test/actions/runs/12345" }));
 const request = (suffix: string): IdempotentRequest => ({ target_repo: "lite", gate: "h1d", dry_run: true,
   idempotency_key: `${prefix}:${suffix}`, validation_id: `${prefix}:validation`, correlation_id: `${prefix}:correlation`,
-  branch: "main", requested_sha: "a".repeat(40) });
+  branch: "main", requested_sha: null });
 
 describe.skipIf(!configured)("real Cloud idempotency, no real workflows", () => {
   beforeAll(async () => {
@@ -27,7 +27,8 @@ describe.skipIf(!configured)("real Cloud idempotency, no real workflows", () => 
       return nativeFetch(input, init);
     });
     const { data, error } = await supabaseAdmin.from("bridge_keys").insert({ label: prefix, key_hash: await sha256(bridgeKey),
-      key_prefix: bridgeKey.slice(0, 10), expires_at: new Date(Date.now() + 600_000).toISOString() }).select("id").single();
+      key_prefix: bridgeKey.slice(0, 10), scopes: ["read", "dispatch"],
+      expires_at: new Date(Date.now() + 600_000).toISOString() }).select("id").single();
     if (error || !data) throw new Error("Unable to create isolated database test fixture");
     keyId = data.id;
     process.env["GH_OWNER"] ||= "test-owner";

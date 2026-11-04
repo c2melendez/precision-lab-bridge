@@ -31,21 +31,23 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
 
 function createSupabaseAdminClient() {
   const SUPABASE_URL = process.env['SUPABASE_URL'];
-  const SUPABASE_SERVICE_ROLE_KEY = process.env['SUPABASE_SERVICE_ROLE_KEY'];
+  // Prefer the modern Supabase server-only secret key. Keep the legacy variable
+  // as a temporary fallback while existing deployments migrate.
+  const SUPABASE_SECRET_KEY = process.env['SUPABASE_SECRET_KEY'] || process.env['SUPABASE_SERVICE_ROLE_KEY'];
 
-  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+  if (!SUPABASE_URL || !SUPABASE_SECRET_KEY) {
     const missing = [
       ...(!SUPABASE_URL ? ['SUPABASE_URL'] : []),
-      ...(!SUPABASE_SERVICE_ROLE_KEY ? ['SUPABASE_SERVICE_ROLE_KEY'] : []),
+      ...(!SUPABASE_SECRET_KEY ? ['SUPABASE_SECRET_KEY'] : []),
     ];
-    const message = `Missing Supabase environment variable(s): ${missing.join(', ')}. Connect Supabase in Lovable Cloud.`;
+    const message = `Missing Supabase environment variable(s): ${missing.join(', ')}. Configure the Supabase environment variables for this deployment.`;
     console.error(`[Supabase] ${message}`);
     throw new Error(message);
   }
 
-  return createClient<Database>(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+  return createClient<Database>(SUPABASE_URL, SUPABASE_SECRET_KEY, {
     global: {
-      fetch: createSupabaseFetch(SUPABASE_SERVICE_ROLE_KEY),
+      fetch: createSupabaseFetch(SUPABASE_SECRET_KEY),
     },
     auth: {
       storage: undefined,

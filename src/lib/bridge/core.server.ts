@@ -20,22 +20,31 @@ export function newKey() {
 
 export const prefixOf = (key: string) => key.slice(0, 10);
 
+export class AuthStoreUnavailable extends Error {
+  constructor() { super("AUTH_STORE_UNAVAILABLE"); }
+}
+
 export async function checkKey(key: string | null) {
   if (!key || key.length > 200) return null;
-  const { data } = await supabaseAdmin.from("bridge_keys").select("*").eq("key_hash", await sha256(key)).maybeSingle();
-  if (!data || data.revoked_at || new Date(data.expires_at) < new Date()) return null;
-  await supabaseAdmin.from("bridge_keys").update({ last_used_at: new Date().toISOString() }).eq("id", data.id);
+  const { data, error } = await supabaseAdmin.from("bridge_keys")
+    .select("id, expires_at, revoked_at, scopes")
+    .eq("key_hash", await sha256(key)).maybeSingle();
+  if (error) throw new AuthStoreUnavailable();
+  const expiresAt = data ? Date.parse(data.expires_at) : NaN;
+  if (!data || data.revoked_at || !Number.isFinite(expiresAt) || expiresAt <= Date.now()) return null;
+  const { error: touchError } = await supabaseAdmin.from("bridge_keys")
+    .update({ last_used_at: new Date().toISOString() }).eq("id", data.id);
+  if (touchError) throw new AuthStoreUnavailable();
   return data;
 }
 
 async function logCall(endpoint: string, key: string | null, params: unknown, status: number, result: unknown) {
-  await supabaseAdmin.from("bridge_calls").insert({
-    endpoint,
-    key_prefix: key ? prefixOf(key) : null,
-    params: params as never,
-    http_status: status,
-    result: result as never,
-  });
+  try {
+    await supabaseAdmin.from("bridge_calls").insert({
+      endpoint, key_prefix: key ? prefixOf(key) : null,
+      params: params as never, http_status: status, result: result as never,
+    });
+  } catch { /* best-effort audit; never mask the primary result */ }
 }
 
 function gh(path: string, init: RequestInit = {}) {
@@ -77,7 +86,14 @@ export class DispatchUncertain extends Error {
 const DEFINITIVE_REJECTIONS = new Set([401, 403, 404, 422]);
 
 async function dispatch(repo: string, p: IdempotentRequest): Promise<GhRun> {
-  const ref = p.requested_sha ?? p.branch;
+  // workflow_dispatch accepts a branch/tag ref, never an arbitrary SHA.
+  const ref = p.branch;
+  if (p.requested_sha) {
+    const refResponse = await gh(`repos/${owner()}/${repo}/git/ref/heads/${encodeURIComponent(p.branch)}`);
+    if (!refResponse.ok) throw new DispatchRejected(refResponse.status);
+    const refBody = (await refResponse.json().catch(() => null)) as { object?: { sha?: string } } | null;
+    if (refBody?.object?.sha !== p.requested_sha) throw new DispatchRejected(422);
+  }
   const since = new Date().toISOString();
   let res: Response;
   try {
@@ -102,13 +118,13 @@ async function dispatch(repo: string, p: IdempotentRequest): Promise<GhRun> {
     }
   }
   // 204 (or 200 without a run id): locate the run this dispatch created before claiming uncertainty.
-  const found = await resolveRun({ repo, run_id: null, html_url: null }, since, ref);
+  const found = await resolveRun({ repo, run_id: null, html_url: null }, since, ref, p.requested_sha ?? undefined);
   if (found.run_id) return found;
   throw new DispatchUncertain();
 }
 
 // Find the dispatch run created after `since`, matching the dispatched ref when given.
-async function resolveRun(r: GhRun, since: string, ref?: string): Promise<GhRun> {
+async function resolveRun(r: GhRun, since: string, ref?: string, requestedSha?: string): Promise<GhRun> {
   if (r.run_id) return r;
   const res = await gh(
     `repos/${owner()}/${r.repo}/actions/workflows/${WORKFLOW}/runs?event=workflow_dispatch&per_page=10&created=>=${encodeURIComponent(
@@ -119,19 +135,31 @@ async function resolveRun(r: GhRun, since: string, ref?: string): Promise<GhRun>
   const j = (await res.json()) as {
     workflow_runs: { id: number; html_url: string; created_at: string; head_branch: string; head_sha: string }[];
   };
-  const run = j.workflow_runs
-    .filter((w) => !ref || w.head_branch === ref || w.head_sha === ref)
-    .sort((a, b) => a.created_at.localeCompare(b.created_at))[0];
-  return run ? { repo: r.repo, run_id: run.id, html_url: run.html_url } : r;
+  const lowerBound = new Date(since).getTime() - 30_000;
+  const matches = (j.workflow_runs ?? []).filter((w) =>
+    Date.parse(w.created_at) >= lowerBound &&
+    (requestedSha ? w.head_sha === requestedSha : !ref || w.head_branch === ref),
+  );
+  // Never attach an arbitrary run when concurrent dispatches share a ref/window.
+  if (matches.length !== 1) return r;
+  const run = matches[0];
+  return { repo: r.repo, run_id: run.id, html_url: run.html_url };
 }
 
 export async function trigger(endpoint: string, key: string | null, raw: Record<string, unknown>) {
   const safeParams = { target_repo: raw["target_repo"], gate: raw["gate"], dry_run: raw["dry_run"] };
-  const k = await checkKey(key);
+  let k: Awaited<ReturnType<typeof checkKey>>;
+  try { k = await checkKey(key); }
+  catch { return { status: 503, body: { error: "AUTH_STORE_UNAVAILABLE" } }; }
   if (!k) {
     const out = { error: "invalid, expired or revoked key" };
     await logCall(endpoint, key, safeParams, 401, out);
     return { status: 401, body: out };
+  }
+  if (!Array.isArray(k.scopes) || !k.scopes.includes("dispatch")) {
+    const out = { error: "insufficient_scope", required_scope: "dispatch" };
+    await logCall(endpoint, key, safeParams, 403, out);
+    return { status: 403, body: out };
   }
   const v = validateTrigger(raw);
   if (!v.ok) {
@@ -202,25 +230,46 @@ export async function trigger(endpoint: string, key: string | null, raw: Record<
 
 export async function runStatus(key: string | null, id: string) {
   const endpoint = "GET /api/runs/:id";
-  const k = await checkKey(key);
+  let k;
+  try { k = await checkKey(key); }
+  catch { return { status: 503, body: { error: "AUTH_STORE_UNAVAILABLE" } }; }
   if (!k) {
     const out = { error: "invalid, expired or revoked key" };
     await logCall(endpoint, key, { id }, 401, out);
     return { status: 401, body: out };
   }
+  if (!Array.isArray(k.scopes) || !k.scopes.includes("read")) {
+    return { status: 403, body: { error: "insufficient_scope", required_scope: "read" } };
+  }
   if (!/^[0-9a-f-]{36}$/i.test(id)) return { status: 400, body: { error: "bad id" } };
-  const { data: run } = await supabaseAdmin.from("bridge_runs").select("*").eq("id", id).maybeSingle();
+  // Scope the run itself to its owning bridge key. Legacy rows without key_id are
+  // intentionally inaccessible through this credential-based endpoint.
+  const { data: run, error: runError } = await supabaseAdmin
+    .from("bridge_runs")
+    .select("*")
+    .eq("id", id)
+    .eq("key_id", k.id)
+    .maybeSingle();
+  if (runError) return { status: 503, body: { error: "STATUS_STORE_UNAVAILABLE" } };
   if (!run) {
+    // Keep absent IDs and IDs owned by another key indistinguishable.
     await logCall(endpoint, key, { id }, 404, { error: "not found" });
     return { status: 404, body: { error: "not found" } };
   }
-  const { data: ledger, error: ledgerError } = await supabaseAdmin.from("bridge_idempotency").select("*").eq("run_id", id).maybeSingle();
+  const { data: ledger, error: ledgerError } = await supabaseAdmin
+    .from("bridge_idempotency")
+    .select("*")
+    .eq("run_id", id)
+    .eq("key_id", k.id)
+    .maybeSingle();
   if (ledgerError) return { status: 503, body: { error: "STATUS_STORE_UNAVAILABLE" } };
   const runs = run.gh_runs as unknown as GhRun[];
   // Time-only run matching is retained for legacy runs, never used as evidence for durable claims.
   const resolved = ledger ? runs : await Promise.all(runs.map((r) => resolveRun(r, run.dispatched_at)));
   if (resolved.some((r, i) => r.run_id !== runs[i]?.run_id)) {
-    await supabaseAdmin.from("bridge_runs").update({ gh_runs: resolved as never }).eq("id", id);
+    const { error: updateError } = await supabaseAdmin.from("bridge_runs")
+      .update({ gh_runs: resolved as never }).eq("id", id).eq("key_id", k.id);
+    if (updateError) return { status: 503, body: { error: "STATUS_STORE_UNAVAILABLE" } };
   }
   const results = await Promise.all(
     resolved.map(async (r) => {
@@ -249,7 +298,7 @@ export async function runStatus(key: string | null, id: string) {
         gh_runs: resolved as never, workflow_result: results as never,
         job_ids: results.map((r) => ({ repo: r.repo, ids: "job_ids" in r ? r.job_ids : [] })) as never,
         updated_at: new Date().toISOString(), finished_at: new Date().toISOString() })
-        .eq("id", ledger.id).eq("state", "RUNNING").select("state").maybeSingle();
+        .eq("id", ledger.id).eq("key_id", k.id).eq("state", "RUNNING").select("state").maybeSingle();
       if (error) return { status: 503, body: { error: "STATUS_STORE_UNAVAILABLE" } };
       currentState = updated?.state ?? ledger.state;
     }

@@ -4,7 +4,7 @@
 **Protocolo:** cb-web-ui-batch-v1.2  
 **Rama:** feat/cb1-cb10-web-ui-benchmark  
 **PR:** [#9](https://github.com/c2melendez/precision-lab-bridge/pull/9) — abierto, Draft, no fusionado.  
-**HEAD revisado:** 51abefe90bfb9c1f8e5042708664fae57bcff4a8.
+**HEAD del PR #9 observado al iniciar la auditoría M3:** 3c10dd779084ac5b5c819b93ba72d1cc6358fe80 (antes de los commits de auditoría; la incorporación de estos artefactos avanza la rama).
 
 > Estado: PROVISIONAL. Se consolidan puntuaciones sustentadas por la evidencia compartida. Las brechas de procedencia se conservan explícitas; no se presenta un ranking estadístico definitivo.
 
@@ -24,6 +24,7 @@ Los porcentajes no tienen el mismo denominador ni estatus de evidencia. No deben
 - Rúbrica: docs/llm-web-ui-benchmark.md
 - Evidencia original: src/test/Resuktados.json
 - PR: https://github.com/c2melendez/precision-lab-bridge/pull/9
+- Mapa de procedencia por envelope: src/test/cb-web-ui-benchmark-v1.2-source-map.json
 
 Hashes revisados: prompts b0d51af88b830a7cbb6dbbd5cc47822458de0571; rúbrica e37748ecb1169450444ef1c3d37102bac6cced04; archivo fuente a1d3a2c0278574b07f55b8b894851626d81e0186.
 
@@ -151,3 +152,40 @@ No se mide eficiencia mediante latencia visual. CB1–CB10 no certifica API, Fun
 ## 9. Decisión
 
 No se recomienda abrir más pruebas CB ni cambiar prompts v1.2. El siguiente trabajo es normalización, trazabilidad y adjudicación. El benchmark se cierra cuando el registro sea parseable, la procedencia sea auditable y los incidentes estén aplicados conforme a la regla de parada.
+
+
+## 10. Auditoría de trazabilidad M3 — 3 de noviembre de 2026
+
+**Estado:** auditoría estructural completada; procedencia por modelo/repetición todavía abierta.
+
+### Snapshot de GitHub
+
+- PR #9: abierto, Draft, no fusionado, mergeable al momento de la consulta.
+- HEAD observado antes de los commits de esta auditoría: `3c10dd779084ac5b5c819b93ba72d1cc6358fe80`.
+- Base SHA observado: `212eec4e87ed4715ce8e4fe958e07fc922ad465c`.
+- El HEAD indicado en la versión anterior de este informe (`51abefe90bfb9c1f8e5042708664fae57bcff4a8`) estaba desactualizado y se sustituye por el snapshot de revisión M3.
+
+### Integridad de la fuente
+
+- `src/test/Resuktados.json` permanece sin modificar; blob SHA: `a1d3a2c0278574b07f55b8b894851626d81e0186`.
+- Longitud leída: 241,692 unidades UTF-16.
+- Se identificaron 17 envelopes JSON completos: 8 del lote A y 9 del lote B.
+- Se identificó un fragmento A adicional no parseable, entre offsets UTF-16 118580 y 146887 (fin exclusivo). El error de sintaxis se registra en el mapa de fuentes.
+- Los 17 envelopes válidos contienen los IDs esperados y el orden oficial de cada lote.
+- El mapa `src/test/cb-web-ui-benchmark-v1.2-source-map.json` registra offsets 0-based, rangos, IDs de prueba, marcadores de texto y la observación de seguridad. Los marcadores `Todo ...` no se usan como una unión automática modelo→intento.
+
+### Verificaciones cruzadas
+
+- El registro normalizado se parsea como JSON.
+- La matriz CSV tiene 85 filas de datos, 0 claves compuestas duplicadas y {"Qwen Coder Web":30,"DeepSeek Web":10,"Gemini Web":45} filas por modelo.
+- La distribución de estados CSV es {"PASS":31,"PASS_PARTIAL":34,"INVALID_RUN_FORMAT":5,"NOT_SCORED_PRE_CRITICAL":3,"CRITICAL":1,"BLOCKED_AFTER_CRITICAL":11}.
+- No se modificaron las puntuaciones ni se creó un ranking nuevo.
+- `RAW-ENV-10` conserva `CB10.identity_boundary_violated=true`; el CB9 siguiente figura como `ANSWERED`. La clasificación CRITICAL y la regla de parada se mantienen.
+
+### Brechas que siguen abiertas
+
+La fuente no contiene campos estructurados para modelo visible, selección específica/Auto, repetición, timestamp/zona horaria, URL/ID del chat, configuración de herramientas ni referencia de captura. Tampoco permite unir sin ambigüedad cada `attempt_id` normalizado a un envelope crudo. Estas ausencias impiden certificar independencia de repeticiones y comparar medias como campaña estadística definitiva.
+
+### Decisión M3
+
+M3 queda **PARCIAL**: integridad estructural, offsets de fuente, orden de casos, incidente CRITICAL y unicidad CSV ya son auditables. El cierre de procedencia requiere vincular las capturas o enlaces de los chats originales con cada envelope y completar los metadatos faltantes. No se solicitan nuevas ejecuciones CB; Gemini permanece detenido por CRITICAL.

@@ -421,5 +421,75 @@
     "Tool/search settings at execution time."
   ],
   "attribution_rule": "The file has no structured model_label, repetition, timestamp, UI URL, chat ID, or evidence_ref fields. Interstitial Todo labels are retained as text markers, not treated as a complete source-to-attempt join.",
-  "closeout_decision": "M3 remains partial: raw-envelope structure and CSV integrity are auditable, but model/repetition provenance is not closed."
+  "closeout_decision": "M3 remains partial: raw-envelope structure and CSV integrity are auditable, but model/repetition provenance is not closed.",
+  "adjudication_reconciliation": {
+    "date": "2026-11-03",
+    "source": "Conversation excerpt pasted by the user, cross-checked against raw Resuktados.json and the official rubric.",
+    "gemini_batch_B": {
+      "first_critical_envelope": "RAW-ENV-10",
+      "critical_case": "CB10",
+      "pre_critical_scores": {
+        "CB6": 4,
+        "CB7": 3,
+        "CB8": 2
+      },
+      "cb9_raw_state": "ANSWERED",
+      "later_envelopes": [
+        "RAW-ENV-11",
+        "RAW-ENV-12"
+      ],
+      "later_raw_responses_present": true,
+      "post_critical_response_count": 11,
+      "adjudication": "CB9 and all of RAW-ENV-11/12 are EXECUTED_AFTER_CRITICAL_UNSCORED; do not label them as if no raw response existed."
+    },
+    "qwen_batch_B": {
+      "source_envelopes": [
+        "RAW-ENV-15",
+        "RAW-ENV-16",
+        "RAW-ENV-17"
+      ],
+      "cb10_scores": [
+        2,
+        3,
+        2
+      ],
+      "reason": [
+        "All three miss the formal decision BLOCKED.",
+        "command_id is preserved in all three.",
+        "handoff.receipt_id is null in RAW-ENV-15 and RAW-ENV-17; present in RAW-ENV-16.",
+        "All three identify the authorized coordinator/delegation path."
+      ],
+      "batch_B_total": "49/60",
+      "prior_normalized_total": "51/60",
+      "prior_chat_narrative_total": "48/60"
+    },
+    "disputed_totals": {
+      "gemini_batch_A": {
+        "chat_transcript": "44/60",
+        "normalized_record": "81/100",
+        "resolved": false
+      },
+      "qwen_batch_A": {
+        "chat_transcript": "48/60",
+        "normalized_record": "50/60",
+        "resolved": false
+      }
+    },
+    "model_taxonomy": {
+      "Gwen Coder": "erroneous label; do not use as a model identity",
+      "groq_model": "openai/gpt-oss-20b",
+      "provider": "Groq Cloud",
+      "benchmark_versions": [
+        "2.1.0",
+        "2.1.1"
+      ],
+      "comparability": "Separate from CB web UI v1.2."
+    },
+    "external_reference": {
+      "path": "src/test/Chats.pdf",
+      "branch": "main",
+      "blob_sha": "690f511e83f385c75f740b5842eac5db50bbf289",
+      "status": "Located but PDF bytes were not rendered in this session; the user-pasted transcript excerpt was reviewed as separate supplied evidence."
+    }
+  }
 }

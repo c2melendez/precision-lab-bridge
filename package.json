@@ -13,7 +13,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "start": "node .output/server/index.mjs",
-    "tca1:e2e:openai": "node scripts/tca1-openai-e2e.mjs"
+    "tca1:e2e:openai": "node scripts/tca1-openai-e2e.mjs",
+    "tca1:e2e:ollama": "node scripts/tca1-ollama-e2e.mjs"
   },
   "overrides": {
     "rolldown": "1.2.1"

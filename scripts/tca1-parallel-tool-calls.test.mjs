@@ -13,6 +13,7 @@ describe("TCA-1 parallel Function Calling orchestration", () => {
     const startedB = deferred();
     const releaseA = deferred();
     const releaseB = deferred();
+    const completedB = deferred();
     const calls = [
       { call_id: "call-alpha", name: "tool_alpha", arguments: JSON.stringify({ value: "A" }) },
       { call_id: "call-beta", name: "tool_beta", arguments: JSON.stringify({ value: "B" }) },
@@ -26,12 +27,13 @@ describe("TCA-1 parallel Function Calling orchestration", () => {
       }
       startedB.resolve();
       await releaseB.promise;
+      completedB.resolve();
       return { ok: true, result: { value: args.value } };
     });
 
     await Promise.all([startedA.promise, startedB.promise]);
     releaseB.resolve();
-    await Promise.resolve();
+    await completedB.promise;
     releaseA.resolve();
 
     const results = await pending;

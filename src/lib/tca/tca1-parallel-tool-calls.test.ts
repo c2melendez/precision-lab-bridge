@@ -24,7 +24,7 @@ describe("TCA-1 parallel Function Calling orchestration", () => {
       if (call.call_id === "call-alpha") {
         startedA.resolve();
         await releaseA.promise;
-        return { ok: true, result: { value: args.value } };
+        return { ok: true, result: { value: args["value"] } };
       }
       startedB.resolve();
       await releaseB.promise;

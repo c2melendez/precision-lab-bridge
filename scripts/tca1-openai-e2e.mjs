@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+import { executeParallelTca1FunctionCalls } from "../src/lib/tca/tca1-parallel-tool-calls.mjs";
+
 const READ_ONLY_TOOLS = new Set([
   "precision_lab_bridge_capabilities",
   "precision_lab_bridge_context_status",
@@ -112,13 +114,13 @@ async function main() {
           tools,
           tool_choice: (() => {
             const nextRequired = [...REQUIRED_TOOLS].find(
-              (name) => !invoked.some((item) => item.name === name),
+              (name) => !invoked.some((item) => item.name === name && item.ok),
             );
             return nextRequired
               ? { type: "function", name: nextRequired }
               : "none";
           })(),
-          parallel_tool_calls: false,
+          parallel_tool_calls: true,
           max_output_tokens: 1200,
           store: false,
         }),
@@ -143,52 +145,52 @@ async function main() {
       if (typeof call.call_id !== "string" || typeof call.arguments !== "string") {
         throw new Error("INVALID_MODEL_FUNCTION_CALL");
       }
-      let args;
-      try {
-        args = JSON.parse(call.arguments);
-      } catch {
-        throw new Error("MODEL_FUNCTION_ARGUMENTS_INVALID_JSON");
-      }
-      if (!args || typeof args !== "object" || Array.isArray(args)) {
-        throw new Error("MODEL_FUNCTION_ARGUMENTS_MUST_BE_OBJECT");
-      }
+    }
 
-      const result = await fetchJson(
-        gatewayUrl,
-        {
-          method: "POST",
-          headers: {
-            ...gatewayHeaders,
-            "content-type": "application/json",
+    const callResults = await executeParallelTca1FunctionCalls(
+      functionCalls,
+      async (call, args) => {
+        const result = await fetchJson(
+          gatewayUrl,
+          {
+            method: "POST",
+            headers: {
+              ...gatewayHeaders,
+              "content-type": "application/json",
+            },
+            body: JSON.stringify({ name: call.name, arguments: args }),
           },
-          body: JSON.stringify({ name: call.name, arguments: args }),
-        },
-        "TCA1_TOOL_CALL",
-      );
-      const serialized = JSON.stringify(result);
-      if (Buffer.byteLength(serialized, "utf8") > MAX_TOOL_OUTPUT_BYTES) {
-        throw new Error("TCA1_TOOL_OUTPUT_TOO_LARGE");
+          "TCA1_TOOL_CALL",
+        );
+        const serialized = JSON.stringify(result);
+        if (Buffer.byteLength(serialized, "utf8") > MAX_TOOL_OUTPUT_BYTES) {
+          throw new Error("TCA1_TOOL_OUTPUT_TOO_LARGE");
+        }
+        return result;
+      },
+    );
+
+    for (const callResult of callResults) {
+      if (callResult.ok) {
+        const call = functionCalls.find((item) => item.call_id === callResult.call_id);
+        if (call) invoked.push({ name: call.name, ok: true });
       }
-      if (result.ok !== true) {
-        throw new Error("TCA1_TOOL_CALL_RETURNED_ERROR");
-      }
-      invoked.push({ name: call.name, ok: true });
       input.push({
         type: "function_call_output",
-        call_id: call.call_id,
-        output: serialized,
+        call_id: callResult.call_id,
+        output: callResult.output,
       });
     }
   }
 
-  const completed = [...REQUIRED_TOOLS].every((name) => invoked.some((item) => item.name === name));
+  const completed = [...REQUIRED_TOOLS].every((name) => invoked.some((item) => item.name === name && item.ok));
   if (!completed) throw new Error("REAL_LLM_PROBE_DID_NOT_CALL_BOTH_REQUIRED_TOOLS");
 
   process.stdout.write(`${JSON.stringify({
     verified: true,
     model,
     response_id: lastResponseId,
-    transport: "OpenAI Responses API Function Calling -> TCA-1 server gateway -> Bridge",
+    transport: "OpenAI Responses API parallel Function Calling -> TCA-1 server gateway -> Bridge",
     access_mode: catalogue.access_mode,
     tool_calls: invoked,
     answer: finalText,

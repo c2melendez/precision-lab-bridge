@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from "vitest";
 import {
   handleTca1FunctionGatewayRequest,
@@ -9,8 +10,8 @@ const TOKEN = "tca1-gateway-concurrency-test-token-012345";
 const BASE = "https://bridge.example.test/api/tca1/functions";
 
 function deferred() {
-  let resolve;
-  const promise = new Promise((done) => { resolve = done; });
+  let resolve!: () => void;
+  const promise = new Promise<void>((done) => { resolve = done; });
   return { promise, resolve };
 }
 

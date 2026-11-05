@@ -1,8 +1,7 @@
 /**
  * Execute one provider response's function calls concurrently.
- * Results are returned in input order and retain their original call_id,
- * even when handlers settle out of order. A failed call becomes a safe,
- * per-call output so successful sibling results are not discarded.
+ * Results preserve input order and call_id correlation. Failed calls become
+ * safe per-call outputs so successful sibling results are never discarded.
  */
 export async function executeParallelTca1FunctionCalls(functionCalls, invoke) {
   if (!Array.isArray(functionCalls) || typeof invoke !== "function") {
@@ -32,8 +31,7 @@ export async function executeParallelTca1FunctionCalls(functionCalls, invoke) {
   }));
 
   return settled.map((outcome, index) => {
-    const call = functionCalls[index];
-    const callId = call?.call_id;
+    const callId = functionCalls[index]?.call_id;
     if (outcome.status === "fulfilled") return outcome.value;
     return {
       call_id: callId,

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { executeParallelTca1FunctionCalls } from "./tca1-parallel-tool-calls.mjs";
+import { executeParallelTca1FunctionCalls } from "../src/lib/tca/tca1-parallel-tool-calls.mjs";
 
 const READ_ONLY_TOOLS = new Set([
   "precision_lab_bridge_capabilities",

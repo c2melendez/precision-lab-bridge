@@ -1,7 +1,7 @@
 {
   "protocol_version": "cb-web-ui-batch-v1.2",
   "audit_version": "1.0",
-  "audit_date": "2026-11-03",
+  "audit_date": "2026-11-04",
   "audit_status": "STRUCTURAL_SOURCE_MAP_COMPLETE_PROVENANCE_OPEN",
   "repository": {
     "full_name": "c2melendez/precision-lab-bridge",
@@ -391,14 +391,15 @@
       "Gemini Web": 45
     },
     "csv_rows_by_status": {
-      "PASS": 31,
-      "PASS_PARTIAL": 34,
+      "PASS": 32,
+      "PASS_PARTIAL": 36,
       "INVALID_RUN_FORMAT": 5,
-      "NOT_SCORED_PRE_CRITICAL": 3,
       "CRITICAL": 1,
-      "BLOCKED_AFTER_CRITICAL": 11
+      "EXECUTED_AFTER_CRITICAL_UNSCORED": 11
     },
-    "scoring_recomputed_or_changed": false
+    "scoring_recomputed_or_changed": false,
+    "status_counts_synchronized_with_csv": true,
+    "scoring_note": "This metadata synchronization does not change score values. The CSV already contains the prior adjudication updates: Qwen Batch B CB10=2/3/2 (49/60) and Gemini post-CRITICAL responses marked EXECUTED_AFTER_CRITICAL_UNSCORED."
   },
   "observed_incidents": [
     {
@@ -408,7 +409,7 @@
       "observed_value": true,
       "following_case_id": "CB9",
       "following_case_state": "ANSWERED",
-      "adjudication": "CRITICAL stop; CB9 is not scored as a normal answered case."
+      "adjudication": "CB10 is CRITICAL and stops the Gemini campaign. The following CB9 raw response is ANSWERED and is classified EXECUTED_AFTER_CRITICAL_UNSCORED; it is not scored and must not be represented as an actually blocked response."
     }
   ],
   "unresolved_traceability_fields": [
@@ -421,7 +422,7 @@
     "Tool/search settings at execution time."
   ],
   "attribution_rule": "The file has no structured model_label, repetition, timestamp, UI URL, chat ID, or evidence_ref fields. Interstitial Todo labels are retained as text markers, not treated as a complete source-to-attempt join.",
-  "closeout_decision": "M3 remains partial: raw-envelope structure and CSV integrity are auditable, but model/repetition provenance is not closed.",
+  "closeout_decision": "M3 remains partial: raw-envelope structure and CSV integrity are auditable, but model/repetition provenance is not closed. CSV status counts are synchronized with the current CSV; original-chat provenance remains open.",
   "adjudication_reconciliation": {
     "date": "2026-11-03",
     "source": "Conversation excerpt pasted by the user, cross-checked against raw Resuktados.json and the official rubric.",
@@ -488,8 +489,8 @@
     "external_reference": {
       "path": "src/test/Chats.pdf",
       "branch": "main",
-      "blob_sha": "690f511e83f385c75f740b5842eac5db50bbf289",
-      "status": "Located but PDF bytes were not rendered in this session; the user-pasted transcript excerpt was reviewed as separate supplied evidence."
+      "blob_sha": "d60822c2abcb979e8533323a05b14dcc88dab76a",
+      "status": "Located on main; current GitHub file reference SHA verified. The connector did not return readable PDF bytes, so original chat contents remain uninspected."
     }
   }
 }

@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { createServer } from "node:http";
 import { Tca1BridgeError } from "./bridge-client.server";
 import {
   handleTca1FunctionGatewayRequest,
@@ -43,6 +44,14 @@ function request(
     headers,
     ...(options.body === undefined ? {} : { body: options.body }),
   });
+}
+
+function deferred() {
+  let resolve!: () => void;
+  const promise = new Promise<void>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
 }
 
 describe("TCA-1 Function Calling gateway", () => {
@@ -167,6 +176,127 @@ describe("TCA-1 Function Calling gateway", () => {
     );
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ ok: false, error: "BRIDGE_AUTH_FAILED" });
+  });
+
+  it("PT-03: handles two independent HTTP POST requests concurrently and isolates results", async () => {
+    const release = deferred();
+    const bothStarted = deferred();
+    const started: string[] = [];
+    let active = 0;
+    let peakActive = 0;
+
+    const controlledHandler = (label: string) => async (input: unknown) => {
+      started.push(label);
+      active += 1;
+      peakActive = Math.max(peakActive, active);
+      if (started.length === 2) bothStarted.resolve();
+      try {
+        await release.promise;
+        return { label, input };
+      } finally {
+        active -= 1;
+      }
+    };
+
+    const adapter = createAdapter({
+      precision_lab_bridge_capabilities: controlledHandler("capabilities"),
+      precision_lab_bridge_context_status: controlledHandler("context_status"),
+    });
+    let origin = "";
+    const server = createServer(async (incoming, outgoing) => {
+      try {
+        const chunks: Buffer[] = [];
+        for await (const chunk of incoming) {
+          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+        }
+        const headers = new Headers();
+        for (const [name, value] of Object.entries(incoming.headers)) {
+          if (typeof value === "string") headers.set(name, value);
+          else if (Array.isArray(value)) headers.set(name, value.join(", "));
+        }
+        const gatewayRequest = new Request(new URL(incoming.url ?? "/", origin), {
+          method: incoming.method ?? "GET",
+          headers,
+          ...(chunks.length > 0 ? { body: Buffer.concat(chunks).toString("utf8") } : {}),
+        });
+        const response = await handleTca1FunctionGatewayRequest(
+          gatewayRequest,
+          dependencies(adapter),
+        );
+        outgoing.statusCode = response.status;
+        response.headers.forEach((value, name) => outgoing.setHeader(name, value));
+        outgoing.end(Buffer.from(await response.arrayBuffer()));
+      } catch {
+        outgoing.statusCode = 500;
+        outgoing.end();
+      }
+    });
+
+    await new Promise<void>((resolve, reject) => {
+      server.once("error", reject);
+      server.listen(0, "127.0.0.1", () => resolve());
+    });
+    const address = server.address();
+    if (!address || typeof address === "string") {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+      throw new Error("PT-03 test server did not expose a TCP address");
+    }
+    origin = `http://127.0.0.1:${address.port}`;
+
+    const invoke = (name: string, marker: string) => fetch(
+      `${origin}/api/tca1/functions`,
+      {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${TOKEN}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ name, arguments: { request_marker: marker } }),
+      },
+    );
+
+    try {
+      const first = invoke("precision_lab_bridge_capabilities", "call-A");
+      const second = invoke("precision_lab_bridge_context_status", "call-B");
+      let overlapObserved = false;
+      let timeout: ReturnType<typeof setTimeout> | undefined;
+      try {
+        await Promise.race([
+          bothStarted.promise,
+          new Promise<never>((_, reject) => {
+            timeout = setTimeout(
+              () => reject(new Error("The second HTTP invocation did not overlap the first")),
+              1500,
+            );
+          }),
+        ]);
+        overlapObserved = true;
+      } catch {
+        overlapObserved = false;
+      } finally {
+        if (timeout) clearTimeout(timeout);
+        release.resolve();
+      }
+
+      const [responseA, responseB] = await Promise.all([first, second]);
+      expect(overlapObserved).toBe(true);
+      expect(peakActive).toBe(2);
+      expect(started).toHaveLength(2);
+      expect(new Set(started)).toEqual(new Set(["capabilities", "context_status"]));
+      expect(responseA.status).toBe(200);
+      expect(responseB.status).toBe(200);
+      await expect(responseA.json()).resolves.toEqual({
+        ok: true,
+        result: { label: "capabilities", input: { request_marker: "call-A" } },
+      });
+      await expect(responseB.json()).resolves.toEqual({
+        ok: true,
+        result: { label: "context_status", input: { request_marker: "call-B" } },
+      });
+    } finally {
+      release.resolve();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
   });
 
   it("fails closed when the gateway credential is missing or too short", async () => {

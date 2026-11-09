@@ -25,6 +25,9 @@ export function validateTrigger(input: Record<string, unknown>):
   if (!(t in TARGETS)) return { ok: false, error: "target_repo must be lite, plus or both" };
   const g = typeof input["gate"] === "string" ? input["gate"].trim().toLowerCase() : "";
   if (!(GATES as readonly string[]).includes(g)) return { ok: false, error: "gate must be cumulative, h1d or security" };
+  if (g === "security" && t !== "lite") {
+    return { ok: false, error: "security gate is only available for lite; plus and both are blocked by the current S19 policy" };
+  }
   const d = parseBool(input["dry_run"]);
   if (d === null) return { ok: false, error: "dry_run must be true or false" };
   return { ok: true, params: { target_repo: t as Target, gate: g as Gate, dry_run: d } };

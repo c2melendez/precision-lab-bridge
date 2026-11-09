@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { createKey, listAdmin, revokeKey } from "@/lib/bridge/admin.functions";
+import { createKey, createTca1Key, listAdmin, revokeKey } from "@/lib/bridge/admin.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -20,17 +20,26 @@ export const Route = createFileRoute("/")({
 });
 
 type Data = Awaited<ReturnType<typeof listAdmin>>;
+type Tca1Created = Awaited<ReturnType<typeof createTca1Key>>;
+
+const AVAILABLE_SCOPES = ["read", "dispatch", "context:read", "command:submit", "command:read"] as const;
 
 function Admin() {
   const list = useServerFn(listAdmin);
   const create = useServerFn(createKey);
+  const createTca1 = useServerFn(createTca1Key);
   const revoke = useServerFn(revokeKey);
   const [password, setPassword] = useState("");
   const [data, setData] = useState<Data | null>(null);
   const [err, setErr] = useState("");
   const [label, setLabel] = useState("llm");
   const [days, setDays] = useState(30);
+  const [scopes, setScopes] = useState<Array<(typeof AVAILABLE_SCOPES)[number]>>(["read"]);
   const [fresh, setFresh] = useState("");
+  const [tca1Label, setTca1Label] = useState("tca1-consumer");
+  const [tca1TtlMinutes, setTca1TtlMinutes] = useState(60);
+  const [tca1AccessMode, setTca1AccessMode] = useState<"read" | "submit">("read");
+  const [freshTca1, setFreshTca1] = useState<Tca1Created | null>(null);
 
   const load = async () => {
     setErr("");
@@ -57,15 +66,99 @@ function Admin() {
     <main className="mx-auto max-w-5xl space-y-8 p-8 font-mono text-sm">
       <h1 className="text-xl font-bold">Precision Lab Bridge</h1>
 
+      <section className="space-y-3 rounded border border-border p-4">
+        <h2 className="font-semibold">Temporary TCA-1 consumer key</h2>
+        <p className="text-xs text-muted-foreground">
+          Short-lived key for one consumer. The raw value is shown once; copy it directly into that host's secret manager, never into an LLM prompt.
+        </p>
+        <div className="flex flex-wrap items-center gap-3">
+          <Input
+            value={tca1Label}
+            onChange={(e) => setTca1Label(e.target.value)}
+            placeholder="tca1-consumer-id"
+            aria-label="TCA-1 consumer label"
+          />
+          <Input
+            type="number"
+            min={5}
+            max={1440}
+            className="w-28"
+            value={tca1TtlMinutes}
+            onChange={(e) => setTca1TtlMinutes(Number(e.target.value))}
+            aria-label="TCA-1 TTL in minutes"
+          />
+          <span className="self-center text-muted-foreground">minutes (5–1440)</span>
+          <select
+            aria-label="TCA-1 access mode"
+            className="h-10 rounded border border-input bg-background px-3"
+            value={tca1AccessMode}
+            onChange={(e) => setTca1AccessMode(e.target.value as "read" | "submit")}
+          >
+            <option value="read">Read only — context:read</option>
+            <option value="submit">Submit — context:read + command:submit + command:read</option>
+          </select>
+          <Button
+            onClick={async () => {
+              setErr("");
+              setFreshTca1(null);
+              try {
+                const created = await createTca1({
+                  data: {
+                    password,
+                    label: tca1Label,
+                    ttlMinutes: tca1TtlMinutes,
+                    accessMode: tca1AccessMode,
+                  },
+                });
+                setFreshTca1(created);
+                await load();
+              } catch (e) {
+                setErr(e instanceof Error ? e.message : "TCA1_KEY_CREATE_FAILED");
+              }
+            }}
+          >
+            Create temporary key
+          </Button>
+        </div>
+        {freshTca1 && (
+          <div className="rounded border border-border bg-muted p-3">
+            <p className="mb-1 text-muted-foreground">Shown only once — store it securely now:</p>
+            <code className="break-all">{freshTca1.key}</code>
+            <p className="mt-2 text-xs text-muted-foreground">
+              ID: {freshTca1.key_id} · Scopes: {freshTca1.scopes.join(", ")} · Expires: {new Date(freshTca1.expires_at).toLocaleString()}
+            </p>
+            <Button size="sm" variant="outline" onClick={() => setFreshTca1(null)}>
+              Clear key from view
+            </Button>
+          </div>
+        )}
+      </section>
+
       <section className="space-y-3">
         <h2 className="font-semibold">New key</h2>
         <div className="flex gap-2">
           <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Label" />
           <Input type="number" className="w-28" value={days} onChange={(e) => setDays(Number(e.target.value))} />
           <span className="self-center text-muted-foreground">days</span>
+          <fieldset aria-label="Key permissions" className="flex flex-wrap items-center gap-3">
+            <legend className="sr-only">Key permissions</legend>
+            {AVAILABLE_SCOPES.map((scope) => (
+              <label key={scope} className="flex items-center gap-1 whitespace-nowrap">
+                <input
+                  type="checkbox"
+                  checked={scopes.includes(scope)}
+                  disabled={scopes.length === 1 && scopes.includes(scope)}
+                  onChange={(e) => setScopes((current) =>
+                    e.target.checked ? [...current, scope] : current.filter((item) => item !== scope),
+                  )}
+                />
+                {scope}
+              </label>
+            ))}
+          </fieldset>
           <Button
             onClick={async () => {
-              const r = await create({ data: { password, label, days } });
+              const r = await create({ data: { password, label, days, scopes } });
               setFresh(r.key);
               load();
             }}
@@ -84,12 +177,13 @@ function Admin() {
       <section>
         <h2 className="mb-2 font-semibold">Keys</h2>
         <table className="w-full text-left">
-          <thead className="text-muted-foreground"><tr><th>Label</th><th>Prefix</th><th>Expires</th><th>Last used</th><th></th></tr></thead>
+          <thead className="text-muted-foreground"><tr><th>Label</th><th>Prefix</th><th>Scopes</th><th>Expires</th><th>Last used</th><th></th></tr></thead>
           <tbody>
             {data.keys.map((k) => (
               <tr key={k.id} className="border-t border-border">
                 <td>{k.label}</td>
                 <td>{k.key_prefix}…</td>
+                <td>{Array.isArray(k.scopes) ? k.scopes.join(", ") : "read (legacy default)"}</td>
                 <td>{new Date(k.expires_at).toLocaleDateString()}</td>
                 <td>{k.last_used_at ? new Date(k.last_used_at).toLocaleString() : "—"}</td>
                 <td>

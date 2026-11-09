@@ -27,7 +27,7 @@ async function reconcileRunning(record: {
   id: string;
   state: string;
   gh_runs: unknown;
-}): Promise<{ state: string; outcomeState: string | null; runs: RunResult[] | null }> {
+}, keyId: string): Promise<{ state: string; outcomeState: string | null; runs: RunResult[] | null }> {
   const stored = record.gh_runs as unknown as GhRun[];
   if (!Array.isArray(stored) || stored.length === 0 || stored.some((r) => !r?.run_id)) {
     return { state: record.state, outcomeState: null, runs: null };
@@ -59,7 +59,7 @@ async function reconcileRunning(record: {
       updated_at: new Date().toISOString(),
       finished_at: new Date().toISOString(),
     })
-    .eq("id", record.id).eq("state", "RUNNING").select("state").maybeSingle();
+    .eq("id", record.id).eq("key_id", keyId).eq("state", "RUNNING").select("state").maybeSingle();
   if (error) return { state: record.state, outcomeState: null, runs: results };
   // Another writer may have finished it first; only adopt the final state if our
   // conditional update actually landed.
@@ -77,11 +77,14 @@ export async function lookupRequest(key: string | null, idempotencyKey: string |
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(key));
   const keyHash = [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
   const { data: credential, error: keyError } = await supabaseAdmin.from("bridge_keys")
-    .select("id, expires_at, revoked_at").eq("key_hash", keyHash).maybeSingle();
+    .select("id, expires_at, revoked_at, scopes").eq("key_hash", keyHash).maybeSingle();
   if (keyError) return { status: 503, body: { error: "STATUS_STORE_UNAVAILABLE" } };
   const expiresAt = credential ? Date.parse(credential.expires_at) : NaN;
   if (!credential || credential.revoked_at || !Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
     return { status: 401, body: { error: "invalid, expired or revoked key" } };
+  }
+  if (!Array.isArray(credential.scopes) || !credential.scopes.includes("read")) {
+    return { status: 403, body: { error: "insufficient_scope", required_scope: "read" } };
   }
   if (!idempotencyKey || !/^[A-Za-z0-9._:-]{1,200}$/.test(idempotencyKey)) {
     return { status: 400, body: { error: "Idempotency-Key is required (1–200 letters, numbers, . _ : -)" } };
@@ -98,7 +101,7 @@ export async function lookupRequest(key: string | null, idempotencyKey: string |
   let outcomeState = record.outcome_state as string | null;
   let runs = record.gh_runs;
   if (state === "RUNNING") {
-    const reconciled = await reconcileRunning(record);
+    const reconciled = await reconcileRunning(record, credential.id);
     state = reconciled.state;
     if (reconciled.outcomeState) outcomeState = reconciled.outcomeState;
     if (reconciled.runs) runs = reconciled.runs as never;
